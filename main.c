@@ -34,9 +34,11 @@
 
 extern getpixelrow(float *pixelv);
 
-#define CHA_OFFSET  86
-#define CHB_OFFSET  1126	 
-#define CH_WIDTH  909	 
+#define SYNC_WIDTH 39
+#define SPC_WIDTH 47
+#define TELE_WIDTH 45
+#define CH_WIDTH  909 
+#define CH_OFFSET  (SYNC_WIDTH+SPC_WIDTH+CH_WIDTH+TELE_WIDTH) 
 #define IMG_WIDTH  2080
 
 static SNDFILE *inwav;
@@ -124,10 +126,10 @@ for(n=0;n<nrow;n++) {
 		pv=pixelv[i+offset];
 		switch(depth) {
 		case 8 :
-			pixel[i]=(png_byte)pv;
+			pixel[i]=floor(pv);
 			break;
 		case 16 :
-			((unsigned short*)pixel)[i]=htons((unsigned short)(pv*255.0));
+			((unsigned short*)pixel)[i]=htons((unsigned short)floor(pv*255.0));
 			break;
 		}
 	}
@@ -191,8 +193,8 @@ for(n=0;n<nrow;n++) {
 		double v,t;
 		float r,g,b;
 
-		v=pixelv[i+CHA_OFFSET];
-		t=pixelv[i+CHB_OFFSET];
+		v=pixelv[i+SYNC_WIDTH+SPC_WIDTH];
+		t=pixelv[i+CH_OFFSET+SYNC_WIDTH+SPC_WIDTH];
 		falsecolor(v,t,&r,&g,&b);
 		pixel[i].red=( unsigned int)(255.0*r);
 		pixel[i].green=( unsigned int)(255.0*g);
@@ -224,10 +226,10 @@ for(n=0;n<nrow;n++) {
         int     i;
 
         pixelv=prow[n];
-        for(i=0;i<909;i++) {
+        for(i=0;i<CH_WIDTH;i++) {
 
-                y=(int)(pixelv[i+CHA_OFFSET]);
-                x=(int)(pixelv[i+CHB_OFFSET]);
+                y=(int)(pixelv[i+SYNC_WIDTH+SPC_WIDTH]);
+                x=(int)(pixelv[i+CH_OFFSET+SYNC_WIDTH+SPC_WIDTH]);
                 distrib[y][x]+=1;
 		if(distrib[y][x]> max) max=distrib[y][x];
         }
@@ -236,7 +238,7 @@ df=fopen(filename,"w");
 
 printf("Writing %s\n",filename);fflush(stdout);
 
-fprintf(df,"P2\n#max %d\n",max);
+fprintf(df,"P2\n");
 fprintf(df,"256 256\n255\n");
 for(y=0;y<256;y++)
 	for(x=0;x<256;x++)
@@ -254,7 +256,7 @@ int satnum=1;
 static void usage(void)
 {
 	fprintf(stderr,"atpdec [options] soundfiles ...\n");
-	fprintf(stderr,"options:\n-d <dir>\tDestination directory\n-i [a|b|c|t]\tOutput image type r: Raw a: A chan. b: B chan. c: False color t: Temperature\n-c <file>\tFalse color config file\n-p\t\t16bits output\n-s [0|1]\tSatellite number\n");
+	fprintf(stderr,"options:\n-d <dir>\tDestination directory\n-i [a|b|c|t]\tOutput image type\n\t\t\tr: Raw\n\t\t\ta: A chan.\n\t\t\tb: B chan.\n\t\t\tc: False color\n\t\t\tt: Temperature\n-c <file>\tFalse color config file\n-p\t\t16bits output\n-s [0|1]\tSatellite id (for temperature and false color generation)\n\t\t\t0:NOAA15\n\t\t\t1:NOAA17\n");
 }
 
 main(int argc, char **argv)
@@ -335,31 +337,31 @@ ImageOut(pngfilename,"raw",prow,nrow,depth,IMG_WIDTH,0);
 
 /* Channel A */
 if(((strchr(imgopt,(int)'a')!=NULL) || (strchr(imgopt,(int)'c')!=NULL) || (strchr(imgopt,(int)'d')!=NULL))) {
-	ch=Calibrate(prow,nrow,CHA_OFFSET);
-	if(ch>0) {
-		a=1;
+	ch=Calibrate(prow,nrow,SYNC_WIDTH);
+	if(ch>=0) {
 		if(strchr(imgopt,(int)'a')!=NULL) {
 		sprintf(pngfilename,"%s/%s-%s.png",pngdirname,name,chid[ch]);
-		ImageOut(pngfilename,chid[ch],prow,nrow,depth,CH_WIDTH,CHA_OFFSET);
+		ImageOut(pngfilename,chid[ch],prow,nrow,depth,SPC_WIDTH+CH_WIDTH+TELE_WIDTH,SYNC_WIDTH);
 		}
 	}
+	if(ch<2) a=1;
 }
 
 /* Channel B */
-if((strchr(imgopt,(int)'b')!=NULL) || (strchr(imgopt,(int)'c')!=NULL) || (strchr(imgopt,(int)'t')!=NULL)) {
-	ch=Calibrate(prow,nrow,CHB_OFFSET);
-	if(ch>0) {
+if((strchr(imgopt,(int)'b')!=NULL) || (strchr(imgopt,(int)'c')!=NULL) || (strchr(imgopt,(int)'t')!=NULL) || (strchr(imgopt,(int)'d')!=NULL)) {
+	ch=Calibrate(prow,nrow,CH_OFFSET+SYNC_WIDTH);
+	if(ch>=0) {
 		if(strchr(imgopt,(int)'b')!=NULL) {
 			sprintf(pngfilename,"%s/%s-%s.png",pngdirname,name,chid[ch]);
-			ImageOut(pngfilename,chid[ch],prow,nrow,depth,CH_WIDTH,CHB_OFFSET);
+			ImageOut(pngfilename,chid[ch],prow,nrow,depth,SPC_WIDTH+CH_WIDTH+TELE_WIDTH,CH_OFFSET+SYNC_WIDTH);
 		}
 	}
 	if(ch>2) {
 		b=1;
-		Temperature(prow,nrow,ch,CHB_OFFSET);
+		Temperature(prow,nrow,ch,CH_OFFSET+SYNC_WIDTH);
 		if(strchr(imgopt,(int)'t')!=NULL) {
 			sprintf(pngfilename,"%s/%s-t.png",pngdirname,name);
-			ImageOut(pngfilename,"Temperature", prow,nrow,depth,CH_WIDTH,CHB_OFFSET);
+			ImageOut(pngfilename,"Temperature", prow,nrow,depth,CH_WIDTH,CH_OFFSET+SYNC_WIDTH+SPC_WIDTH);
 		}
 	}
 }
