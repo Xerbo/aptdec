@@ -48,7 +48,8 @@ static void HSVtoRGB( float *r, float *g, float *b, hsvpix_t pix )
 }
 
 static struct  {
-float Vthresold;
+float Seathresold;
+float Landthresold;
 float Tthresold;
 hsvpix_t CloudTop;
 hsvpix_t CloudBot;
@@ -58,10 +59,11 @@ hsvpix_t GroundTop;
 hsvpix_t GroundBot;
 } fcinfo= {
 	30.0,	
-	170.0,
-	{0,0.0,0.3},{0,0.0,1.0},
-	{240.0,0.9,0.5},{220.0,0.8,0.8},
-	{90.0,0.8,0.3},{50.0,0.8,1.0}
+	90.0,	
+	100.0,
+	{230,0.2,0.3},{230,0.0,1.0},
+	{200.0,0.7,0.6},{240.0,0.6,0.4},
+	{60.0,0.6,0.2},{100.0,0.0,0.5}
 };
 
 void readfconf(char *file)
@@ -71,7 +73,8 @@ FILE * fin;
 fin=fopen(file,"r");
 if(fin==NULL) return;
 
-fscanf(fin,"%g\n",&fcinfo.Vthresold);
+fscanf(fin,"%g\n",&fcinfo.Seathresold);
+fscanf(fin,"%g\n",&fcinfo.Landthresold);
 fscanf(fin,"%g\n",&fcinfo.Tthresold);
 fscanf(fin,"%g %g %g\n",&fcinfo.CloudTop.h,&fcinfo.CloudTop.s,&fcinfo.CloudTop.v);
 fscanf(fin,"%g %g %g\n",&fcinfo.CloudBot.h,&fcinfo.CloudBot.s,&fcinfo.CloudBot.v);
@@ -89,28 +92,28 @@ void falsecolor(double v, double t, float *r, float *g, float *b)
 hsvpix_t top,bot,c;
 double scv,sct;
 
-if(v <= fcinfo.Vthresold) {
-	/* sea */
-	top=fcinfo.SeaTop,bot=fcinfo.SeaBot;
-	scv=v/fcinfo.Vthresold;
-	sct=t/255.0;
-} else  {
-	if(t<=fcinfo.Tthresold) {
-		/* clouds */
-		top=fcinfo.CloudTop,bot=fcinfo.CloudBot;
-		scv=(v-fcinfo.Vthresold)/(255.0-fcinfo.Vthresold);
+if(t<fcinfo.Tthresold)  {
+	if(v < fcinfo.Seathresold) {
+		/* sea */
+		top=fcinfo.SeaTop,bot=fcinfo.SeaBot;
+		scv=v/fcinfo.Seathresold;
 		sct=t/fcinfo.Tthresold;
-	} else {
+	} else  {
 		/* ground */
 		top=fcinfo.GroundTop,bot=fcinfo.GroundBot;
-		scv=(v-fcinfo.Vthresold)/(255.0-fcinfo.Vthresold);
-		sct=(t-fcinfo.Tthresold)/(255.0-fcinfo.Tthresold);
+		scv=(v-fcinfo.Seathresold)/(fcinfo.Landthresold-fcinfo.Seathresold);
+		sct=t/fcinfo.Tthresold;
 	}
-};
+ } else {
+	/* clouds */
+	top=fcinfo.CloudTop,bot=fcinfo.CloudBot;
+	scv=v/255.0;
+	sct=t/255.0;
+	}
 
-c.h=top.h+sct*(bot.h-top.h);
+c.s=top.s+sct*(bot.s-top.s);
 c.v=top.v+scv*(bot.v-top.v);
-c.s=top.s+scv*sct*(bot.s-top.s);
+c.h=top.h+scv*sct*(bot.h-top.h);
 
 HSVtoRGB( r, g, b, c );
 };
