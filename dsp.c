@@ -110,7 +110,7 @@ int	n;
 		}
 
 		mult=(double)Fi*fr/2400.0*FreqLine;
-		pvbuff[n]=rsfir(&(ambuff[idxam]),rsfilter,RSFilterLen,offset,mult)*mult*2*256.0;
+		pvbuff[n]=rsfir(&(ambuff[idxam]),rsfilter,RSFilterLen,offset,mult)*mult*3*256.0;
 
 		shift=(int)((RSMULT-offset+mult-1)/mult);
 		offset=shift*mult+offset-RSMULT;
@@ -133,10 +133,10 @@ int n,res;
    if(npv>0)
 	memmove(pixelv,pixels,npv*sizeof(float));
 
-   if(npv<SyncFilterLen) {
-	res=getpixelv(&(pixelv[npv]),SyncFilterLen-npv);
+   if(npv<SyncFilterLen+2) {
+	res=getpixelv(&(pixelv[npv]),SyncFilterLen+2-npv);
 	npv+=res;
-   	if(npv<SyncFilterLen)
+   	if(npv<SyncFilterLen+2)
 		return(0);
    }
 
