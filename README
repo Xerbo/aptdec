@@ -1,5 +1,5 @@
 
-ATPDEC README (Thierry Leconte 2003)
+ATPDEC README (Thierry Leconte 2004)
 
 DESCRIPTION
 
@@ -21,8 +21,7 @@ and synchro pulses.
     2. Calibrated channel A image
     3. Calibrated channel B image
     4. Temperature compensed I.R image
-    5. False color image
-    6. pixel distribution statistique (usefull for false color parameter debugging).
+    5. double resolution False color image
 
 Input soundfiles must be mono signal sampled at 11025 Hz.
 Atpdec use libsndfile to read soundfile, so any sound file format supported by libsndfile
@@ -44,9 +43,9 @@ atpdec [options] soundfiles ...
 
 OPTIONS
 
-	-i [r|a|b|c|t|d]
+	-i [r|a|b|c|t]
 	Toggle raw (r) , channel A (a) , channel B (b) , false color (c) ,
-	temperature (t) or pixel distrubution (d) output.
+	or temperature (t) output.
 	Default : "ac"
 
 	-d directory
@@ -62,19 +61,15 @@ OPTIONS
 	Use configuration file for false color generation.
 	Default : Internal parameters.
 
-	-p 
-	Output 16bits grayscale image for channel A|B and raw images.
-
 OUTPUT
 
-Generated image are in png format, 16 or 8bits greyscale for raw and channel A|B images,
+Generated image are in png format, 8bits greyscale for raw and channel A|B images,
 24bits RVB for false color.
 
 Image names are soundfilename-x.png, where x is :
         -r for raw images
         -satellite instrument number (1,2,3A,3B,4,5) for channel A|B images
         -c for false colors.
-	-d for pixel distribution stats.
 
 EXAMPLE
 
