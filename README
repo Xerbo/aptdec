@@ -2,24 +2,25 @@
 ATPDEC README (Thierry Leconte 2003)
 
 DESCRIPTION
-Atpdec is a open source program that decode images transmitted by POES
-NOAA weather satellite serie.
-These satellites transmit continuously, among other things, medium resolution images
-of the earth on 137Mhz.
-These transmitions could be easely received with
-an inexpensive antenna and dedicated receiver.
-Output from such a receiver, is an audio signal that could be recorded
+
+Atpdec is an open source program that decodes images transmitted by POES 
+NOAA weather satellite series.
+These satellites transmit continuously, among other things, medium 
+resolution images of the earth on 137Mhz.
+These transmissions could be easily received with an inexpensive antenna 
+and dedicated receiver.
+Output from such a receiver, is an audio signal that could be recorded 
 into a soundfile with any soundcard.
 
 Atpdec will convert these sounfiles into .png images.
 
 For each soundfile up to 4 images could be generated :
-1) Raw image : contains the 2 transmitted channel images  + telemetry and synchro pulses.
-	Raw image is not calibrated, so it could be too dark or too light depending of
-	the recording level.
-2) Calibrated channel A image
-3) Calibrated channel B image
-4) False color image
+
+    1. Raw image : contains the 2 transmitted channel images + telemetry 
+and synchro pulses.
+    2. Calibrated channel A image
+    3. Calibrated channel B image
+    4. False color image
 
 Input soundfiles must be mono signal sampled at 11025 Hz.
 Atpdec use libsnd to read soundfile, so any sound file format supported by libsnd
