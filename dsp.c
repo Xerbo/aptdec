@@ -118,7 +118,7 @@ int	n;
 		}
 
 		mult=(double)Fi*fr/Fc*FreqLine;
-		pvbuff[n]=rsfir(&(ambuff[idxam]),rsfilter,RSFilterLen,offset,mult)*mult*3*256.0;
+		pvbuff[n]=rsfir(&(ambuff[idxam]),rsfilter,RSFilterLen,offset,mult)*mult*2*256.0;
 
 		shift=(int)((RSMULT-offset+mult-1)/mult);
 		offset=shift*mult+offset-RSMULT;
