@@ -32,8 +32,8 @@ double cf[REGORDER+1] ;
 
 static void rgcomp(double x[16], rgparam *rgpr)
 {
-/* 0.106,0.215,0.324,0.434,0.542,0.652,0.78,0.87 ,0.0 */
-const double y[9] = { 31.1,63.0,95.0,127.2,158.9,191.1,228.6,255.0, 0.0 }; 
+/*{ 0.106,0.215,0.324,0.434,0.542,0.652,0.78,0.87 ,0.0 }; */
+const double y[9] = { 31.1,63.0,95.0,127.2,158.9,191.1,228.6,255.0, 0.0 };
 extern void polyreg(const int m,const int n,const double x[],const double y[],double c[]);
 
 polyreg(REGORDER,9,x,y,rgpr->cf);
@@ -53,12 +53,14 @@ return(y);
 
 
 static double tele[16];
+static double Cs;
 static nbtele;
 
 int Calibrate(float **prow,int nrow,int offset)
 {
 
 double teleline[3000];
+double csline[3000];
 double wedge[16];
 rgparam regr[30];
 int n;
@@ -75,9 +77,13 @@ for(n=0;n<nrow;n++) {
 	int i;
 
 	teleline[n]=0.0;
-	for(i=3;i<43;i++)
+	csline[n]=0.0;
+	for(i=3;i<43;i++) {
 		teleline[n]+=prow[n][i+offset+909];
+		csline[n]+=prow[n][i+offset-50];
+	}
 	teleline[n]/=40;
+	csline[n]/=40;
 }
 
 if(nrow<192) {
@@ -118,14 +124,28 @@ for(n=telestart,k=0;n<nrow-128;n+=128,k++) {
 	rgcomp(wedge,&(regr[k]));
 
 	if (k==1) {
+		int i;
+
 		/* channel ID */
 		for(j=0,max=10000.0,channel=-1;j<6;j++) {
 			float df;
 			df=wedge[15]-wedge[j]; df=df*df;
 			if (df<max) { channel=j; max=df; }
 		}
+
+		/* telemetry computation */
 		for(j=0;j<16;j++)
 			tele[j]=rgcal(wedge[j],&(regr[k]));
+
+		/* Cs computation */
+		Cs=0.0;i=0;
+		for(j=n;j<n+128;j++) 
+			if(csline[j]>50.0) {
+				Cs+=csline[j];
+				i++;
+		}
+		Cs/=128;
+		Cs=rgcal(Cs,&(regr[k]));
 	}
 }
 nbtele=k;
@@ -205,7 +225,7 @@ int n;
 	for (n=0;n<4;n++) {
 		float d0,d1,d2;
 
-		C=t[9+n]*4;
+		C=t[9+n]*4.0;
 		d0=satcal[satnum].d[n][0];
 		d1=satcal[satnum].d[n][1];
 		d2=satcal[satnum].d[n][2];
@@ -220,7 +240,7 @@ int n;
 	C=satcal[satnum].rad[tpr->ch].vc;
 	tpr->Nbb=c1*C*C*C/(exp(c2*C/Tbb)-1.0);
 	/* store Count Blackbody and space */
-	tpr->Cs=1023; /* don't know how to get it in the APT telemetry any idea ? */
+	tpr->Cs=Cs*4.0;
 	tpr->Cb=t[14]*4.0;
 }
 
@@ -246,6 +266,7 @@ double T,vc;
 
 	return(T);
 }
+
 int Temperature(float **prow,int nrow,int channel,int offset)
 {
 tempparam temp;
