@@ -32,8 +32,8 @@ double cf[REGORDER+1] ;
 
 static void rgcomp(double x[16], rgparam *rgpr)
 {
-/*{ 0.106,0.215,0.324,0.434,0.542,0.652,0.78,0.87 ,0.0 }; */
-const double y[9] = { 31.1,63.0,95.0,127.2,158.9,191.1,228.6,255.0, 0.0 };
+/*{ 0.106,0.215,0.324,0.433,0.542,0.652,0.78,0.87 ,0.0 }; */
+const double y[9] = { 31.07,63.02,94.96,126.9,158.86,191.1,228.62,255.0, 0.0 };
 extern void polyreg(const int m,const int n,const double x[],const double y[],double c[]);
 
 polyreg(REGORDER,9,x,y,rgpr->cf);
@@ -60,7 +60,6 @@ int Calibrate(float **prow,int nrow,int offset)
 {
 
 double teleline[3000];
-double csline[3000];
 double wedge[16];
 rgparam regr[30];
 int n;
@@ -77,13 +76,10 @@ for(n=0;n<nrow;n++) {
 	int i;
 
 	teleline[n]=0.0;
-	csline[n]=0.0;
 	for(i=3;i<43;i++) {
-		teleline[n]+=prow[n][i+offset+909];
-		csline[n]+=prow[n][i+offset-50];
+		teleline[n]+=prow[n][i+offset+956];
 	}
-	teleline[n]/=40;
-	csline[n]/=40;
+	teleline[n]/=40.0;
 }
 
 if(nrow<192) {
@@ -91,7 +87,7 @@ if(nrow<192) {
 	return (0);
 }
 
-/* find telemetry start */
+/* find telemetry start in the 2nd third */
 max=0.0;mtelestart=0;
 for(n=nrow/3-64;n<2*nrow/3-64;n++) {
 	float df;
@@ -123,8 +119,15 @@ for(n=telestart,k=0;n<nrow-128;n+=128,k++) {
 
 	rgcomp(wedge,&(regr[k]));
 
-	if (k==1) {
-		int i;
+	if (k==nrow/256) {
+		int i,l;
+
+		/* telemetry calibration */
+		for(j=0;j<16;j++) {
+			tele[j]=rgcal(wedge[j],&(regr[k]));
+		}
+	
+	
 
 		/* channel ID */
 		for(j=0,max=10000.0,channel=-1;j<6;j++) {
@@ -133,18 +136,19 @@ for(n=telestart,k=0;n<nrow-128;n+=128,k++) {
 			if (df<max) { channel=j; max=df; }
 		}
 
-		/* telemetry computation */
-		for(j=0;j<16;j++)
-			tele[j]=rgcal(wedge[j],&(regr[k]));
-
 		/* Cs computation */
-		Cs=0.0;i=0;
-		for(j=n;j<n+128;j++) 
-			if(csline[j]>50.0) {
-				Cs+=csline[j];
+		for(Cs=0.0,i=0,j=n;j<n+128;j++)  {
+			double csline;
+
+			for(csline=0.0,l=3;l<43;l++)
+				csline+=prow[n][l+offset];
+			csline/=40.0;
+			if(csline>50.0) {
+				Cs+=csline;
 				i++;
+			}
 		}
-		Cs/=128;
+		Cs/=i;
 		Cs=rgcal(Cs,&(regr[k]));
 	}
 }
@@ -156,7 +160,7 @@ for(n=0;n<nrow;n++) {
 	int	i,c;
 
 	pixelv=prow[n];
-	for(i=0;i<954;i++) {
+	for(i=0;i<1001;i++) {
 		float pv;
 		int k,kof;
 
@@ -261,8 +265,8 @@ double T,vc;
 	T=c2*vc/log(c1*vc*vc*vc/Ne+1.0);
 	T=(T-satcal[satnum].rad[rgpr->ch].A)/satcal[satnum].rad[rgpr->ch].B;
 
-	/* rescale to range 0-255 for -60-+40 °C */
-	T=(T-273.15+60)/100*255.0;
+	/* rescale to range 0-255 for +40-60 °C */
+	T=(-T+273.15+40)/100.0*255.0;
 
 	return(T);
 }
@@ -282,7 +286,7 @@ for(n=0;n<nrow;n++) {
 	int	i,c;
 
 	pixelv=prow[n];
-	for(i=0;i<954;i++) {
+	for(i=0;i<1001;i++) {
 		float pv;
 
 		pv=tempcal(pixelv[i+offset],&temp);
