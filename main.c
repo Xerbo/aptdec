@@ -292,7 +292,7 @@ main(int argc, char **argv)
 {
 char pngfilename[1024];
 char name[1024];
-char *pngdirname=NULL;
+char pngdirname[1024]="";
 char imgopt[20]="ac";
 float *prow[3000];
 const char *chid[6]={ "1","2","3A","4","5","3B"};
@@ -306,7 +306,7 @@ opterr=0;
 while ((c=getopt(argc,argv,"c:d:i:ps:"))!=EOF) {
 	switch(c) {
 		case 'd':
-			pngdirname=optarg;
+			strcpy(pngdirname,optarg);
 			break;
 		case 'c':
 			readcmap(optarg);	
@@ -337,9 +337,9 @@ int a=0,b=0;
 strcpy(pngfilename,argv[optind]);
 strcpy(name,basename(pngfilename));
 strtok(name,".");
-if (pngdirname==NULL) {
+if(pngdirname[0]=='\0') {
 	strcpy(pngfilename,argv[optind]);
-	pngdirname=dirname(pngfilename);
+	strcpy(pngdirname,dirname(pngfilename));
 }
 
 /* open snd input */
