@@ -1,9 +1,9 @@
 
 INCLUDES=-I.
 
-CFLAGS= -O3 $(INCLUDES)
+CFLAGS= -O3 -Wall $(INCLUDES)
 
-OBJS= main.o image.o dsp.o filter.o reg.o fcolor.o dres.o
+OBJS= main.o image.o dsp.o filter.o reg.o fcolor.o
 
 atpdec:	$(OBJS)
 	$(CC) -o $@ $(OBJS) -lm -lsndfile -lpng
