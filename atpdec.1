@@ -2,7 +2,8 @@
 .SH NAME
 atpdec
 .SH OVERVIEW
-atpdec is a decoder for NOAA ATP images. It takes soundfiles recorded from an ATP receiver and convert them into .png images.
+atpdec is a decoder for NOAA weather satellite images (ATP).
+It takes soundfiles recorded from an ATP receiver and convert them into .png images.
 .SH SYNOPSIS
 .B atpdec
 .I "[options]" soundfiles ...
@@ -19,11 +20,52 @@ Default : "abc"
 .TP
 .br
 .B \-d directory
-Optional images destination directory. Default : sounfile directory.
+Optional images destination directory. Default : soundfile directory.
+.TP
+.br
+.B \-s
+Output 8bits grayscale image for channel A|B and raw images. Default  : 16bits images.
+
+Generated image are in png format, 16 or 8bits greyscale for raw and channel A|B images,
+24bits RVB for false color.
+Image names are soundfilename-x.png, where x is :
+        -r for raw images
+        -satellite instrument number (1,2,3A,3B,4,5) for channel A|B images
+        -c for false colors.
+
+
+.SH DESCRIPTION
+Atpdec is a open source program that decode images transmitted by POES
+NOAA weather satellite serie.
+These satellites transmit continuously, among other things, medium resolution
+images of the earth on 137Mhz.
+These transmitions could be easely received with
+an inexpensive antenna and dedicated receiver.
+Output from such a receiver, is an audio signal that could be recorded
+into a soundfile with any soundcard.
+
+Atpdec will convert these sounfiles into .png images.
+
+For each soundfile up to 4 images could be generated :
+1) Raw image : contains the 2 transmitted channel images  + telemetry and synchro pulses.
+        Raw image is not calibrated, so it could be too dark or too light depending of
+        the recording level.
+
+2) Calibrated channel A image
+
+3) Calibrated channel B image
+
+4) False color image
+
+Input soundfiles must be mono signal sampled at 11025 Hz.
+Atpdec use libsnd to read soundfile, so any sound file format supported by libsnd
+could be read.
+
+
 .SH EXAMPLE
 atpdec -d image -i ac *.wav
 
 .br
 Will process all .wav files in the current directory, generate only channel A and false color images and put them in the image directory.
 .SH AUTHOR
-Thierry Leconte
+Thierry Leconte (2003)

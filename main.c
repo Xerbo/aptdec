@@ -61,9 +61,9 @@ return(sf_read_float(inwav,sample,nb));
 }
 
 png_text text_ptr[2]={
-{ PNG_TEXT_COMPRESSION_NONE, "Software", "Created by Thierry Leconte's atpdec",35 }
+{ PNG_TEXT_COMPRESSION_NONE, "Software", "atpdec (Thierry Leconte)",35 }
 };
-static int ImageOut(char *filename,float **prow,int nrow,int width,int offset)
+static int ImageOut(char *filename,float **prow,int nrow,int depth,int width,int offset)
 {
 FILE *pngfile;
 png_infop info_ptr;
@@ -91,7 +91,7 @@ info_ptr = png_create_info_struct(png_ptr);
 
 png_init_io(png_ptr,pngfile);
 png_set_IHDR(png_ptr, info_ptr, width, nrow,
-       8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE,
+       depth, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE,
        PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
 png_set_text(png_ptr, info_ptr, text_ptr, 1);
@@ -100,7 +100,7 @@ printf("Writing %s\n",filename);
 png_write_info(png_ptr,info_ptr);
 for(n=0;n<nrow;n++) {
 	float *pixelv;
-	png_byte pixel[2080];
+	png_byte pixel[2*2080];
 	int	i;
 
 	pixelv=prow[n];
@@ -108,7 +108,14 @@ for(n=0;n<nrow;n++) {
 		float pv;
 
 		pv=pixelv[i+offset];
-		pixel[i]=(png_byte)(pv*255.0);
+		switch(depth) {
+		case 8 :
+			pixel[i]=(png_byte)(pv*255.0);
+			break;
+		case 16 :
+			((unsigned short*)pixel)[i]=htons((unsigned short)(pv*65535.0));
+			break;
+		}
 	}
 	png_write_row(png_ptr,pixel);
 }
@@ -285,13 +292,14 @@ char *pngdirname=NULL;
 char imgopt[20]="abc";
 float *prow[3000];
 const char *chid[6]={ "1","2","3A","4","5","3B"};
+int depth=16;
 int n,nrow;
 int ch;
 int c;
 
 
 opterr=0;
-while ((c=getopt(argc,argv,"c:d:i:"))!=EOF) {
+while ((c=getopt(argc,argv,"c:d:i:s"))!=EOF) {
 	switch(c) {
 		case 'd':
 			pngdirname=optarg;
@@ -301,6 +309,9 @@ while ((c=getopt(argc,argv,"c:d:i:"))!=EOF) {
 			break;
 		case 'i':
 			strcpy(imgopt,optarg);
+			break;
+		case 's':
+			depth=8;
 			break;
 	}
 }
@@ -336,7 +347,7 @@ sf_close(inwav);
 /* raw image */
 if(strchr(imgopt,(int)'r')!=NULL){
 sprintf(pngfilename,"%s/%s.png",pngdirname,name);
-ImageOut(pngfilename,prow,nrow,2080,0);
+ImageOut(pngfilename,prow,nrow,depth,2080,0);
 }
 
 /* Channel A */
@@ -346,7 +357,7 @@ if(((strchr(imgopt,(int)'a')!=NULL) || (strchr(imgopt,(int)'c')!=NULL))) {
 		a=1;
 		if(strchr(imgopt,(int)'a')!=NULL) {
 		sprintf(pngfilename,"%s/%s-%s.png",pngdirname,name,chid[ch]);
-		ImageOut(pngfilename,prow,nrow,954,85);
+		ImageOut(pngfilename,prow,nrow,depth,954,85);
 		}
 	}
 }
@@ -358,7 +369,7 @@ if(((strchr(imgopt,(int)'b')!=NULL) || (strchr(imgopt,(int)'c')!=NULL))) {
 		b=1;
 		if(strchr(imgopt,(int)'b')!=NULL) {
 		sprintf(pngfilename,"%s/%s-%s.png",pngdirname,name,chid[ch]);
-		ImageOut(pngfilename,prow,nrow,954,1125);
+		ImageOut(pngfilename,prow,nrow,depth,954,1125);
 		}
 	}
 }
