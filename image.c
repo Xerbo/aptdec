@@ -151,6 +151,7 @@ for(n=0;n<nrow;n++) {
 		pv=pixelv[i+offset];
 
 		k=(n-telestart)/128;
+		if(k>=nbtele) k=nbtele-1;
 		kof=(n-telestart)%128;
 		if(kof<64) {
 			if(k<1) {
