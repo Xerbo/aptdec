@@ -24,84 +24,148 @@
 #include <string.h>
 #include <sndfile.h>
 
+
+typedef struct {
+double slope;
+double offset;
+} rgparam;
+
+static void rgcomp(double *x, rgparam *rgpr)
+{
+/*const double y[9] = { 0.106,0.215,0.324,0.434,0.542,0.652,0.78,0.87 ,0.0}; */
+const double y[9] = { 0.11872,0.2408,0.36288,0.48608,0.60704,0.73024,0.8736,0.9744 , 0.0 }; 
+const double yavg=0.48819556;
+double xavg;
+double sxx,sxy;
+int i;
+
+for(i=0,xavg=0.0;i<9;i++)
+	xavg+=x[i];
+xavg/=9;
+for(i=0,sxx=0.0;i<9;i++) {
+	float t=x[i]-xavg;
+	sxx+=t*t;
+}
+for(i=0,sxy=0.0;i<9;i++) {
+	sxy+=(x[i]-xavg)*(y[i]-yavg);
+}
+rgpr->slope=sxy/sxx;
+rgpr->offset=yavg-rgpr->slope*xavg;
+
+}
+
+static double rgcal(float x,rgparam *rgpr)
+{
+return(rgpr->slope*x+rgpr->offset);
+}
+
 int Calibrate(float **prow,int nrow,int offset)
 {
-/* const double cal[8] = { 0.106,0.215,0.324,0.434,0.542,0.652,0.78,0.87 }; */
-const double cal[8] = { 0.1155 ,0.234,0.353,0.473,0.59,0.71,0.85,0.95 };
 
-float tele[2000];
-float frm[16];
-float slv[8];
-int n,i;
-int shift,channel;
+double tele[3000];
+double frm[9];
+rgparam regr[30];
+int n;
+int k,mk;
+int shift;
+int mshift,channel;
 float max;
 
 
 printf("Calibration ");
 fflush(stdout);
 
-if(nrow<128) {
-	fprintf(stderr," impossible, not enought row\n");
-	return (0);
-}
-
-/* build telemetry values */
+/* build telemetry values lines */
 for(n=0;n<nrow;n++) {
+	int i;
+
 	tele[n]=0.0;
 	for(i=3;i<43;i++)
 		tele[n]+=prow[n][i+offset+909];
 	tele[n]/=40;
 }
 
-max=0.0;shift=0;
-for(n=60;n<nrow-64;n++) {
+if(nrow<128) {
+	fprintf(stderr," impossible, not enought row\n");
+	return (0);
+}
+
+/* find telemetry start */
+max=-1000.0;mshift=0;
+for(n=60;n<nrow-3;n++) {
 	float df;
 
 	df=(tele[n-4]+tele[n-3]+tele[n-2]+tele[n-1])-(tele[n]+tele[n+1]+tele[n+2]+tele[n+3]);
-	if(df> max){ shift=n; max=df; }
-}
-for(n=0;n<16;n++) {
-	frm[n]=0.0;
-	for(i=1;i<7;i++)
-		frm[n]+=tele[shift-64+n*8+i];
-	frm[n]/=6;
+	if(df> max){ mshift=n; max=df; }
 }
 
-/* channel I.D */
-max=100000.0;
-for(n=0;n<6;n++) {
-	float df;
-	df=fabs(frm[n]-frm[15]);
-	if(df<max) { 
-		max=df;
-		channel=n;
+mshift-=64;
+shift=mshift%128;
+if(nrow<shift+8*9) {
+	fprintf(stderr," impossible, not enought row\n");
+	return (0);
+}
+
+/* compute regression params */
+for(n=shift,k=0;n<nrow-8*9;n+=128,k++) {
+	int j;
+
+	for(j=0;j<9;j++) {
+		int i;
+
+		frm[j]=0.0;
+		for(i=1;i<7;i++)
+			frm[j]+=tele[n+j*8+i];
+		frm[j]/=6;
+	}
+	rgcomp(frm,&(regr[k]));
+
+
+	if(n==mshift) {
+		/* channel ID */
+		int i;
+		float cv,df;
+
+		for(i=1,cv=0;i<7;i++)
+			cv+=tele[n+15*8+i];
+		cv/=6;
+		
+		for(i=0,max=10000.0,channel=-1;i<6;i++) {
+			df=cv-frm[i]; df=df*df;
+			if (df<max) { channel=i; max=df; }
+		}
 	}
 }
-fflush(stdout);
-
-/* compute slopes */
-slv[0]=cal[0]/(frm[0]-frm[8]);
-for(n=1;n<8;n++) {
-	slv[n]=(cal[n]-cal[n-1])/(frm[n]-frm[n-1]);
-}
+mk=k;
 
 for(n=0;n<nrow;n++) {
 	float *pixelv;
 	int	i,c;
 
 	pixelv=prow[n];
-	for(i=0;i<909;i++) {
+	for(i=0;i<954;i++) {
 		float pv;
+		int k,kof;
 
 		pv=pixelv[i+offset];
+		k=(n-shift)/128;
+		kof=(n-shift)%128;
+		if(kof<64) {
+			if(k<1)
+		 		pv=rgcal(pv,&(regr[k]));
+			else
+		 		pv=rgcal(pv,&(regr[k]))*(64+kof)/128.0+
+		 		   rgcal(pv,&(regr[k-1]))*(64-kof)/128.0;
+		} else {
+			if((k+1)>=mk)
+		 		pv=rgcal(pv,&(regr[k]));
+			else
+		 		pv=rgcal(pv,&(regr[k]))*(192-kof)/128.0+
+		 		   rgcal(pv,&(regr[k+1]))*(kof-64)/128.0;
+		}
 
-		if(pv<frm[8]) {pv=0.0; goto conv; }
-		if(pv<frm[0]) {pv=(pv-frm[8])*slv[0]; goto conv; }
-		for(c=1;c<8;c++) 
-		    if(pv<frm[c]) {pv=(pv-frm[c-1])*slv[c]+cal[c-1]; goto conv; }
- 	        pv=(pv-frm[7])*slv[7]+cal[7];
 		if(pv>1.0) pv=1.0;
-conv:
+		if(pv<0.0) pv=0.0;
 		pixelv[i+offset]=pv;
 	}
 }

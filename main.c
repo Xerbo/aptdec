@@ -163,9 +163,9 @@ for(n=0;n<nrow;n++) {
 	for(i=0;i<909;i++) {
 		int x,y;
 
-		x=(int)(pixelv[i+85]*255.0);
-		y=(int)(pixelv[i+1125]*255.0);
-		pixel[i]=cmap[x][y];
+		y=(int)(pixelv[i+85]*255.0);
+		x=(int)(pixelv[i+1125]*255.0);
+		pixel[i]=cmap[y][x];
 	}
 	png_write_row(png_ptr,(png_bytep)pixel);
 }
@@ -231,6 +231,47 @@ fclose(pngfile);
 png_destroy_read_struct(&png_ptr,&info_ptr,NULL);
 return(0);
 }
+
+#ifdef DEBUG
+unsigned int distrib[256][256];
+int Distrib(char *filename,float **prow,int nrow)
+{
+int n;
+int x,y;
+int max=0;
+FILE *df;
+
+for(y=0;y<256;y++)
+	for(x=0;x<256;x++)
+                distrib[y][x]=0;
+
+for(n=0;n<nrow;n++) {
+        float *pixelv;
+        png_color pixel[909];
+        int     i;
+
+        pixelv=prow[n];
+        for(i=0;i<909;i++) {
+
+                y=(int)(pixelv[i+85]*255.0);
+                x=(int)(pixelv[i+1125]*255.0);
+		if(x>255) x=255;
+		if(x<0) x=0;
+		if(y>255) y=255;
+		if(y<0) y=0;
+                distrib[y][x]+=1;
+		if(distrib[y][x]> max) max=distrib[y][x];
+        }
+}
+df=fopen(filename,"w");
+fprintf(df,"P2\n#max %d\n",max);
+fprintf(df,"256 256\n255\n");
+for(y=0;y<256;y++)
+	for(x=0;x<256;x++)
+		fprintf(df,"%d\n",(int)((255.0*(double)(distrib[y][x]))/(double)max));
+fclose(df);
+}
+#endif
 
 extern int Calibrate(float **prow,int nrow,int offset);
 extern int optind,opterr;
@@ -299,24 +340,33 @@ ImageOut(pngfilename,prow,nrow,2080,0);
 }
 
 /* Channel A */
-ch=Calibrate(prow,nrow,85);
-if(ch>0) {
-	a=1;
-	if(((strchr(imgopt,(int)'a')!=NULL) || (strchr(imgopt,ch)!=NULL))) {
+if(((strchr(imgopt,(int)'a')!=NULL) || (strchr(imgopt,(int)'c')!=NULL))) {
+	ch=Calibrate(prow,nrow,85);
+	if(ch>0) {
+		a=1;
+		if(strchr(imgopt,(int)'a')!=NULL) {
 		sprintf(pngfilename,"%s/%s-%s.png",pngdirname,name,chid[ch]);
-	ImageOut(pngfilename,prow,nrow,909,85);
+		ImageOut(pngfilename,prow,nrow,954,85);
+		}
 	}
 }
 
 /* Channel B */
-ch=Calibrate(prow,nrow,1125);
-if(ch>0) {
-	b=1;
-	if(((strchr(imgopt,(int)'b')!=NULL) || (strchr(imgopt,ch)!=NULL))) {
+if(((strchr(imgopt,(int)'b')!=NULL) || (strchr(imgopt,(int)'c')!=NULL))) {
+	ch=Calibrate(prow,nrow,1125);
+	if(ch>0) {
+		b=1;
+		if(strchr(imgopt,(int)'b')!=NULL) {
 		sprintf(pngfilename,"%s/%s-%s.png",pngdirname,name,chid[ch]);
-		ImageOut(pngfilename,prow,nrow,909,1125);
+		ImageOut(pngfilename,prow,nrow,954,1125);
+		}
 	}
 }
+
+#ifdef DEBUG
+	sprintf(pngfilename,"%s/%s-d.pnm",pngdirname,name);
+	Distrib(pngfilename,prow,nrow);
+#endif
 
 /* color image */
 if(a && b && strchr(imgopt,(int)'c')!=NULL){
