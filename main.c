@@ -30,6 +30,8 @@
 #include <sndfile.h>
 #include <png.h>
 
+#include "version.h"
+
 extern getpixelrow(float *pixelv);
 
 #define CHA_OFFSET  86
@@ -66,9 +68,8 @@ int getsample(float *sample,int nb)
 return(sf_read_float(inwav,sample,nb));
 }
 
-char signature[]="atpdec 1.3 (c) Thierry Leconte 2003";
 png_text text_ptr[]={
-{ PNG_TEXT_COMPRESSION_NONE, "Software", signature ,sizeof(signature) },
+{ PNG_TEXT_COMPRESSION_NONE, "Software", version ,sizeof(version) },
 { PNG_TEXT_COMPRESSION_NONE, "Channel", NULL ,0 },
 { PNG_TEXT_COMPRESSION_NONE, "Description", "NOAA POES satellite Image" ,25 }
 };
@@ -102,7 +103,7 @@ text_ptr[1].text_length=strlen(chid);
 png_set_text(png_ptr, info_ptr, text_ptr, 3);
 png_set_pHYs(png_ptr, info_ptr, 4000,4000,PNG_RESOLUTION_METER);
 
-printf("Writing %s ... ",filename);
+printf("Writing %s ... ",filename);fflush(stdout);
 pngfile=fopen(filename,"w");
 if (pngfile==NULL) {
 	fprintf(stderr,"could not open %s\n",filename);
@@ -171,7 +172,7 @@ text_ptr[1].text_length=strlen(text_ptr[1].text);
 png_set_text(png_ptr, info_ptr, text_ptr, 3);
 png_set_pHYs(png_ptr, info_ptr, 4000,4000,PNG_RESOLUTION_METER);
 
-printf("Writing %s ...",filename);
+printf("Writing %s ...",filename);fflush(stdout);
 pngfile=fopen(filename,"w");
 if (pngfile==NULL) {
 	fprintf(stderr,"could not open %s\n",filename);
@@ -233,7 +234,7 @@ for(n=0;n<nrow;n++) {
 }
 df=fopen(filename,"w");
 
-printf("Writing %s\n",filename);
+printf("Writing %s\n",filename);fflush(stdout);
 
 fprintf(df,"P2\n#max %d\n",max);
 fprintf(df,"256 256\n255\n");
@@ -253,7 +254,7 @@ int satnum=1;
 static void usage(void)
 {
 	fprintf(stderr,"atpdec [options] soundfiles ...\n");
-	fprintf(stderr,"options:\n-d directory\n-i [a|b|c|t|d]\n-c cmap.png\n-p\n-s satnumber\n");
+	fprintf(stderr,"options:\n-d directory\n-i [a|b|c|t|d]\n-c \n-p\n-s [0|1]\n");
 }
 
 main(int argc, char **argv)
@@ -269,6 +270,7 @@ int n,nrow;
 int ch;
 int c;
 
+printf("%s\n",version);
 
 opterr=0;
 while ((c=getopt(argc,argv,"c:d:i:ps:"))!=EOF) {
@@ -315,14 +317,14 @@ if(initsnd(argv[optind]))
 	exit(1);
 
 /* main loop */
-printf("Decoding: %s ...",argv[optind]);
-fflush(stdout);
+printf("Decoding: %s \n",argv[optind]);
 for(nrow=0;nrow<3000;nrow++) {
 	if(prow[nrow]==NULL) prow[nrow]=(float*)malloc(sizeof(float)*2150);
 	if(getpixelrow(prow[nrow])==0)
 		break;
+	printf("%d\r",nrow);fflush(stdout);
 } 
-printf("Done : %d lines\n",nrow); 
+printf("\nDone\n",nrow); 
 sf_close(inwav);
 
 /* raw image */
