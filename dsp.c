@@ -20,8 +20,11 @@
  *
  */
 #include <math.h>
-#include <filter.h>
-#include <filtercoeff.h>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846  /* for OS that don't know it */
+#endif
+#include "filter.h"
+#include "filtercoeff.h"
 
 #define Fe 11025
 #define PixelLine 2080

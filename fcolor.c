@@ -3,7 +3,7 @@
 
 
 typedef struct {
-double h,s,v;
+float h,s,v;
 } hsvpix_t;
 
 static void HSVtoRGB( float *r, float *g, float *b, hsvpix_t pix )
@@ -48,8 +48,8 @@ static void HSVtoRGB( float *r, float *g, float *b, hsvpix_t pix )
 }
 
 static struct  {
-double Vthresold;
-double Tthresold;
+float Vthresold;
+float Tthresold;
 hsvpix_t CloudTop;
 hsvpix_t CloudBot;
 hsvpix_t SeaTop;
@@ -57,8 +57,8 @@ hsvpix_t SeaBot;
 hsvpix_t GroundTop;
 hsvpix_t GroundBot;
 } fcinfo= {
-	28.0,	
-	180.0,
+	30.0,	
+	170.0,
 	{0,0.0,0.3},{0,0.0,1.0},
 	{240.0,0.9,0.5},{220.0,0.8,0.8},
 	{90.0,0.8,0.3},{50.0,0.8,1.0}

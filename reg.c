@@ -17,7 +17,7 @@
 
 static void FactPiv(int N, double A[DMAX][DMAX], double B[], double Cf[]);
 
-void polyreg(int M, int N, double X[], double Y[], double C[])
+void polyreg(const int M, const int N, const double X[], const double Y[], double C[])
 {
     int R, K, J;                     /* Loop counters     */
     double A[DMAX][DMAX];            /* A                 */

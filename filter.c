@@ -19,7 +19,7 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
-#include <filter.h>
+#include "filter.h"
 
 float fir( float *buff, const float *coeff, const int len)
 {

@@ -22,10 +22,10 @@ and synchro pulses.
     3. Calibrated channel B image
     4. Temperature compensed I.R image
     5. False color image
-    6. pixel distribution statistique (usefull for false color cmap debugging).
+    6. pixel distribution statistique (usefull for false color parameter debugging).
 
 Input soundfiles must be mono signal sampled at 11025 Hz.
-Atpdec use libsnd to read soundfile, so any sound file format supported by libsnd
+Atpdec use libsndfile to read soundfile, so any sound file format supported by libsndfile
 could be read.(Only tested with .wav file).
 
 COMPILATION
@@ -40,4 +40,46 @@ If they are not on standard path, edit the include path in the Makefile.
 
 USAGE
 
-see atpdec.1 man page.
+atpdec [options] soundfiles ...
+
+OPTIONS
+
+	-i [r|a|b|c|t|d]
+	Toggle raw (r) , channel A (a) , channel B (b) , false color (c) ,
+	temperature (t) or pixel distrubution (d) output.
+	Default : "ac"
+
+	-d directory
+	Optional images destination directory.
+	Default : soundfile directory.
+
+	-s n
+	Satellite ident : n=0 :NOOA-15 n=1 :NOAA-17 
+	Used for Temperature compensation.
+	Default :  NOAA17
+
+	-c conf_file
+	Use configuration file for false color generation.
+	Default : Internal parameters.
+
+	-p 8|16
+	Output 16bits grayscale image for channel A|B and raw images.
+	Default  : 8bits images.
+
+OUTPUT
+
+Generated image are in png format, 16 or 8bits greyscale for raw and channel A|B images,
+24bits RVB for false color.
+
+Image names are soundfilename-x.png, where x is :
+        -r for raw images
+        -satellite instrument number (1,2,3A,3B,4,5) for channel A|B images
+        -c for false colors.
+	-d for pixel distribution stats.
+
+EXAMPLE
+
+atpdec -d image -i ac *.wav
+
+Will process all .wav files in the current directory, generate only channel A and false color images and put them in the image directory.
+

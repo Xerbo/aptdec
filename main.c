@@ -21,14 +21,21 @@
  */
 
 #include <stdio.h>
-#include <unistd.h>
-#include <string.h>
+#ifdef WIN32
+#include "w32util.h"
+#else
 #include <libgen.h>
+#endif
+#include <string.h>
 #include <sndfile.h>
 #include <png.h>
 
 extern getpixelrow(float *pixelv);
 
+#define CHA_OFFSET  86
+#define CHB_OFFSET  1126	 
+#define CH_WIDTH  909	 
+#define IMG_WIDTH  2080
 
 static SNDFILE *inwav;
 static int initsnd(char *filename)
@@ -65,7 +72,7 @@ png_text text_ptr[]={
 { PNG_TEXT_COMPRESSION_NONE, "Channel", NULL ,0 },
 { PNG_TEXT_COMPRESSION_NONE, "Description", "NOAA POES satellite Image" ,25 }
 };
-static int ImageOut(char *filename,const char* chid,float **prow,int nrow,int depth,int width,int offset)
+static int ImageOut(char *filename,char* chid,float **prow,int nrow,int depth,int width,int offset)
 {
 FILE *pngfile;
 png_infop info_ptr;
@@ -106,7 +113,7 @@ png_write_info(png_ptr,info_ptr);
 
 for(n=0;n<nrow;n++) {
 	float *pixelv;
-	png_byte pixel[2*2080];
+	png_byte pixel[2*IMG_WIDTH];
 	int	i;
 
 	pixelv=prow[n];
@@ -155,7 +162,7 @@ info_ptr = png_create_info_struct(png_ptr);
 	return(1);
     }
 
-png_set_IHDR(png_ptr, info_ptr, 909, nrow,
+png_set_IHDR(png_ptr, info_ptr, CH_WIDTH, nrow,
        8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
        PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
@@ -175,16 +182,16 @@ png_write_info(png_ptr,info_ptr);
 
 for(n=0;n<nrow;n++) {
 	float *pixelv;
-	png_color pixel[909];
+	png_color pixel[CH_WIDTH];
 	int	i;
 
 	pixelv=prow[n];
-	for(i=0;i<909;i++) {
+	for(i=0;i<CH_WIDTH;i++) {
 		double v,t;
 		float r,g,b;
 
-		v=pixelv[i+85];
-		t=pixelv[i+1125];
+		v=pixelv[i+CHA_OFFSET];
+		t=pixelv[i+CHB_OFFSET];
 		falsecolor(v,t,&r,&g,&b);
 		pixel[i].red=( unsigned int)(255.0*r);
 		pixel[i].green=( unsigned int)(255.0*g);
@@ -218,8 +225,8 @@ for(n=0;n<nrow;n++) {
         pixelv=prow[n];
         for(i=0;i<909;i++) {
 
-                y=(int)(pixelv[i+85]);
-                x=(int)(pixelv[i+1125]);
+                y=(int)(pixelv[i+CHA_OFFSET]);
+                x=(int)(pixelv[i+CHB_OFFSET]);
                 distrib[y][x]+=1;
 		if(distrib[y][x]> max) max=distrib[y][x];
         }
@@ -256,7 +263,7 @@ char name[1024];
 char pngdirname[1024]="";
 char imgopt[20]="ac";
 float *prow[3000];
-const char *chid[6]={ "1","2","3A","4","5","3B"};
+char *chid[6]={ "1","2","3A","4","5","3B"};
 int depth=8;
 int n,nrow;
 int ch;
@@ -321,36 +328,36 @@ sf_close(inwav);
 /* raw image */
 if(strchr(imgopt,(int)'r')!=NULL){
 sprintf(pngfilename,"%s/%s-r.png",pngdirname,name);
-ImageOut(pngfilename,"raw",prow,nrow,depth,2080,0);
+ImageOut(pngfilename,"raw",prow,nrow,depth,IMG_WIDTH,0);
 }
 
 /* Channel A */
 if(((strchr(imgopt,(int)'a')!=NULL) || (strchr(imgopt,(int)'c')!=NULL) || (strchr(imgopt,(int)'d')!=NULL))) {
-	ch=Calibrate(prow,nrow,85);
+	ch=Calibrate(prow,nrow,CHA_OFFSET);
 	if(ch>0) {
 		a=1;
 		if(strchr(imgopt,(int)'a')!=NULL) {
 		sprintf(pngfilename,"%s/%s-%s.png",pngdirname,name,chid[ch]);
-		ImageOut(pngfilename,chid[ch],prow,nrow,depth,954,85);
+		ImageOut(pngfilename,chid[ch],prow,nrow,depth,CH_WIDTH,CHA_OFFSET);
 		}
 	}
 }
 
 /* Channel B */
 if((strchr(imgopt,(int)'b')!=NULL) || (strchr(imgopt,(int)'c')!=NULL) || (strchr(imgopt,(int)'t')!=NULL)) {
-	ch=Calibrate(prow,nrow,1125);
+	ch=Calibrate(prow,nrow,CHB_OFFSET);
 	if(ch>0) {
 		if(strchr(imgopt,(int)'b')!=NULL) {
 			sprintf(pngfilename,"%s/%s-%s.png",pngdirname,name,chid[ch]);
-			ImageOut(pngfilename,chid[ch],prow,nrow,depth,954,1125);
+			ImageOut(pngfilename,chid[ch],prow,nrow,depth,CH_WIDTH,CHB_OFFSET);
 		}
 	}
 	if(ch>2) {
 		b=1;
-		Temperature(prow,nrow,ch,1125);
+		Temperature(prow,nrow,ch,CHB_OFFSET);
 		if(strchr(imgopt,(int)'t')!=NULL) {
 			sprintf(pngfilename,"%s/%s-t.png",pngdirname,name);
-			ImageOut(pngfilename,"Temperature", prow,nrow,depth,954,1125);
+			ImageOut(pngfilename,"Temperature", prow,nrow,depth,CH_WIDTH,CHB_OFFSET);
 		}
 	}
 }

@@ -34,7 +34,7 @@ static void rgcomp(double x[16], rgparam *rgpr)
 {
 /* 0.106,0.215,0.324,0.434,0.542,0.652,0.78,0.87 ,0.0 */
 const double y[9] = { 31.1,63.0,95.0,127.2,158.9,191.1,228.6,255.0, 0.0 }; 
-extern void polyreg(int m,int n,double x[],double y[],double c[]);
+extern void polyreg(const int m,const int n,const double x[],const double y[],double c[]);
 
 polyreg(REGORDER,9,x,y,rgpr->cf);
 }
