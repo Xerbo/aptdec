@@ -21,7 +21,7 @@
  */
 #include <filter.h>
 
-float fir( float *buff, float *coeff, int len)
+float fir( float *buff, const float *coeff, const int len)
 {
 int i;
 double r;
@@ -34,29 +34,61 @@ return r;
 }
 
 
-void iqfir( float *buff, float *Icoeff, float *Qcoeff, int len, float *I,float *Q)
+void iqfir( float *buff, const float *Icoeff, const float *Qcoeff, const int len, float *Iptr,float *Qptr)
 {
 int i;
+float I,Q;
 
-*I=*Q=0.0;
+I=Q=0.0;
 for(i=0;i<len;i++) {
-	register double v=buff[i];
+	double v;
 
-	*I+=v*Icoeff[i];
-	*Q+=v*Qcoeff[i];
+	v=buff[i];
+	I+=v*Icoeff[i];
+	Q+=v*Qcoeff[i];
 }
+*Iptr=I;
+*Qptr=Q;
 }
 
-float rsfir(float *buff,float *coeff,int len ,double offset ,double delta)
+float rsfir(float *buff,const float *coeff,const int len , const double offset , const  double delta)
 {
 int i;
 double n;
 double out;
 
 out=0.0;
-for(i=0,n=offset;n<len;n+=delta,i++)
-	out+=buff[i]*coeff[(int)n];
+for(i=0,n=offset;n<len-1;n+=delta,i++) {
+	int k;
+	double alpha;
+
+	k=(int)n;
+	alpha=n-k;
+	out+=buff[i]*(coeff[k]*(1.0-alpha)+coeff[k+1]*alpha);
+}
 
 return out;
 }
+
+double iir(double x,iirbuff_t *buff,const iircoeff_t *coeff)
+{
+buff->x[4]=buff->x[3];
+buff->x[3]=buff->x[2];
+buff->x[2]=buff->x[1];
+buff->x[1]=buff->x[0];
+buff->x[0]=x/coeff->G;
+
+buff->y[2]=buff->y[1];
+buff->y[1]=buff->y[0];
+buff->y[0] = buff->x[4]
+     + coeff->x[2] * buff->x[3]
+     + coeff->x[1] * buff->x[2]
+     + coeff->x[0] * buff->x[1]
+     + buff->x[0]
+     + coeff->y[1] * buff->y[2]
+     + coeff->y[0] * buff->y[1];
+
+return (buff->y[0]);
+}
+
 

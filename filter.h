@@ -19,8 +19,20 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
-float rsfir(float *buff,float *coeff,int len ,double offset ,double delta);
-void iqfir(float *buff,float *Icoeff,float *Qcoeff, int len ,float *I, float *Q);
-float fir(float *buff,float *coeff,int len);
 
+typedef struct {
+float G;
+float x[3];
+float y[2];
+} iircoeff_t;
+
+typedef struct {
+float x[5];
+float y[3];
+} iirbuff_t;
+
+float rsfir(float *buff,const float *coeff,const int len ,const double offset ,const double delta);
+void iqfir(float *buff,const float *Icoeff,const float *Qcoeff, const int len ,float *I, float *Q);
+float fir(float *buff,const float *coeff,const int len);
+double iir(double x,iirbuff_t *buff, const iircoeff_t *coeff);
 

@@ -26,35 +26,36 @@
 #define Fe 11025
 #define PixelLine 2080
 #define Fp (2*PixelLine)
-#define RSMULT 265
+#define RSMULT 10
 #define Fi (Fp*RSMULT)
 
 static double FreqOsc=2400.0/Fe;
 static double FreqLine=1.0;
 extern int getsample(float *inbuff ,int nb);
 
-static float pll(float Iv, float Qv)
+static float pll(float In)
 {
 /* pll coeff */
 #define K1 5e-3
 #define K2 3e-6
 
 static double PhaseOsc=0.0;
+static iirbuff_t Ifilterbuff,Qfilterbuff;
 
+double Io,Qo;
+double Ip,Qp;
 double DPhi;
 double DF;
-double I,Q;
-double Io,Qo;
 
 /* quadrature oscillator */
 Io=cos(PhaseOsc); Qo=sin(PhaseOsc);
 
 /* phase detector */
-I=Iv*Io+Qv*Qo;
-Q=Qv*Io-Iv*Qo;
-DPhi=atan2(Q,I)/M_PI;
+Ip=iir(In*Io,&Ifilterbuff,&PhaseFilterCf);
+Qp=iir(In*Qo,&Qfilterbuff,&PhaseFilterCf);
+DPhi=-atan2(Qp,Ip)/M_PI;
 
-/*  update */
+/*  loop filter  */
 DF=K1*DPhi+FreqOsc;
 FreqOsc+=K2*DPhi;
 
@@ -62,7 +63,7 @@ PhaseOsc+=2.0*M_PI*DF;
 if (PhaseOsc > M_PI) PhaseOsc-=2.0*M_PI;
 if (PhaseOsc <= -M_PI) PhaseOsc+=2.0*M_PI;
 
-return (float)I;
+return (float)(In*Io);
 }
 
 static double fr=2400.0/Fe;
@@ -70,33 +71,19 @@ static double offset=0.0;
 
 getamp(float *ambuff,int nb)
 {
-#define BLKIN 4096
-static float inbuff[BLKIN];
-static int nin=0;
-static int idxin=0;
+#define BLKIN 1024
+float inbuff[BLKIN];
+int n;
+int res;
 
-int	n;
+  res=getsample(inbuff,nb>BLKIN?BLKIN:nb);
 
-	for(n=0;n<nb;n++) {
-		float I,Q;
+  for(n=0;n<res;n++)  {
+    ambuff[n]=pll(inbuff[n]);
+    fr=0.25*FreqOsc+0.75*fr;
+  }
 
-		if(nin<IQFilterLen) {
-			int res;
-
-			memmove(inbuff,&(inbuff[idxin]),nin*sizeof(float));
-			idxin=0;
-			res=getsample(&(inbuff[nin]),BLKIN-nin);
-			nin+=res;
-			if(nin<IQFilterLen) return(n);
-		}
-
-		iqfir(&(inbuff[idxin]),Icoeff,Qcoeff,IQFilterLen,&I,&Q);
-		ambuff[n]=pll(I,Q);
-		fr=0.25*FreqOsc+0.75*fr;
-
-		idxin++;nin--;
-	}
-	return(nb);
+  return(res);
 }
 
 int getpixelv(float *pvbuff,int nb)
@@ -112,14 +99,14 @@ int	n;
 		double mult;
 		int shift;
 
-		if(nam<15) {
+		if(nam<BLKAMP) {
 			int res;
 
 			memmove(ambuff,&(ambuff[idxam]),nam*sizeof(float));
 			idxam=0;
 			res=getamp(&(ambuff[nam]),BLKAMP-nam);
 			nam+=res;
-			if(nam<15) return(n);
+			if(nam<BLKAMP) return(n);
 		}
 
 		mult=(double)Fi*fr/2400.0*FreqLine;
