@@ -139,7 +139,7 @@ static float pixels[PixelLine+SyncFilterLen];
 static int npv=0;
 static int synced=0;
 static double max=0.0;
-float corr,qcorr;
+float corr,scorr;
 double ph;
 int n,res;
 
@@ -153,18 +153,16 @@ int n,res;
 		return(0);
    }
 
-   iqfir(pixelv,ISync,QSync,SyncFilterLen,&corr,&qcorr);
-   ph=atan2((double)qcorr,(double)corr)/M_PI*2.0;
-   max=corr;
-   FreqLine=(double)(PixelLine-SyncFilterLen-ph)/(double)(PixelLine-SyncFilterLen);
+   /* test sync */
+   corr=fir(pixelv,Sync,SyncFilterLen);
+   scorr=fir(&(pixelv[1]),Sync,SyncFilterLen);
+   FreqLine=1.0-scorr/corr/PixelLine/4.0;
+
    if(corr < 0.75*max) {
 	synced=0;
 	FreqLine=1.0;
    }
-   if(ph >=1.0 || ph <= -1.0)  {
-	synced=0;
-	FreqLine=1.0;
-   }
+   max=corr;
 
    if(synced<8) {
 	int shift,mshift;
@@ -176,11 +174,12 @@ int n,res;
 			return(0);
 	}
 
+	/* lookup sync start */
 	mshift=0;
 	for(shift=1;shift<PixelLine;shift++) {
 		double corr;
 
-		corr=fir(&(pixelv[shift]),ISync,SyncFilterLen);
+		corr=fir(&(pixelv[shift]),Sync,SyncFilterLen);
 		if(corr>max) {
 			mshift=shift;
 			max=corr;
