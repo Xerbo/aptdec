@@ -2,12 +2,10 @@ ATPDEC TODO List
 
 - Could be useful to read data directly from /dev/dsp
 
-- False color generation give various results , from good to very poor.
-
 - GUI : I'm not a GUI man , but if someone want to do the job ....
 
 - Optimisation : Don't do anything in order to run fast. There is plenty
-  room for performance improuvement (but on my 1.7GHz celeron , it's
-  already faster than real time...)
+  room for performance improuvement (but on my 1.7GHz celeron , decodong part
+  is already faster than real time...)
 
 
