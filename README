@@ -21,7 +21,7 @@ and synchro pulses.
     2. Calibrated channel A image
     3. Calibrated channel B image
     4. Temperature compensed I.R image
-    5. double resolution False color image
+    5. False color image
 
 Input soundfiles must be mono signal sampled at 11025 Hz.
 Atpdec use libsndfile to read soundfile, so any sound file format supported by libsndfile
@@ -30,7 +30,7 @@ could be read.(Only tested with .wav file).
 COMPILATION
 
 Atpdec is written in plain standart C and must be very portable.
-It was only tested on Linux Suse 8.2, but must work on any Unix platform.
+It was only tested on Linux Fedora , but must work on any Unix platform.
 Just adapt the Makefile and type make (sorry no configure). 
 
 atpdec use libsndfile, libpng and libm.
