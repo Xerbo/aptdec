@@ -26,7 +26,6 @@
 #include <libgen.h>
 #include <sndfile.h>
 #include <png.h>
-#include <cmap.h>
 
 extern getpixelrow(float *pixelv);
 
@@ -60,21 +59,19 @@ int getsample(float *sample,int nb)
 return(sf_read_float(inwav,sample,nb));
 }
 
-png_text text_ptr[2]={
-{ PNG_TEXT_COMPRESSION_NONE, "Software", "atpdec (c) Thierry Leconte 2003",32 }
+char signature[]="atpdec 1.3 (c) Thierry Leconte 2003";
+png_text text_ptr[]={
+{ PNG_TEXT_COMPRESSION_NONE, "Software", signature ,sizeof(signature) },
+{ PNG_TEXT_COMPRESSION_NONE, "Channel", NULL ,0 },
+{ PNG_TEXT_COMPRESSION_NONE, "Description", "NOAA POES satellite Image" ,25 }
 };
-static int ImageOut(char *filename,float **prow,int nrow,int depth,int width,int offset)
+static int ImageOut(char *filename,const char* chid,float **prow,int nrow,int depth,int width,int offset)
 {
 FILE *pngfile;
 png_infop info_ptr;
 png_structp png_ptr;
 int n;
 
-pngfile=fopen(filename,"w");
-if (pngfile==NULL) {
-	fprintf(stderr,"could not open %s\n",filename);
-	return(1);
-}
 /* init png lib */
 png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 if (!png_ptr) {
@@ -89,15 +86,24 @@ info_ptr = png_create_info_struct(png_ptr);
 	return(1);
     }
 
-png_init_io(png_ptr,pngfile);
 png_set_IHDR(png_ptr, info_ptr, width, nrow,
        depth, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE,
        PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
-png_set_text(png_ptr, info_ptr, text_ptr, 1);
+text_ptr[1].text=chid;
+text_ptr[1].text_length=strlen(chid);
+png_set_text(png_ptr, info_ptr, text_ptr, 3);
+png_set_pHYs(png_ptr, info_ptr, 4000,4000,PNG_RESOLUTION_METER);
 
-printf("Writing %s\n",filename);
+printf("Writing %s ... ",filename);
+pngfile=fopen(filename,"w");
+if (pngfile==NULL) {
+	fprintf(stderr,"could not open %s\n",filename);
+	return(1);
+}
+png_init_io(png_ptr,pngfile);
 png_write_info(png_ptr,info_ptr);
+
 for(n=0;n<nrow;n++) {
 	float *pixelv;
 	png_byte pixel[2*2080];
@@ -121,6 +127,7 @@ for(n=0;n<nrow;n++) {
 }
 png_write_end(png_ptr,info_ptr);
 fclose(pngfile);
+printf("Done\n");
 png_destroy_write_struct(&png_ptr,&info_ptr);
 return(0);
 } 
@@ -132,11 +139,8 @@ png_infop info_ptr;
 png_structp png_ptr;
 int n;
 
-pngfile=fopen(filename,"w");
-if (pngfile==NULL) {
-	fprintf(stderr,"could not open %s\n",filename);
-	return(1);
-}
+extern void false_color(double v, double t, float *r, float *g, float *b);
+
 /* init png lib */
 png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 if (!png_ptr) {
@@ -151,14 +155,22 @@ info_ptr = png_create_info_struct(png_ptr);
 	return(1);
     }
 
-png_init_io(png_ptr,pngfile);
 png_set_IHDR(png_ptr, info_ptr, 909, nrow,
        8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
        PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
-png_set_text(png_ptr, info_ptr, text_ptr, 1);
+text_ptr[1].text="False Colors";
+text_ptr[1].text_length=strlen(text_ptr[1].text);
+png_set_text(png_ptr, info_ptr, text_ptr, 3);
+png_set_pHYs(png_ptr, info_ptr, 4000,4000,PNG_RESOLUTION_METER);
 
-printf("Writing %s\n",filename);
+printf("Writing %s ...",filename);
+pngfile=fopen(filename,"w");
+if (pngfile==NULL) {
+	fprintf(stderr,"could not open %s\n",filename);
+	return(1);
+}
+png_init_io(png_ptr,pngfile);
 png_write_info(png_ptr,info_ptr);
 
 for(n=0;n<nrow;n++) {
@@ -168,76 +180,24 @@ for(n=0;n<nrow;n++) {
 
 	pixelv=prow[n];
 	for(i=0;i<909;i++) {
-		int x,y;
+		double v,t;
+		float r,g,b;
 
-		y=(int)(pixelv[i+85]);
-		x=(int)(pixelv[i+1125]);
-		pixel[i]=cmap[y][x];
+		v=pixelv[i+85];
+		t=pixelv[i+1125];
+		falsecolor(v,t,&r,&g,&b);
+		pixel[i].red=( unsigned int)(255.0*r);
+		pixel[i].green=( unsigned int)(255.0*g);
+		pixel[i].blue=( unsigned int)(255.0*b);
 	}
 	png_write_row(png_ptr,(png_bytep)pixel);
 }
 png_write_end(png_ptr,info_ptr);
 fclose(pngfile);
+printf("Done\n");
 png_destroy_write_struct(&png_ptr,&info_ptr);
 return(0);
 } 
-
-readcmap(char *filename)
-{
-FILE *pngfile;
-png_infop info_ptr;
-png_structp png_ptr;
-int n;
-png_bytep prow[256];
-
-
-pngfile=fopen(filename,"r");
-if (pngfile==NULL) {
-	fprintf(stderr,"could not open %s\n",filename);
-	return(1);
-}
-/* init png lib */
-png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-if (!png_ptr) {
-	fprintf(stderr,"could not open create png_ptr\n");
-	return(1);
-}
-
-info_ptr = png_create_info_struct(png_ptr);
-    if (!info_ptr) {
-        png_destroy_write_struct(&png_ptr, (png_infopp)NULL);
-	fprintf(stderr,"could not open create info_ptr\n");
-	return(1);
-    }
-png_init_io(png_ptr,pngfile);
-
-for(n=0;n<256;n++)
-	prow[n]=(png_bytep)&(cmap[n][0]);
-
-png_read_info(png_ptr, info_ptr);
-
-if(png_get_image_width(png_ptr,info_ptr)!=256) {
-	fprintf(stderr,"Invalid cmap width\n");
-	exit(1);
-}
-if(png_get_image_height(png_ptr,info_ptr)!=256) {
-	fprintf(stderr,"Invalid cmap height\n");
-	exit(1);
-}
-if(png_get_bit_depth(png_ptr,info_ptr)!=8) {
-	fprintf(stderr,"Invalid cmap depth\n");
-	exit(1);
-}
-if(png_get_color_type(png_ptr,info_ptr)!=PNG_COLOR_TYPE_RGB  ){
-	fprintf(stderr,"Invalid cmap color type\n");
-	exit(1);
-}
-
-png_read_image(png_ptr,prow);
-fclose(pngfile);
-png_destroy_read_struct(&png_ptr,&info_ptr,NULL);
-return(0);
-}
 
 static int Distrib(char *filename,float **prow,int nrow)
 {
@@ -278,6 +238,7 @@ fclose(df);
 
 extern int Calibrate(float **prow,int nrow,int offset);
 extern int Temperature(float **prow,int nrow,int ch, int offset);
+extern void readfconf(char *file);
 extern int optind,opterr;
 extern char *optarg;
 int satnum=1;
@@ -309,7 +270,7 @@ while ((c=getopt(argc,argv,"c:d:i:ps:"))!=EOF) {
 			strcpy(pngdirname,optarg);
 			break;
 		case 'c':
-			readcmap(optarg);	
+			readfconf(optarg);	
 			break;
 		case 'i':
 			strcpy(imgopt,optarg);
@@ -360,7 +321,7 @@ sf_close(inwav);
 /* raw image */
 if(strchr(imgopt,(int)'r')!=NULL){
 sprintf(pngfilename,"%s/%s-r.png",pngdirname,name);
-ImageOut(pngfilename,prow,nrow,depth,2080,0);
+ImageOut(pngfilename,"raw",prow,nrow,depth,2080,0);
 }
 
 /* Channel A */
@@ -370,7 +331,7 @@ if(((strchr(imgopt,(int)'a')!=NULL) || (strchr(imgopt,(int)'c')!=NULL) || (strch
 		a=1;
 		if(strchr(imgopt,(int)'a')!=NULL) {
 		sprintf(pngfilename,"%s/%s-%s.png",pngdirname,name,chid[ch]);
-		ImageOut(pngfilename,prow,nrow,depth,954,85);
+		ImageOut(pngfilename,chid[ch],prow,nrow,depth,954,85);
 		}
 	}
 }
@@ -381,7 +342,7 @@ if((strchr(imgopt,(int)'b')!=NULL) || (strchr(imgopt,(int)'c')!=NULL) || (strchr
 	if(ch>0) {
 		if(strchr(imgopt,(int)'b')!=NULL) {
 			sprintf(pngfilename,"%s/%s-%s.png",pngdirname,name,chid[ch]);
-			ImageOut(pngfilename,prow,nrow,depth,954,1125);
+			ImageOut(pngfilename,chid[ch],prow,nrow,depth,954,1125);
 		}
 	}
 	if(ch>2) {
@@ -389,7 +350,7 @@ if((strchr(imgopt,(int)'b')!=NULL) || (strchr(imgopt,(int)'c')!=NULL) || (strchr
 		Temperature(prow,nrow,ch,1125);
 		if(strchr(imgopt,(int)'t')!=NULL) {
 			sprintf(pngfilename,"%s/%s-t.png",pngdirname,name);
-			ImageOut(pngfilename,prow,nrow,depth,954,1125);
+			ImageOut(pngfilename,"Temperature", prow,nrow,depth,954,1125);
 		}
 	}
 }
