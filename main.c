@@ -116,7 +116,11 @@ ImageOut (char *filename, char *chid, float **prow, int nrow, int depth,
 
   printf ("Writing %s ... ", filename);
   fflush (stdout);
+#ifdef WIN32
+  pngfile = fopen (filename, "wb");
+#else
   pngfile = fopen (filename, "w");
+#endif
   if (pngfile == NULL) {
     fprintf (stderr, "could not open %s\n", filename);
     return (1);
@@ -138,10 +142,12 @@ ImageOut (char *filename, char *chid, float **prow, int nrow, int depth,
       case 8:
 	pixel[i] = floor (pv);
 	break;
+#ifndef WIN32
       case 16:
 	((unsigned short *) pixel)[i] =
 	  htons ((unsigned short) floor (pv * 255.0));
 	break;
+#endif
       }
     }
     png_write_row (png_ptr, pixel);
@@ -196,7 +202,11 @@ ImageColorOut (char *filename, float **prow, int nrow)
 
   printf ("Computing False colors & writing : %s ...", filename);
   fflush (stdout);
+#ifdef WIN32
+  pngfile = fopen (filename, "wb");
+#else
   pngfile = fopen (filename, "w");
+#endif
   if (pngfile == NULL) {
     fprintf (stderr, "could not open %s\n", filename);
     return (1);
