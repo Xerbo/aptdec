@@ -62,9 +62,8 @@ OPTIONS
 	Use configuration file for false color generation.
 	Default : Internal parameters.
 
-	-p 8|16
+	-p 
 	Output 16bits grayscale image for channel A|B and raw images.
-	Default  : 8bits images.
 
 OUTPUT
 
