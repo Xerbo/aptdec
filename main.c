@@ -376,7 +376,7 @@ if(((strchr(imgopt,(int)'a')!=NULL) || (strchr(imgopt,(int)'c')!=NULL) || (strch
 }
 
 /* Channel B */
-if(((strchr(imgopt,(int)'b')!=NULL) || (strchr(imgopt,(int)'c')!=NULL))) {
+if((strchr(imgopt,(int)'b')!=NULL) || (strchr(imgopt,(int)'c')!=NULL) || (strchr(imgopt,(int)'t')!=NULL)) {
 	ch=Calibrate(prow,nrow,1125);
 	if(ch>0) {
 		if(strchr(imgopt,(int)'b')!=NULL) {
