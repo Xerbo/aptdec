@@ -254,7 +254,7 @@ int satnum=1;
 static void usage(void)
 {
 	fprintf(stderr,"atpdec [options] soundfiles ...\n");
-	fprintf(stderr,"options:\n-d directory\n-i [a|b|c|t|d]\n-c \n-p\n-s [0|1]\n");
+	fprintf(stderr,"options:\n-d <dir>\tDestination directory\n-i [a|b|c|t]\tOutput image type r: Raw a: A chan. b: B chan. c: False color t: Temperature\n-c <file>\tFalse color config file\n-p\t\t16bits output\n-s [0|1]\tSatellite number\n");
 }
 
 main(int argc, char **argv)
