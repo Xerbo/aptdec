@@ -11,7 +11,7 @@ atpdec:	$(OBJS)
 main.o:	main.c cmap.h
 dsp.o:	dsp.c filtercoeff.h filter.h
 filter.o: filter.c filter.h
-image.o: image.c
+image.o: image.c satcal.h
 
 clean:
 	rm -f *.o atpdec

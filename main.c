@@ -61,7 +61,7 @@ return(sf_read_float(inwav,sample,nb));
 }
 
 png_text text_ptr[2]={
-{ PNG_TEXT_COMPRESSION_NONE, "Software", "atpdec (Thierry Leconte)",35 }
+{ PNG_TEXT_COMPRESSION_NONE, "Software", "atpdec (c) Thierry Leconte 2003",32 }
 };
 static int ImageOut(char *filename,float **prow,int nrow,int depth,int width,int offset)
 {
@@ -110,10 +110,10 @@ for(n=0;n<nrow;n++) {
 		pv=pixelv[i+offset];
 		switch(depth) {
 		case 8 :
-			pixel[i]=(png_byte)(pv*255.0);
+			pixel[i]=(png_byte)pv;
 			break;
 		case 16 :
-			((unsigned short*)pixel)[i]=htons((unsigned short)(pv*65535.0));
+			((unsigned short*)pixel)[i]=htons((unsigned short)(pv*255.0));
 			break;
 		}
 	}
@@ -170,8 +170,8 @@ for(n=0;n<nrow;n++) {
 	for(i=0;i<909;i++) {
 		int x,y;
 
-		y=(int)(pixelv[i+85]*255.0);
-		x=(int)(pixelv[i+1125]*255.0);
+		y=(int)(pixelv[i+85]);
+		x=(int)(pixelv[i+1125]);
 		pixel[i]=cmap[y][x];
 	}
 	png_write_row(png_ptr,(png_bytep)pixel);
@@ -239,10 +239,9 @@ png_destroy_read_struct(&png_ptr,&info_ptr,NULL);
 return(0);
 }
 
-#ifdef DEBUG
-unsigned int distrib[256][256];
-int Distrib(char *filename,float **prow,int nrow)
+static int Distrib(char *filename,float **prow,int nrow)
 {
+unsigned int distrib[256][256];
 int n;
 int x,y;
 int max=0;
@@ -254,23 +253,21 @@ for(y=0;y<256;y++)
 
 for(n=0;n<nrow;n++) {
         float *pixelv;
-        png_color pixel[909];
         int     i;
 
         pixelv=prow[n];
         for(i=0;i<909;i++) {
 
-                y=(int)(pixelv[i+85]*255.0);
-                x=(int)(pixelv[i+1125]*255.0);
-		if(x>255) x=255;
-		if(x<0) x=0;
-		if(y>255) y=255;
-		if(y<0) y=0;
+                y=(int)(pixelv[i+85]);
+                x=(int)(pixelv[i+1125]);
                 distrib[y][x]+=1;
 		if(distrib[y][x]> max) max=distrib[y][x];
         }
 }
 df=fopen(filename,"w");
+
+printf("Writing %s\n",filename);
+
 fprintf(df,"P2\n#max %d\n",max);
 fprintf(df,"256 256\n255\n");
 for(y=0;y<256;y++)
@@ -278,28 +275,35 @@ for(y=0;y<256;y++)
 		fprintf(df,"%d\n",(int)((255.0*(double)(distrib[y][x]))/(double)max));
 fclose(df);
 }
-#endif
 
 extern int Calibrate(float **prow,int nrow,int offset);
+extern int Temperature(float **prow,int nrow,int ch, int offset);
 extern int optind,opterr;
 extern char *optarg;
+int satnum=1;
+
+static void usage(void)
+{
+	fprintf(stderr,"atpdec [options] soundfiles ...\n");
+	fprintf(stderr,"options:\n-d directory\n-i [a|b|c|t|d]\n-c cmap.png\n-p\n-s satnumber\n");
+}
 
 main(int argc, char **argv)
 {
 char pngfilename[1024];
 char name[1024];
 char *pngdirname=NULL;
-char imgopt[20]="abc";
+char imgopt[20]="ac";
 float *prow[3000];
 const char *chid[6]={ "1","2","3A","4","5","3B"};
-int depth=16;
+int depth=8;
 int n,nrow;
 int ch;
 int c;
 
 
 opterr=0;
-while ((c=getopt(argc,argv,"c:d:i:s"))!=EOF) {
+while ((c=getopt(argc,argv,"c:d:i:ps:"))!=EOF) {
 	switch(c) {
 		case 'd':
 			pngdirname=optarg;
@@ -310,9 +314,18 @@ while ((c=getopt(argc,argv,"c:d:i:s"))!=EOF) {
 		case 'i':
 			strcpy(imgopt,optarg);
 			break;
-		case 's':
-			depth=8;
+		case 'p':
+			depth=16;
 			break;
+		case 's':
+			satnum=atoi(optarg);
+			if(satnum<0 || satnum > 1) {
+				fprintf(stderr,"invalid satellite\n");
+				exit(1);
+			}
+			break;
+		default:
+			usage();
 	}
 }
 
@@ -346,12 +359,12 @@ sf_close(inwav);
 
 /* raw image */
 if(strchr(imgopt,(int)'r')!=NULL){
-sprintf(pngfilename,"%s/%s.png",pngdirname,name);
+sprintf(pngfilename,"%s/%s-r.png",pngdirname,name);
 ImageOut(pngfilename,prow,nrow,depth,2080,0);
 }
 
 /* Channel A */
-if(((strchr(imgopt,(int)'a')!=NULL) || (strchr(imgopt,(int)'c')!=NULL))) {
+if(((strchr(imgopt,(int)'a')!=NULL) || (strchr(imgopt,(int)'c')!=NULL) || (strchr(imgopt,(int)'d')!=NULL))) {
 	ch=Calibrate(prow,nrow,85);
 	if(ch>0) {
 		a=1;
@@ -366,18 +379,26 @@ if(((strchr(imgopt,(int)'a')!=NULL) || (strchr(imgopt,(int)'c')!=NULL))) {
 if(((strchr(imgopt,(int)'b')!=NULL) || (strchr(imgopt,(int)'c')!=NULL))) {
 	ch=Calibrate(prow,nrow,1125);
 	if(ch>0) {
-		b=1;
 		if(strchr(imgopt,(int)'b')!=NULL) {
-		sprintf(pngfilename,"%s/%s-%s.png",pngdirname,name,chid[ch]);
-		ImageOut(pngfilename,prow,nrow,depth,954,1125);
+			sprintf(pngfilename,"%s/%s-%s.png",pngdirname,name,chid[ch]);
+			ImageOut(pngfilename,prow,nrow,depth,954,1125);
+		}
+	}
+	if(ch>2) {
+		b=1;
+		Temperature(prow,nrow,ch,1125);
+		if(strchr(imgopt,(int)'t')!=NULL) {
+			sprintf(pngfilename,"%s/%s-t.png",pngdirname,name);
+			ImageOut(pngfilename,prow,nrow,depth,954,1125);
 		}
 	}
 }
 
-#ifdef DEBUG
+/* distribution */
+if(a && b  && strchr(imgopt,(int)'d')!=NULL){
 	sprintf(pngfilename,"%s/%s-d.pnm",pngdirname,name);
 	Distrib(pngfilename,prow,nrow);
-#endif
+}
 
 /* color image */
 if(a && b && strchr(imgopt,(int)'c')!=NULL){
