@@ -5,7 +5,7 @@ ATPDEC TODO List
 - GUI : I'm not a GUI man , but if someone want to do the job ....
 
 - Optimisation : Don't do anything in order to run fast. There is plenty
-  room for performance improuvement (but on my 1.7GHz celeron , decodong part
+  room for performance improvement (but on my 1.7GHz celeron , decoding
   is already faster than real time...)
 
 
