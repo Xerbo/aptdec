@@ -1,2 +1,2 @@
-const char version[]="Atpdec 1.4  2003 Thierry Leconte F4DWV";
+const char version[]="Atpdec 1.5  2004 Thierry Leconte F4DWV";
 
