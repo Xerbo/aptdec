@@ -1,0 +1,29 @@
+.TH ATPDEC 1 "Atpdec ATP satellite image decoder"
+.SH NAME
+atpdec
+.SH OVERVIEW
+atpdec is a decoder for NOAA ATP images. It takes soundfiles recorded from an ATP receiver and convert them into .png images.
+.SH SYNOPSIS
+.B atpdec
+.I "[options]" soundfiles ...
+.SH OPTIONS
+.TP
+.br
+.B \-c file.png
+Use a private colormap for false color generation. Default : Internal colormap.
+.TP
+.br
+.B \-i [r|a|b|c]
+Toggle raw (r) , channel A (a) , channel B (b) or false color (c) output.
+Default : "abc"
+.TP
+.br
+.B \-d directory
+Optional images destination directory. Default : sounfile directory.
+.SH EXAMPLE
+atpdec -d image -i ac *.wav
+
+.br
+Will process all .wav files in the current directory, generate only channel A and false color images and put them in the image directory.
+.SH AUTHOR
+Thierry Leconte
