@@ -110,7 +110,7 @@ int	n;
 		}
 
 		mult=(double)Fi*fr/2400.0*FreqLine;
-		pvbuff[n]=rsfir(&(ambuff[idxam]),rsfilter,RSFilterLen,offset,mult)*mult*256.0;
+		pvbuff[n]=rsfir(&(ambuff[idxam]),rsfilter,RSFilterLen,offset,mult)*mult*2*256.0;
 
 		shift=(int)((RSMULT-offset+mult-1)/mult);
 		offset=shift*mult+offset-RSMULT;
@@ -126,7 +126,7 @@ static float pixels[PixelLine+SyncFilterLen];
 static int npv=0;
 static int synced=0;
 static double max=0.0;
-float corr,scorr;
+double corr,ecorr,lcorr;
 double ph;
 int n,res;
 
@@ -141,9 +141,10 @@ int n,res;
    }
 
    /* test sync */
-   corr=fir(pixelv,Sync,SyncFilterLen);
-   scorr=fir(&(pixelv[1]),Sync,SyncFilterLen);
-   FreqLine=1.0-scorr/corr/PixelLine/4.0;
+   corr=fir(&(pixelv[1]),Sync,SyncFilterLen);
+   ecorr=fir(pixelv,Sync,SyncFilterLen);
+   lcorr=fir(&(pixelv[2]),Sync,SyncFilterLen);
+   FreqLine=1.0+(ecorr-lcorr)/corr/PixelLine/4.0;
 
    if(corr < 0.75*max) {
 	synced=0;
@@ -166,7 +167,7 @@ int n,res;
 	for(shift=1;shift<PixelLine;shift++) {
 		double corr;
 
-		corr=fir(&(pixelv[shift]),Sync,SyncFilterLen);
+		corr=fir(&(pixelv[shift+1]),Sync,SyncFilterLen);
 		if(corr>max) {
 			mshift=shift;
 			max=corr;
