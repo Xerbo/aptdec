@@ -26,13 +26,15 @@
 #include "filter.h"
 #include "filtercoeff.h"
 
-#define Fe 11025
+#define Fe 11025.0
+#define Fc 2400.0
+#define DFc 50.0
 #define PixelLine 2080
 #define Fp (2*PixelLine)
 #define RSMULT 10
 #define Fi (Fp*RSMULT)
 
-static double FreqOsc=2400.0/Fe;
+static double FreqOsc=Fc/Fe;
 static double FreqLine=1.0;
 extern int getsample(float *inbuff ,int nb);
 
@@ -62,6 +64,9 @@ DPhi=-atan2(Qp,Ip)/M_PI;
 DF=K1*DPhi+FreqOsc;
 FreqOsc+=K2*DPhi;
 
+if(FreqOsc>((Fc+DFc)/Fe)) FreqOsc=(Fc+DFc)/Fe;
+if(FreqOsc<((Fc-DFc)/Fe)) FreqOsc=(Fc-DFc)/Fe;
+
 PhaseOsc+=2.0*M_PI*DF;
 if (PhaseOsc > M_PI) PhaseOsc-=2.0*M_PI;
 if (PhaseOsc <= -M_PI) PhaseOsc+=2.0*M_PI;
@@ -69,7 +74,7 @@ if (PhaseOsc <= -M_PI) PhaseOsc+=2.0*M_PI;
 return (float)(In*Io);
 }
 
-static double fr=2400.0/Fe;
+static double fr=Fc/Fe;
 static double offset=0.0;
 
 getamp(float *ambuff,int nb)
@@ -112,7 +117,7 @@ int	n;
 			if(nam<BLKAMP) return(n);
 		}
 
-		mult=(double)Fi*fr/2400.0*FreqLine;
+		mult=(double)Fi*fr/Fc*FreqLine;
 		pvbuff[n]=rsfir(&(ambuff[idxam]),rsfilter,RSFilterLen,offset,mult)*mult*3*256.0;
 
 		shift=(int)((RSMULT-offset+mult-1)/mult);
