@@ -34,7 +34,7 @@ Atpdec is written in plain standart C and must be very portable.
 It was only tested on Linux Suse 8.2, but must work on any Unix platform.
 Just adapt the Makefile and type make (sorry no configure). 
 
-atpdec use libsnd, libpng and libm.
+atpdec use libsndfile, libpng and libm.
 snd.h and png.h header must be present on your system.
 If they are not on standard path, edit the include path in the Makefile.
 
