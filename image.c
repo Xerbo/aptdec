@@ -25,38 +25,30 @@
 #include <sndfile.h>
 #include <math.h>
 
+#define REGORDER 3
 typedef struct {
-double slope;
-double offset;
+double cf[REGORDER+1] ;
 } rgparam;
 
 static void rgcomp(double x[16], rgparam *rgpr)
 {
 /* 0.106,0.215,0.324,0.434,0.542,0.652,0.78,0.87 ,0.0 */
 const double y[9] = { 31.1,63.0,95.0,127.2,158.9,191.1,228.6,255.0, 0.0 }; 
-const double yavg=(y[0]+y[1]+y[2]+y[4]+y[5]+y[6]+y[7]+y[8])/9.0;
-double xavg;
-double sxx,sxy;
-int i;
+extern void polyreg(int m,int n,double x[],double y[],double c[]);
 
-for(i=0,xavg=0.0;i<9;i++)
-	xavg+=x[i];
-xavg/=9;
-for(i=0,sxx=0.0;i<9;i++) {
-	float t=x[i]-xavg;
-	sxx+=t*t;
-}
-for(i=0,sxy=0.0;i<9;i++) {
-	sxy+=(x[i]-xavg)*(y[i]-yavg);
-}
-rgpr->slope=sxy/sxx;
-rgpr->offset=yavg-rgpr->slope*xavg;
-
+polyreg(REGORDER,9,x,y,rgpr->cf);
 }
 
 static double rgcal(float x,rgparam *rgpr)
 {
-return(rgpr->slope*x+rgpr->offset);
+double y,p;
+int i;
+
+for(i=0,y=0.0,p=1.0;i<REGORDER+1;i++) {
+	y+=rgpr->cf[i]*p;
+	p=p*x;
+}
+return(y);
 }
 
 
