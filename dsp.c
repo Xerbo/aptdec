@@ -29,27 +29,25 @@
 #define RSMULT 265
 #define Fi (Fp*RSMULT)
 
-static double FreqOsc=2.0*2400.0/Fe;
+static double FreqOsc=2400.0/Fe;
 static double FreqLine=1.0;
 extern int getsample(float *inbuff ,int nb);
 
 static float pll(float Iv, float Qv)
 {
 /* pll coeff */
-#define K1 0.01
-#define K2 5e-6
+#define K1 5e-3
+#define K2 3e-6
 
 static double PhaseOsc=0.0;
 
 double DPhi;
 double DF;
-double Phi;
 double I,Q;
 double Io,Qo;
 
 /* quadrature oscillator */
-Phi=M_PI*PhaseOsc;
-Io=cos(Phi); Qo=sin(Phi);
+Io=cos(PhaseOsc); Qo=sin(PhaseOsc);
 
 /* phase detector */
 I=Iv*Io+Qv*Qo;
@@ -60,14 +58,14 @@ DPhi=atan2(Q,I)/M_PI;
 DF=K1*DPhi+FreqOsc;
 FreqOsc+=K2*DPhi;
 
-PhaseOsc+=DF;
-if (PhaseOsc > 1.0) PhaseOsc-=2.0;
-if (PhaseOsc <= -1.0) PhaseOsc+=2.0;
+PhaseOsc+=2.0*M_PI*DF;
+if (PhaseOsc > M_PI) PhaseOsc-=2.0*M_PI;
+if (PhaseOsc <= -M_PI) PhaseOsc+=2.0*M_PI;
 
 return (float)I;
 }
 
-static double fr=4800.0/Fe;
+static double fr=2400.0/Fe;
 static double offset=0.0;
 
 getamp(float *ambuff,int nb)
@@ -124,8 +122,8 @@ int	n;
 			if(nam<15) return(n);
 		}
 
-		mult=(double)Fi/4800.0*fr*FreqLine;
-		pvbuff[n]=rsfir(&(ambuff[idxam]),rsfilter,RSFilterLen,offset,mult)*RSMULT*128.0;
+		mult=(double)Fi*fr/2400.0*FreqLine;
+		pvbuff[n]=rsfir(&(ambuff[idxam]),rsfilter,RSFilterLen,offset,mult)*mult*256.0;
 
 		shift=(int)((RSMULT-offset+mult-1)/mult);
 		offset=shift*mult+offset-RSMULT;
