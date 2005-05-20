@@ -1,6 +1,6 @@
 /*
  *  Atpdec
- *  Copyright (c) 2004 by Thierry Leconte (F4DWV)
+ *  Copyright (c) 2004-2005 by Thierry Leconte (F4DWV)
  *
  *      $Id$
  *
@@ -149,7 +149,7 @@ int ImageColorOut(char *filename, float **prow, int nrow)
     png_infop info_ptr;
     png_structp png_ptr;
     int n;
-    float *pixelc, *pixeln;
+    float *pixelc;
 
     extern void falsecolor(double v, double t, float *r, float *g,
 			    float *b);
@@ -169,11 +169,11 @@ int ImageColorOut(char *filename, float **prow, int nrow)
 	return (1);
     }
 
-    png_set_IHDR(png_ptr, info_ptr, 2 * (CH_WIDTH - 1), 2 * (nrow - 1),
+    png_set_IHDR(png_ptr, info_ptr, CH_WIDTH , nrow ,
 		 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
 		 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
-    png_set_pHYs(png_ptr, info_ptr, 2000, 2000, PNG_RESOLUTION_METER);
+    png_set_pHYs(png_ptr, info_ptr, 4000, 4000, PNG_RESOLUTION_METER);
 
     text_ptr[1].text = "False Colors";
     text_ptr[1].text_length = strlen(text_ptr[1].text);
@@ -189,64 +189,24 @@ int ImageColorOut(char *filename, float **prow, int nrow)
     png_init_io(png_ptr, pngfile);
     png_write_info(png_ptr, info_ptr);
 
-    for (n = 0; n < nrow - 1; n++) {
-	png_color pix[2 * CH_WIDTH];
-	float r, g, b;
-	float v, vs, t, ts;
+    for (n = 0; n < nrow ; n++) {
+	png_color pix[CH_WIDTH];
 	int i;
 
 	pixelc = prow[n];
-	pixeln = prow[n + 1];
 
-	v = (pixelc[SYNC_WIDTH + SPC_WIDTH] +
-	     pixeln[SYNC_WIDTH + SPC_WIDTH]) / 2.0;
 	for (i = 0; i < CH_WIDTH - 1; i++) {
+	    float v, t;
+  	    float r, g, b;
 
-	    t = pixelc[i + SYNC_WIDTH + SPC_WIDTH + CH_OFFSET];
-
-	    falsecolor(v, t, &r, &g, &b);
-	    pix[2 * i].red = 255.0 * r;
-	    pix[2 * i].green = 255.0 * g;
-	    pix[2 * i].blue = 255.0 * b;
-
-	    vs = (pixelc[i + 1 + SYNC_WIDTH + SPC_WIDTH] +
-		  pixeln[i + 1 + SYNC_WIDTH + SPC_WIDTH]) / 2.0;
-	    v = (v + vs) / 2.0;
-	    t = (pixelc[i + SYNC_WIDTH + SPC_WIDTH + CH_OFFSET] +
-		 pixelc[i + 1 + SYNC_WIDTH + SPC_WIDTH + CH_OFFSET]) / 2.0;
+	    v = pixelc[i+SYNC_WIDTH + SPC_WIDTH];
+	    t = pixelc[i+SYNC_WIDTH + SPC_WIDTH + CH_OFFSET];
 
 	    falsecolor(v, t, &r, &g, &b);
-	    pix[2 * i + 1].red = 255.0 * r;
-	    pix[2 * i + 1].green = 255.0 * g;
-	    pix[2 * i + 1].blue = 255.0 * b;
 
-	    v = vs;
-	}
-	png_write_row(png_ptr, (png_bytep) pix);
-
-	t = (pixelc[SYNC_WIDTH + SPC_WIDTH + CH_OFFSET] +
-	     pixeln[SYNC_WIDTH + SPC_WIDTH + CH_OFFSET]) / 2.0;
-	for (i = 0; i < CH_WIDTH - 1; i++) {
-
-	    v = pixeln[i + SYNC_WIDTH + SPC_WIDTH];
-
-	    falsecolor(v, t, &r, &g, &b);
-	    pix[2 * i].red = 255.0 * r;
-	    pix[2 * i].green = 255.0 * g;
-	    pix[2 * i].blue = 255.0 * b;
-
-	    v = (pixeln[i + SYNC_WIDTH + SPC_WIDTH] +
-		 pixeln[i + 1 + SYNC_WIDTH + SPC_WIDTH]) / 2.0;
-	    ts = (pixelc[i + SYNC_WIDTH + SPC_WIDTH + CH_OFFSET] +
-		  pixeln[i + 1 + SYNC_WIDTH + SPC_WIDTH +
-			 CH_OFFSET]) / 2.0;
-	    t = (t + ts) / 2.0;
-	    falsecolor(v, t, &r, &g, &b);
-	    pix[2 * i + 1].red = 255.0 * r;
-	    pix[2 * i + 1].green = 255.0 * g;
-	    pix[2 * i + 1].blue = 255.0 * b;
-
-	    t = ts;
+	    pix[i].red = 255.0 * r; 
+	    pix[i].green = 255.0 * g;
+	    pix[i].blue = 255.0 * b;
 	}
 	png_write_row(png_ptr, (png_bytep) pix);
     }
@@ -268,7 +228,7 @@ static void usage(void)
 {
     fprintf(stderr, "atpdec [options] soundfiles ...\n");
     fprintf(stderr,
-	    "options:\n-d <dir>\tDestination directory\n-i [a|b|c|t]\tOutput image type\n\t\t\tr: Raw\n\t\t\ta: A chan.\n\t\t\tb: B chan.\n\t\t\tc: False color\n\t\t\tt: Temperature\n-c <file>\tFalse color config file\n-s [0|1]\tSatellite id (for temperature and false color generation)\n\t\t\t0:NOAA15\n\t\t\t1:NOAA17\n");
+	    "options:\n-d <dir>\tDestination directory\n-i [r|a|b|c|t]\tOutput image type\n\t\t\tr: Raw\n\t\t\ta: A chan.\n\t\t\tb: B chan.\n\t\t\tc: False color\n\t\t\tt: Temperature\n-c <file>\tFalse color config file\n-s [15|16|17|18]\tSatellite number (for temperature and false color generation)\n");
    exit(1);
 }
 
@@ -299,9 +259,9 @@ int main(int argc, char **argv)
 	    strcpy(imgopt, optarg);
 	    break;
 	case 's':
-	    satnum = atoi(optarg);
-	    if (satnum < 0 || satnum > 1) {
-		fprintf(stderr, "invalid satellite\n");
+	    satnum = atoi(optarg)-15;
+	    if (satnum < 0 || satnum > 3) {
+		fprintf(stderr, "invalid satellite number  : must be in [15-18]\n");
 		exit(1);
 	    }
 	    break;
