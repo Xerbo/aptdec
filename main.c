@@ -20,6 +20,7 @@
  *
  */
 
+#include <stdlib.h>
 #include <stdio.h>
 #ifdef WIN32
 #include "w32util.h"
@@ -149,7 +150,7 @@ int ImageColorOut(char *filename, float **prow, int nrow)
     png_infop info_ptr;
     png_structp png_ptr;
     int n;
-    float *pixelc;
+    float *pixelc, *pixelp;
 
     extern void falsecolor(double v, double t, float *r, float *g,
 			    float *b);
@@ -189,10 +190,12 @@ int ImageColorOut(char *filename, float **prow, int nrow)
     png_init_io(png_ptr, pngfile);
     png_write_info(png_ptr, info_ptr);
 
+    pixelc=prow[0];
     for (n = 0; n < nrow ; n++) {
 	png_color pix[CH_WIDTH];
 	int i;
 
+	pixelp=pixelc;
 	pixelc = prow[n];
 
 	for (i = 0; i < CH_WIDTH - 1; i++) {
@@ -200,7 +203,7 @@ int ImageColorOut(char *filename, float **prow, int nrow)
   	    float r, g, b;
 
 	    v = pixelc[i+SYNC_WIDTH + SPC_WIDTH];
-	    t = pixelc[i+SYNC_WIDTH + SPC_WIDTH + CH_OFFSET];
+	    t = (2.0*pixelc[i+SYNC_WIDTH + SPC_WIDTH + CH_OFFSET]+pixelp[i+SYNC_WIDTH + SPC_WIDTH + CH_OFFSET])/3.0;
 
 	    falsecolor(v, t, &r, &g, &b);
 

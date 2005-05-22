@@ -221,7 +221,7 @@ const struct {
 	float Ns;
 	float b[3];
     } cor[3];
-} satcal[2] =
+} satcal[4] =
 #include "satcal.h"
 
 typedef struct {
