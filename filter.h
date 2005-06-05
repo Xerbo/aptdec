@@ -20,19 +20,8 @@
  *
  */
 
-typedef struct {
-float G;
-float x[3];
-float y[2];
-} iircoeff_t;
 
-typedef struct {
-float x[5];
-float y[3];
-} iirbuff_t;
-
-float rsfir(float *buff,const float *coeff,const int len ,const double offset ,const double delta);
-void iqfir(float *buff,const float *Icoeff,const float *Qcoeff, const int len ,float *I, float *Q);
 float fir(float *buff,const float *coeff,const int len);
-double iir(double x,iirbuff_t *buff, const iircoeff_t *coeff);
+void  iqfir(float *buff,const float *coeff,const int len,double *I,double *Q);
+float rsfir(float *buff,const float *coeff,const int len ,const double offset ,const double delta);
 

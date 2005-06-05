@@ -34,6 +34,7 @@
 #include "version.h"
 
 extern int getpixelrow(float *pixelv);
+extern int init_dsp(double F);;
 
 #define SYNC_WIDTH 39
 #define SPC_WIDTH 47
@@ -47,6 +48,7 @@ static SNDFILE *inwav;
 static int initsnd(char *filename)
 {
     SF_INFO infwav;
+    int	    res;
 
 /* open wav input file */
     infwav.format = 0;
@@ -55,14 +57,20 @@ static int initsnd(char *filename)
 	fprintf(stderr, "could not open %s\n", filename);
 	return (1);
     }
-    if (infwav.samplerate != 11025) {
-	fprintf(stderr, "Bad Input File sample rate: %d. Must be 11025\n",
-		infwav.samplerate);
+
+    res=init_dsp(infwav.samplerate);
+    if(res<0) {
+	fprintf(stderr, "Sample rate too low : %d\n", infwav.samplerate);
 	return (1);
     }
+    if(res>0) {
+	fprintf(stderr, "Sample rate too hight : %d\n", infwav.samplerate);
+	return (1);
+    }
+    fprintf(stderr, "Sample rate : %d\n", infwav.samplerate);
+
     if (infwav.channels != 1) {
-	fprintf(stderr, "Too many channels in input file : %d\n",
-		infwav.channels);
+	fprintf(stderr, "Too many channels in input file : %d\n", infwav.channels);
 	return (1);
     }
 

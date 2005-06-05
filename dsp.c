@@ -27,26 +27,37 @@
 #include "filter.h"
 #include "filtercoeff.h"
 
-#define Fe 11025.0
 #define Fc 2400.0
 #define DFc 50.0
 #define PixelLine 2080
 #define Fp (2*PixelLine)
-#define RSMULT 10
+#define RSMULT 15
 #define Fi (Fp*RSMULT)
-static double FreqOsc = Fc / Fe;
+static double Fe;
+static double FreqOsc;
 static double FreqLine = 1.0;
+static double fr;
+static double offset = 0.0;
+
 
 extern int getsample(float *inbuff, int nb);
 
-static float pll(float In)
+int init_dsp(double F)
+{
+if(F > Fi) return (1);
+if(F < Fp) return (-1);
+Fe=F;
+fr=FreqOsc=Fc/Fe;
+return(0);
+}
+
+static float pll(double I, double Q)
 {
 
 /* pll coeff */
 #define K1 5e-3
 #define K2 3e-6
     static double PhaseOsc = 0.0;
-    static iirbuff_t Ifilterbuff, Qfilterbuff;
     double Io, Qo;
     double Ip, Qp;
     double DPhi;
@@ -57,8 +68,8 @@ static float pll(float In)
     Qo = sin(PhaseOsc);
 
 /* phase detector */
-    Ip = iir(In * Io, &Ifilterbuff, &PhaseFilterCf);
-    Qp = iir(In * Qo, &Qfilterbuff, &PhaseFilterCf);
+    Ip = I*Io-Q*Qo;
+    Qp = I*Qo+Q*Io;
     DPhi = -atan2(Qp, Ip) / M_PI;
 
 /*  loop filter  */
@@ -73,59 +84,75 @@ static float pll(float In)
 	PhaseOsc -= 2.0 * M_PI;
     if (PhaseOsc <= -M_PI)
 	PhaseOsc += 2.0 * M_PI;
-    return (float) (In * Io);
+
+    return ((float)Ip);
 }
 
-static double fr = Fc / Fe;
-static double offset = 0.0;
-
-int getamp(float *ambuff, int nb)
+static int getamp(float *ambuff, int nb)
 {
 
 #define BLKIN 1024
-    float inbuff[BLKIN];
-    int n;
-    int res;
+    static float inbuff[BLKIN];
+    static int idxin=0;
+    static int nin=0;
 
-    res = getsample(inbuff, nb > BLKIN ? BLKIN : nb);
-    for (n = 0; n < res; n++) {
-	ambuff[n] = pll(inbuff[n]);
+    int n;
+
+    for (n = 0; n < nb; n++) {
+    	double I,Q;
+
+	if (nin < IQFilterLen*2) {
+	    int res;
+	    memmove(inbuff, &(inbuff[idxin]), nin * sizeof(float));
+	    idxin = 0;
+    	    res = getsample(&(inbuff[nin]), BLKIN - nin);
+	    nin += res;
+	    if (nin < IQFilterLen*2)
+		return (n);
+	}
+
+    	iqfir(&inbuff[idxin],iqfilter,IQFilterLen,&I,&Q);
+	ambuff[n] = pll(I,Q);
 	fr = 0.25 * FreqOsc + 0.75 * fr;
+	idxin += 1;
+	nin -= 1;
     }
-    return (res);
+    return (n);
 }
 
 int getpixelv(float *pvbuff, int nb)
 {
 
-#define BLKAMP 256
+#define BLKAMP 1024
     static float ambuff[BLKAMP];
     static int nam = 0;
     static int idxam = 0;
-    int n;
+
+    int n,m;
+    double mult;
+
+    mult = (double) Fi *fr / Fc * FreqLine;
+
+    m=RSFilterLen/mult+1;
 
     for (n = 0; n < nb; n++) {
-	double mult;
 	int shift;
 
-	if (nam < BLKAMP) {
+	if (nam < m) {
 	    int res;
 	    memmove(ambuff, &(ambuff[idxam]), nam * sizeof(float));
 	    idxam = 0;
 	    res = getamp(&(ambuff[nam]), BLKAMP - nam);
 	    nam += res;
-	    if (nam < BLKAMP)
+	    if (nam < m)
 		return (n);
 	}
 
-	mult = (double) Fi *fr / Fc * FreqLine;
+	pvbuff[n] = rsfir(&(ambuff[idxam]), rsfilter, RSFilterLen, offset, mult) * mult * 2 * 256.0;
 
-	pvbuff[n] =
-	    rsfir(&(ambuff[idxam]), rsfilter, RSFilterLen, offset,
-		  mult) * mult * 2 * 256.0;
+	shift = ((int) floor((RSMULT - offset) / mult))+1;
+	offset = shift*mult+offset-RSMULT ;
 
-	shift = (int) ((RSMULT - offset + mult - 1) / mult);
-	offset = shift * mult + offset - RSMULT;
 	idxam += shift;
 	nam -= shift;
     }
