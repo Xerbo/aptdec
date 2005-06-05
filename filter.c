@@ -40,10 +40,11 @@ void iqfir(float *buff, const float *coeff, const int len,double *I,double *Q)
     double i,q;
 
     i=q=0.0;
-    for (k = 0; k < len; k++) {
-	i += buff[2*k] ;
+    for (k = 0; k < len-1; k++) {
 	q += buff[2*k] * coeff[k];
+	i += buff[2*k+1] ;
     } 
+    q += buff[2*k] * coeff[k];
     i= buff[len-1]-i/len;
     *I=i,*Q=q;
 }

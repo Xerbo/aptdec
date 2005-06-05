@@ -51,6 +51,36 @@ fr=FreqOsc=Fc/Fe;
 return(0);
 }
 
+/* fast phase estimator */
+static inline double Phase(double I,double Q)
+{
+   double angle,r;
+   int s;
+
+   if(I==0.0 && Q==0.0)
+	return(0.0);
+
+   if (Q < 0)  {
+	s=-1;
+	Q=-Q;
+   } else {
+	s=1;
+   }
+	
+   if (I>=0) {
+      r = (I - Q) / (I + Q);
+      angle = 0.5 - 0.5 * r;
+   } else {
+      r = (I + Q) / (Q - I);
+      angle = 1.5 - 0.5 * r;
+   }
+
+  if(s>0)
+  	return(angle);
+  else
+  	return(-angle);
+}
+
 static float pll(double I, double Q)
 {
 
@@ -68,22 +98,26 @@ static float pll(double I, double Q)
     Qo = sin(PhaseOsc);
 
 /* phase detector */
-    Ip = I*Io-Q*Qo;
-    Qp = I*Qo+Q*Io;
-    DPhi = -atan2(Qp, Ip) / M_PI;
+    Ip = I*Io+Q*Qo;
+    Qp = Q*Io-I*Qo;
+    DPhi = Phase(Ip,Qp);
+
+printf("%g\n",DPhi);
 
 /*  loop filter  */
     DF = K1 * DPhi + FreqOsc;
-    FreqOsc += K2 * DPhi;
-    if (FreqOsc > ((Fc + DFc) / Fe))
-	FreqOsc = (Fc + DFc) / Fe;
-    if (FreqOsc < ((Fc - DFc) / Fe))
-	FreqOsc = (Fc - DFc) / Fe;
+
     PhaseOsc += 2.0 * M_PI * DF;
     if (PhaseOsc > M_PI)
 	PhaseOsc -= 2.0 * M_PI;
     if (PhaseOsc <= -M_PI)
 	PhaseOsc += 2.0 * M_PI;
+
+    FreqOsc += K2 * DPhi;
+    if (FreqOsc > ((Fc + DFc) / Fe))
+	FreqOsc = (Fc + DFc) / Fe;
+    if (FreqOsc < ((Fc - DFc) / Fe))
+	FreqOsc = (Fc - DFc) / Fe;
 
     return ((float)Ip);
 }
