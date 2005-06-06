@@ -27,27 +27,34 @@
 #include "filter.h"
 #include "filtercoeff.h"
 
+extern int getsample(float *inbuff, int nb);
+
 #define Fc 2400.0
 #define DFc 50.0
 #define PixelLine 2080
 #define Fp (2*PixelLine)
 #define RSMULT 15
 #define Fi (Fp*RSMULT)
+
 static double Fe;
-static double FreqOsc;
-static double FreqLine = 1.0;
-static double fr;
+
 static double offset = 0.0;
+static double FreqLine = 1.0;
 
+static double FreqOsc;
+static double K1,K2;
 
-extern int getsample(float *inbuff, int nb);
 
 int init_dsp(double F)
 {
 if(F > Fi) return (1);
 if(F < Fp) return (-1);
 Fe=F;
-fr=FreqOsc=Fc/Fe;
+
+K1=DFc/Fe;
+K2=K1*K1/2.0;
+FreqOsc=Fc/Fe;
+
 return(0);
 }
 
@@ -69,10 +76,10 @@ static inline double Phase(double I,double Q)
 	
    if (I>=0) {
       r = (I - Q) / (I + Q);
-      angle = 0.5 - 0.5 * r;
+      angle = 0.25 - 0.25 * r;
    } else {
       r = (I + Q) / (Q - I);
-      angle = 1.5 - 0.5 * r;
+      angle = 0.75 - 0.25 * r;
    }
 
   if(s>0)
@@ -85,13 +92,10 @@ static float pll(double I, double Q)
 {
 
 /* pll coeff */
-#define K1 5e-3
-#define K2 3e-6
     static double PhaseOsc = 0.0;
     double Io, Qo;
     double Ip, Qp;
     double DPhi;
-    double DF;
 
 /* quadrature oscillator */
     Io = cos(PhaseOsc);
@@ -102,12 +106,10 @@ static float pll(double I, double Q)
     Qp = Q*Io-I*Qo;
     DPhi = Phase(Ip,Qp);
 
-printf("%g\n",DPhi);
 
 /*  loop filter  */
-    DF = K1 * DPhi + FreqOsc;
 
-    PhaseOsc += 2.0 * M_PI * DF;
+    PhaseOsc += 2.0 * M_PI * (K1 * DPhi + FreqOsc);
     if (PhaseOsc > M_PI)
 	PhaseOsc -= 2.0 * M_PI;
     if (PhaseOsc <= -M_PI)
@@ -147,7 +149,6 @@ static int getamp(float *ambuff, int nb)
 
     	iqfir(&inbuff[idxin],iqfilter,IQFilterLen,&I,&Q);
 	ambuff[n] = pll(I,Q);
-	fr = 0.25 * FreqOsc + 0.75 * fr;
 	idxin += 1;
 	nin -= 1;
     }
@@ -165,7 +166,7 @@ int getpixelv(float *pvbuff, int nb)
     int n,m;
     double mult;
 
-    mult = (double) Fi *fr / Fc * FreqLine;
+    mult = (double) Fi / Fe *FreqLine;
 
     m=RSFilterLen/mult+1;
 
@@ -182,7 +183,7 @@ int getpixelv(float *pvbuff, int nb)
 		return (n);
 	}
 
-	pvbuff[n] = rsfir(&(ambuff[idxam]), rsfilter, RSFilterLen, offset, mult) * mult * 2 * 256.0;
+	pvbuff[n] = rsfir(&(ambuff[idxam]), rsfilter, RSFilterLen, offset, mult) * mult * 256.0;
 
 	shift = ((int) floor((RSMULT - offset) / mult))+1;
 	offset = shift*mult+offset-RSMULT ;
@@ -216,7 +217,7 @@ int getpixelrow(float *pixelv)
     corr = fir(&(pixelv[1]), Sync, SyncFilterLen);
     ecorr = fir(pixelv, Sync, SyncFilterLen);
     lcorr = fir(&(pixelv[2]), Sync, SyncFilterLen);
-    FreqLine = 1.0 + (ecorr - lcorr) / corr / PixelLine / 4.0;
+    FreqLine = 1.0+((ecorr - lcorr) / corr / PixelLine / 4.0);
     if (corr < 0.75 * max) {
 	synced = 0;
 	FreqLine = 1.0;
