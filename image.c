@@ -25,6 +25,8 @@
 #include <sndfile.h>
 #include <math.h>
 
+#include "offsets.h"
+
 #define REGORDER 3
 typedef struct {
     double cf[REGORDER + 1];
@@ -79,7 +81,7 @@ int Calibrate(float **prow, int nrow, int offset)
 
 	teleline[n] = 0.0;
 	for (i = 3; i < 43; i++) {
-	    teleline[n] += prow[n][i + offset + 956];
+	    teleline[n] += prow[n][i + offset + CH_WIDTH];
 	}
 	teleline[n] /= 40.0;
     }
@@ -136,7 +138,6 @@ int Calibrate(float **prow, int nrow, int offset)
 	    }
 
 
-
 	    /* channel ID */
 	    for (j = 0, max = 10000.0, channel = -1; j < 6; j++) {
 		float df;
@@ -154,7 +155,7 @@ int Calibrate(float **prow, int nrow, int offset)
 		double csline;
 
 		for (csline = 0.0, l = 3; l < 43; l++)
-		    csline += prow[n][l + offset];
+		    csline += prow[n][l + offset -SPC_WIDTH];
 		csline /= 40.0;
 		if (csline > 50.0) {
 		    Cs += csline;
@@ -173,7 +174,7 @@ int Calibrate(float **prow, int nrow, int offset)
 	int i;
 
 	pixelv = prow[n];
-	for (i = 0; i < 1001; i++) {
+	for (i = 0; i < CH_WIDTH; i++) {
 	    float pv;
 	    int k, kof;
 
@@ -207,21 +208,11 @@ int Calibrate(float **prow, int nrow, int offset)
 	}
     }
     printf("Done\n");
-    return (channel);
+    return (channel+1);
 }
 
 /* ------------------------------temperature calibration -----------------------*/
 extern int satnum;
-const struct {
-    float d[4][3];
-    struct {
-	float vc, A, B;
-    } rad[3];
-    struct {
-	float Ns;
-	float b[3];
-    } cor[3];
-} satcal[4] =
 #include "satcal.h"
 
 typedef struct {
@@ -238,7 +229,7 @@ static void tempcomp(double t[16], int ch, tempparam * tpr)
     double C;
     int n;
 
-    tpr->ch = ch - 3;
+    tpr->ch = ch - 4;
 
     /* compute equivalent T black body  */
     for (n = 0; n < 4; n++) {
@@ -282,11 +273,10 @@ static double tempcal(float Ce, tempparam * rgpr)
 
     vc = satcal[satnum].rad[rgpr->ch].vc;
     T = c2 * vc / log(c1 * vc * vc * vc / Ne + 1.0);
-    T = (T -
-	 satcal[satnum].rad[rgpr->ch].A) / satcal[satnum].rad[rgpr->ch].B;
+    T = (T - satcal[satnum].rad[rgpr->ch].A) / satcal[satnum].rad[rgpr->ch].B;
 
-    /* rescale to range 0-255 for +40-60 °C */
-    T = (-T + 273.15 + 40) / 100.0 * 255.0;
+    /* rescale to range 0-255 for -60 +40 °C */
+    T = (T - 273.15 + 60.0) / 100.0 * 256.0;
 
     return (T);
 }
@@ -301,13 +291,12 @@ void Temperature(float **prow, int nrow, int channel, int offset)
 
     tempcomp(tele, channel, &temp);
 
-
     for (n = 0; n < nrow; n++) {
 	float *pixelv;
 	int i;
 
 	pixelv = prow[n];
-	for (i = 0; i < 1001; i++) {
+	for (i = 0; i < CH_WIDTH; i++) {
 	    float pv;
 
 	    pv = tempcal(pixelv[i + offset], &temp);

@@ -32,16 +32,11 @@
 #include <png.h>
 
 #include "version.h"
+#include "temppalette.h"
+#include "offsets.h"
 
 extern int getpixelrow(float *pixelv);
 extern int init_dsp(double F);;
-
-#define SYNC_WIDTH 39
-#define SPC_WIDTH 47
-#define TELE_WIDTH 45
-#define CH_WIDTH  909
-#define CH_OFFSET  (SYNC_WIDTH+SPC_WIDTH+CH_WIDTH+TELE_WIDTH)
-#define IMG_WIDTH  2080
 
 static SNDFILE *inwav;
 
@@ -93,7 +88,7 @@ static png_text text_ptr[] = {
 
 static int
 ImageOut(char *filename, char *chid, float **prow, int nrow, 
-	 int width, int offset)
+	 int width, int offset, png_color *palette)
 {
     FILE *pngfile;
     png_infop info_ptr;
@@ -115,9 +110,18 @@ ImageOut(char *filename, char *chid, float **prow, int nrow,
 	return (1);
     }
 
-    png_set_IHDR(png_ptr, info_ptr, width, nrow,
+    if(palette==NULL)  {
+	/* grey image */
+    	png_set_IHDR(png_ptr, info_ptr, width, nrow,
 		 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE,
 		 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+    } else {
+	/* palette color mage */
+    	png_set_IHDR(png_ptr, info_ptr, width, nrow,
+		 8, PNG_COLOR_TYPE_PALETTE, PNG_INTERLACE_NONE,
+		 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+	png_set_PLTE(png_ptr, info_ptr, palette, 256);
+    }
 
     text_ptr[1].text = chid;
     text_ptr[1].text_length = strlen(chid);
@@ -152,13 +156,12 @@ ImageOut(char *filename, char *chid, float **prow, int nrow,
     return (0);
 }
 
-int ImageColorOut(char *filename, float **prow, int nrow)
+static int ImageRGBOut(char *filename, float **prow, int nrow)
 {
     FILE *pngfile;
     png_infop info_ptr;
     png_structp png_ptr;
     int n;
-    float *pixelc, *pixelp;
 
     extern void falsecolor(double v, double t, float *r, float *g,
 			    float *b);
@@ -198,20 +201,19 @@ int ImageColorOut(char *filename, float **prow, int nrow)
     png_init_io(png_ptr, pngfile);
     png_write_info(png_ptr, info_ptr);
 
-    pixelc=prow[0];
     for (n = 0; n < nrow ; n++) {
 	png_color pix[CH_WIDTH];
+    	float *pixelc;
 	int i;
 
-	pixelp=pixelc;
 	pixelc = prow[n];
 
 	for (i = 0; i < CH_WIDTH - 1; i++) {
 	    float v, t;
   	    float r, g, b;
 
-	    v = pixelc[i+SYNC_WIDTH + SPC_WIDTH];
-	    t = (2.0*pixelc[i+SYNC_WIDTH + SPC_WIDTH + CH_OFFSET]+pixelp[i+SYNC_WIDTH + SPC_WIDTH + CH_OFFSET])/3.0;
+	    v = pixelc[i+CHA_OFFSET];
+	    t = pixelc[i+CHB_OFFSET];
 
 	    falsecolor(v, t, &r, &g, &b);
 
@@ -228,8 +230,48 @@ int ImageColorOut(char *filename, float **prow, int nrow)
     return (0);
 }
 
+
+static void Distrib(char *filename,float **prow,int nrow)
+{
+unsigned int distrib[256][256];
+int n;
+int x,y;
+int max=0;
+FILE *df;
+
+for(y=0;y<256;y++)
+	for(x=0;x<256;x++)
+                distrib[y][x]=0;
+
+for(n=0;n<nrow;n++) {
+        float *pixelv;
+        int     i;
+
+        pixelv=prow[n];
+        for(i=0;i<CH_WIDTH;i++) {
+
+                y=(int)(pixelv[i+CHA_OFFSET]);
+                x=(int)(pixelv[i+CHB_OFFSET]);
+                distrib[y][x]+=1;
+		if(distrib[y][x]> max) max=distrib[y][x];
+        }
+}
+df=fopen(filename,"w");
+
+printf("Writing %s\n",filename);
+
+fprintf(df,"P2\n#max %d\n",max);
+fprintf(df,"256 256\n255\n");
+for(y=0;y<256;y++)
+	for(x=0;x<256;x++)
+		fprintf(df,"%d\n",(int)((255.0*(double)(distrib[y][x]))/(double)max));
+fclose(df);
+}
+
+
 extern int Calibrate(float **prow, int nrow, int offset);
 extern void Temperature(float **prow, int nrow, int ch, int offset);
+extern int Ngiv(float **prow, int nrow);
 extern void readfconf(char *file);
 extern int optind, opterr;
 extern char *optarg;
@@ -250,9 +292,9 @@ int main(int argc, char **argv)
     char pngdirname[1024] = "";
     char imgopt[20] = "ac";
     float *prow[3000];
-    char *chid[6] = { "1", "2", "3A", "4", "5", "3B" };
+    char *chid[] = { "?", "1", "2", "3A", "4", "5", "3B" };
     int nrow;
-    int ch;
+    int chA,chB;
     int c;
 
     printf("%s\n", version);
@@ -285,7 +327,8 @@ int main(int argc, char **argv)
 	prow[nrow] = NULL;
 
     for (; optind < argc; optind++) {
-	int a = 0, b = 0;
+
+	chA=chB=0;
 
 	strcpy(pngfilename, argv[optind]);
 	strcpy(name, basename(pngfilename));
@@ -312,28 +355,24 @@ int main(int argc, char **argv)
 	printf("\nDone\n");
 	sf_close(inwav);
 
+
 /* raw image */
 	if (strchr(imgopt, (int) 'r') != NULL) {
 	    sprintf(pngfilename, "%s/%s-r.png", pngdirname, name);
-	    ImageOut(pngfilename, "raw", prow, nrow, IMG_WIDTH, 0);
+	    ImageOut(pngfilename, "raw", prow, nrow, IMG_WIDTH, 0,NULL);
 	}
 
 /* Channel A */
 	if (((strchr(imgopt, (int) 'a') != NULL)
 	     || (strchr(imgopt, (int) 'c') != NULL)
 	     || (strchr(imgopt, (int) 'd') != NULL))) {
-	    ch = Calibrate(prow, nrow, SYNC_WIDTH);
-	    if (ch >= 0) {
+	    chA = Calibrate(prow, nrow, CHA_OFFSET);
+	    if (chA >= 0) {
 		if (strchr(imgopt, (int) 'a') != NULL) {
-		    sprintf(pngfilename, "%s/%s-%s.png", pngdirname, name,
-			    chid[ch]);
-		    ImageOut(pngfilename, chid[ch], prow, nrow, 
-			     SPC_WIDTH + CH_WIDTH + TELE_WIDTH,
-			     SYNC_WIDTH);
+		    sprintf(pngfilename, "%s/%s-%s.png", pngdirname, name, chid[chA]);
+		    ImageOut(pngfilename, chid[chA], prow, nrow, CH_WIDTH , CHA_OFFSET,NULL);
 		}
 	    }
-	    if (ch < 2)
-		a = 1;
 	}
 
 /* Channel B */
@@ -341,38 +380,40 @@ int main(int argc, char **argv)
 	    || (strchr(imgopt, (int) 'c') != NULL)
 	    || (strchr(imgopt, (int) 't') != NULL)
 	    || (strchr(imgopt, (int) 'd') != NULL)) {
-	    ch = Calibrate(prow, nrow, CH_OFFSET + SYNC_WIDTH);
-	    if (ch >= 0) {
+	    chB = Calibrate(prow, nrow, CHB_OFFSET);
+	    if (chB >= 0) {
 		if (strchr(imgopt, (int) 'b') != NULL) {
-		    sprintf(pngfilename, "%s/%s-%s.png", pngdirname, name,
-			    chid[ch]);
-		    ImageOut(pngfilename, chid[ch], prow, nrow, 
-			     SPC_WIDTH + CH_WIDTH + TELE_WIDTH,
-			     CH_OFFSET + SYNC_WIDTH);
+		    sprintf(pngfilename, "%s/%s-%s.png", pngdirname, name, chid[chB]);
+		    ImageOut(pngfilename, chid[chB], prow, nrow, CH_WIDTH , CHB_OFFSET ,NULL);
 		}
 	    }
-	    if (ch > 2) {
-		b = 1;
-		Temperature(prow, nrow, ch, CH_OFFSET + SYNC_WIDTH);
+	    if (chB > 3) {
+		Temperature(prow, nrow, chB, CHB_OFFSET);
 		if (strchr(imgopt, (int) 't') != NULL) {
 		    sprintf(pngfilename, "%s/%s-t.png", pngdirname, name);
-		    ImageOut(pngfilename, "Temperature", prow, nrow,
-			     CH_WIDTH, CH_OFFSET + SYNC_WIDTH + SPC_WIDTH);
+		    ImageOut(pngfilename, "Temperature", prow, nrow, CH_WIDTH, CHB_OFFSET, (png_color*)TempPalette);
 		}
 	    }
 	}
 
 /* distribution */
-	if (a && b && strchr(imgopt, (int) 'd') != NULL) {
+	if (chA && chB && strchr(imgopt, (int) 'd') != NULL) {
 	    sprintf(pngfilename, "%s/%s-d.pnm", pngdirname, name);
+	    Distrib(pngfilename, prow, nrow);
 	}
 
 /* color image */
-	if (a && b && strchr(imgopt, (int) 'c') != NULL) {
+	if (chA==2 && chB==4 && strchr(imgopt, (int) 'c') != NULL) {
 	    sprintf(pngfilename, "%s/%s-c.png", pngdirname, name);
-	    ImageColorOut(pngfilename, prow, nrow);
+	    ImageRGBOut(pngfilename, prow, nrow);
 	}
 
+/* vegetation image */
+	if (chA==1 && chB==2 && strchr(imgopt, (int) 'c') != NULL) {
+	    Ngiv(prow, nrow);
+	    sprintf(pngfilename, "%s/%s-c.png", pngdirname, name);
+	   ImageOut(pngfilename, "Vegetation", prow, nrow, CH_WIDTH, CHB_OFFSET, (png_color*)TempPalette);
+	}
     }
     exit(0);
 }

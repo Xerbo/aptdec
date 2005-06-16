@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <math.h>
-
+#include "offsets.h"
 
 typedef struct {
     float h, s, v;
@@ -139,3 +139,32 @@ void falsecolor(double v, double t, float *r, float *g, float *b)
 
     HSVtoRGB(r, g, b, c);
 };
+
+void Ngiv(float **prow, int nrow)
+{
+    int n;
+
+    printf("Vegetation ... ");
+    fflush(stdout);
+
+    for (n = 0; n < nrow; n++) {
+        float *pixelv;
+        int i;
+
+        pixelv = prow[n];
+        for (i = 0; i < CH_WIDTH; i++) {
+            float pv;
+
+            pv = (pixelv[i + CHA_OFFSET]-pixelv[i + CHB_OFFSET])/(pixelv[i + CHA_OFFSET]+pixelv[i + CHB_OFFSET])*128.0+128.0;
+
+            if (pv > 255.0)
+                pv = 255.0;
+            if (pv < 0.0)
+                pv = 0.0;
+
+            pixelv[i + CHB_OFFSET] = pv;
+        }
+    }
+    printf("Done\n");
+};
+

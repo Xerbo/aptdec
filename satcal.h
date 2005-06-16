@@ -1,3 +1,13 @@
+const struct {
+    float d[4][3];
+    struct {
+        float vc, A, B;
+    } rad[3];
+    struct {
+        float Ns;
+        float b[3];
+    } cor[3];
+} satcal[4] =
 {/* calibration coeff from NOAA KLM POES satellite user guide */
 {/* NOAA-15 */
 { /* PRT coeff d0,d1,d2 */
