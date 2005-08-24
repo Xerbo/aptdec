@@ -70,7 +70,7 @@ static struct {
     hsvpix_t GroundTop;
     hsvpix_t GroundBot;
 } fcinfo = {
-    30.0, 90.0, 100.0, {
+    30.0, 90.0, 155.0, {
     230, 0.2, 0.3}, {
     230, 0.0, 1.0}, {
     200.0, 0.7, 0.6}, {
@@ -112,25 +112,25 @@ void falsecolor(double v, double t, float *r, float *g, float *b)
     hsvpix_t top, bot, c;
     double scv, sct;
 
-    if (t < fcinfo.Tthresold) {
+    if (t > fcinfo.Tthresold) {
 	if (v < fcinfo.Seathresold) {
 	    /* sea */
 	    top = fcinfo.SeaTop, bot = fcinfo.SeaBot;
 	    scv = v / fcinfo.Seathresold;
-	    sct = t / fcinfo.Tthresold;
+	    sct = (256.0-t) / (256.0-fcinfo.Tthresold);
 	} else {
 	    /* ground */
 	    top = fcinfo.GroundTop, bot = fcinfo.GroundBot;
 	    scv =
 		(v - fcinfo.Seathresold) / (fcinfo.Landthresold -
 					    fcinfo.Seathresold);
-	    sct = t / fcinfo.Tthresold;
+	    sct = (256.0-t) / (256.0-fcinfo.Tthresold);
 	}
     } else {
 	/* clouds */
 	top = fcinfo.CloudTop, bot = fcinfo.CloudBot;
-	scv = v / 255.0;
-	sct = t / 255.0;
+	scv = v / 256.0;
+	sct = (256.0-t) / 256.0;
     }
 
     c.s = top.s + sct * (bot.s - top.s);
@@ -140,11 +140,11 @@ void falsecolor(double v, double t, float *r, float *g, float *b)
     HSVtoRGB(r, g, b, c);
 };
 
-void Ngiv(float **prow, int nrow)
+void Ngvi(float **prow, int nrow)
 {
     int n;
 
-    printf("Vegetation ... ");
+    printf("GVI ... ");
     fflush(stdout);
 
     for (n = 0; n < nrow; n++) {
@@ -154,9 +154,11 @@ void Ngiv(float **prow, int nrow)
         pixelv = prow[n];
         for (i = 0; i < CH_WIDTH; i++) {
             float pv;
+	    double gvi;
 
-            pv = (pixelv[i + CHA_OFFSET]-pixelv[i + CHB_OFFSET])/(pixelv[i + CHA_OFFSET]+pixelv[i + CHB_OFFSET])*128.0+128.0;
+            gvi = (pixelv[i + CHA_OFFSET]-pixelv[i + CHB_OFFSET])/(pixelv[i + CHA_OFFSET]+pixelv[i + CHB_OFFSET]);
 
+            pv = (gvi+0.1)*340.0;
             if (pv > 255.0)
                 pv = 255.0;
             if (pv < 0.0)

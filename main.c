@@ -22,18 +22,22 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+
 #ifdef WIN32
 #include "w32util.h"
 #else
 #include <libgen.h>
 #endif
-#include <string.h>
+
 #include <sndfile.h>
 #include <png.h>
 
 #include "version.h"
-#include "temppalette.h"
 #include "offsets.h"
+
+#include "temppalette.h"
+#include "gvipalette.h"
 
 extern int getpixelrow(float *pixelv);
 extern int init_dsp(double F);;
@@ -271,7 +275,7 @@ fclose(df);
 
 extern int Calibrate(float **prow, int nrow, int offset);
 extern void Temperature(float **prow, int nrow, int ch, int offset);
-extern int Ngiv(float **prow, int nrow);
+extern int Ngvi(float **prow, int nrow);
 extern void readfconf(char *file);
 extern int optind, opterr;
 extern char *optarg;
@@ -408,11 +412,11 @@ int main(int argc, char **argv)
 	    ImageRGBOut(pngfilename, prow, nrow);
 	}
 
-/* vegetation image */
+/* GVI image */
 	if (chA==1 && chB==2 && strchr(imgopt, (int) 'c') != NULL) {
-	    Ngiv(prow, nrow);
+	    Ngvi(prow, nrow);
 	    sprintf(pngfilename, "%s/%s-c.png", pngdirname, name);
-	   ImageOut(pngfilename, "Vegetation", prow, nrow, CH_WIDTH, CHB_OFFSET, (png_color*)TempPalette);
+	   ImageOut(pngfilename, "GVI", prow, nrow, CH_WIDTH, CHB_OFFSET, (png_color*)GviPalette);
 	}
     }
     exit(0);
