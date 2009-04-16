@@ -279,7 +279,7 @@ extern int Ngvi(float **prow, int nrow);
 extern void readfconf(char *file);
 extern int optind, opterr;
 extern char *optarg;
-int satnum = 1;
+int satnum = 4;
 
 static void usage(void)
 {

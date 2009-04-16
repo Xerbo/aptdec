@@ -1,5 +1,5 @@
 
-ATPDEC README (Thierry Leconte F4DWV (c) 2004-2005)
+ATPDEC README (Thierry Leconte F4DWV (c) 2004-2009)
 
 DESCRIPTION
 
@@ -53,9 +53,9 @@ OPTIONS
 	Default : soundfile directory.
 
 	-s n
-	Satellite number 15 to 18 
+	Satellite number 15 to 19 
 	Used for Temperature compensation.
-	Default :  NOAA15
+	Default :  NOAA-19
 
 	-c conf_file
 	Use configuration file for false color generation.
