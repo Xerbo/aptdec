@@ -7,8 +7,11 @@ const struct {
         float Ns;
         float b[3];
     } cor[3];
-} satcal[4] =
-{/* calibration coeff from NOAA KLM POES satellite user guide */
+} satcal[] =
+{
+/* calibration coeff from NOAA KLM POES satellite user guide */
+/* http://www.ncdc.noaa.gov/oa/pod-guide/ncdc/docs/klm/tables.htm */
+
 {/* NOAA-15 */
 { /* PRT coeff d0,d1,d2 */
 {276.60157 , 0.051045 , 1.36328E-06},
@@ -78,6 +81,24 @@ const struct {
 { /*  nonlinear radiance correction Ns,b0,b1,b2 */
 {-5.53 , {5.82 , -0.11069 , 0.00052337}}, /* channel 4 */
 {-2.22 , {2.67 , -0.04360 , 0.00017715}}, /* channel 5 */
+{0.0,{0.0,0.0,0.0}}  /* channel 3B*/
+}
+},
+{/* NOAA 19 */
+{ /* PRT coeff d0,d1,d2 */
+{276.6067 , 0.051111 , 1.405783E-06},
+{276.6119 , 0.051090 , 1.496037E-06},
+{276.6311 , 0.051033 , 1.496990E-06},
+{276.6268 , 0.051058 , 1.493110E-06}
+},
+{ /* channel radiance coeff vc,A,B*/
+{928.9 , 0.53959 , 0.998534}, /* channel 4 */
+{831.9 , 0.36064 , 0.998913}, /* channel 5 */
+{2670.0 , 1.67396 , 0.997364} /* channel 3B */
+},
+{ /*  nonlinear radiance correction Ns,b0,b1,b2 */
+{-5.49 , {5.70 	-0.11187 , 0.00054668}}, /* channel 4 */
+{-3.39 , {3.58 	-0.05991 , 0.00024985}}, /* channel 5 */
 {0.0,{0.0,0.0,0.0}}  /* channel 3B*/
 }
 }

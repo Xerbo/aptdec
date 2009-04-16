@@ -285,7 +285,7 @@ static void usage(void)
 {
     fprintf(stderr, "atpdec [options] soundfiles ...\n");
     fprintf(stderr,
-	    "options:\n-d <dir>\tDestination directory\n-i [r|a|b|c|t]\tOutput image type\n\t\t\tr: Raw\n\t\t\ta: A chan.\n\t\t\tb: B chan.\n\t\t\tc: False color\n\t\t\tt: Temperature\n-c <file>\tFalse color config file\n-s [15|16|17|18]\tSatellite number (for temperature and false color generation)\n");
+	    "options:\n-d <dir>\tDestination directory\n-i [r|a|b|c|t]\tOutput image type\n\t\t\tr: Raw\n\t\t\ta: A chan.\n\t\t\tb: B chan.\n\t\t\tc: False color\n\t\t\tt: Temperature\n-c <file>\tFalse color config file\n-s [15|16|17|18|19]\tSatellite number (for temperature and false color generation)\n");
    exit(1);
 }
 
@@ -317,8 +317,8 @@ int main(int argc, char **argv)
 	    break;
 	case 's':
 	    satnum = atoi(optarg)-15;
-	    if (satnum < 0 || satnum > 3) {
-		fprintf(stderr, "invalid satellite number  : must be in [15-18]\n");
+	    if (satnum < 0 || satnum > 4) {
+		fprintf(stderr, "invalid satellite number  : must be in [15-19]\n");
 		exit(1);
 	    }
 	    break;
