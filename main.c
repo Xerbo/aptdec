@@ -40,46 +40,9 @@
 #include "gvipalette.h"
 
 extern int getpixelrow(float *pixelv);
-extern int init_dsp(double F);;
+extern int init_dsp(void);;
 
-static SNDFILE *inwav;
 
-static int initsnd(char *filename)
-{
-    SF_INFO infwav;
-    int	    res;
-
-/* open wav input file */
-    infwav.format = 0;
-    inwav = sf_open(filename, SFM_READ, &infwav);
-    if (inwav == NULL) {
-	fprintf(stderr, "could not open %s\n", filename);
-	return (1);
-    }
-
-    res=init_dsp(infwav.samplerate);
-    if(res<0) {
-	fprintf(stderr, "Sample rate too low : %d\n", infwav.samplerate);
-	return (1);
-    }
-    if(res>0) {
-	fprintf(stderr, "Sample rate too hight : %d\n", infwav.samplerate);
-	return (1);
-    }
-    fprintf(stderr, "Sample rate : %d\n", infwav.samplerate);
-
-    if (infwav.channels != 1) {
-	fprintf(stderr, "Too many channels in input file : %d\n", infwav.channels);
-	return (1);
-    }
-
-    return (0);
-}
-
-int getsample(float *sample, int nb)
-{
-    return (sf_read_float(inwav, sample, nb));
-}
 
 static png_text text_ptr[] = {
     {PNG_TEXT_COMPRESSION_NONE, "Software", version, sizeof(version)}
@@ -280,10 +243,12 @@ extern void readfconf(char *file);
 extern int optind, opterr;
 extern char *optarg;
 int satnum = 4;
+int nch=0;
 
 static void usage(void)
 {
-    fprintf(stderr, "atpdec [options] soundfiles ...\n");
+    fprintf(stderr, version);
+    fprintf(stderr, "atpdec [options]\n");
     fprintf(stderr,
 	    "options:\n-d <dir>\tDestination directory\n-i [r|a|b|c|t]\tOutput image type\n\t\t\tr: Raw\n\t\t\ta: A chan.\n\t\t\tb: B chan.\n\t\t\tc: False color\n\t\t\tt: Temperature\n-c <file>\tFalse color config file\n-s [15|16|17|18|19]\tSatellite number (for temperature and false color generation)\n");
    exit(1);
@@ -294,6 +259,7 @@ int main(int argc, char **argv)
     char pngfilename[1024];
     char name[1024];
     char pngdirname[1024] = "";
+
     char imgopt[20] = "ac";
     float *prow[3000];
     char *chid[] = { "?", "1", "2", "3A", "4", "5", "3B" };
@@ -301,10 +267,8 @@ int main(int argc, char **argv)
     int chA,chB;
     int c;
 
-    printf("%s\n", version);
-
     opterr = 0;
-    while ((c = getopt(argc, argv, "c:d:i:s:")) != EOF) {
+    while ((c = getopt(argc, argv, "a:f:c:d:i:s:LR")) != EOF) {
 	switch (c) {
 	case 'd':
 	    strcpy(pngdirname, optarg);
@@ -322,32 +286,44 @@ int main(int argc, char **argv)
 		exit(1);
 	    }
 	    break;
+	case 'f':
+		strcpy(name, basename(optarg));
+		strtok(name, ".");
+		if(initsnd(optarg))
+		  exit(1);
+	    break;
+	case 'a':
+		strcpy(name,"audioin");
+		if(initalsa(optarg))
+		  exit(1);
+	    break;
+	case 'L':
+		nch=0;
+	    break;
+	case 'R':
+		nch=0;
+	    break;
 	default:
 	    usage();
 	}
     }
 
-    for (nrow = 0; nrow < 3000; nrow++)
+        for (nrow = 0; nrow < 3000; nrow++)
 	prow[nrow] = NULL;
-
-    for (; optind < argc; optind++) {
 
 	chA=chB=0;
 
-	strcpy(pngfilename, argv[optind]);
-	strcpy(name, basename(pngfilename));
-	strtok(name, ".");
 	if (pngdirname[0] == '\0') {
-	    strcpy(pngfilename, argv[optind]);
-	    strcpy(pngdirname, dirname(pngfilename));
+		strcpy(pngdirname,".");
 	}
 
-/* open snd input */
-	if (initsnd(argv[optind]))
-	    exit(1);
+
+/* init dsp */
+    if(init_dsp())
+	exit(2);
 
 /* main loop */
-	printf("Decoding: %s \n", argv[optind]);
+	printf("Decoding: %s \n", name);
 	for (nrow = 0; nrow < 3000; nrow++) {
 	    if (prow[nrow] == NULL)
 		prow[nrow] = (float *) malloc(sizeof(float) * 2150);
@@ -357,7 +333,7 @@ int main(int argc, char **argv)
 	    fflush(stdout);
 	}
 	printf("\nDone\n");
-	sf_close(inwav);
+	endsample();
 
 
 /* raw image */
@@ -418,6 +394,7 @@ int main(int argc, char **argv)
 	    sprintf(pngfilename, "%s/%s-c.png", pngdirname, name);
 	   ImageOut(pngfilename, "GVI", prow, nrow, CH_WIDTH, CHB_OFFSET, (png_color*)GviPalette);
 	}
-    }
+
+
     exit(0);
 }
