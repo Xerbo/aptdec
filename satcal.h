@@ -104,7 +104,5 @@ const struct {
 }
 };
 
-
 const float c1=1.1910427e-5;
 const float c2=1.4387752;
-

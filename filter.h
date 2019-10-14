@@ -1,5 +1,5 @@
 /*
- *  Atpdec
+ *  Aptec
  *  Copyright (c) 2003 by Thierry Leconte (F4DWV)
  *
  *      $Id$
@@ -20,8 +20,7 @@
  *
  */
 
-
-float fir(float *buff,const float *coeff,const int len);
-void  iqfir(float *buff,const float *coeff,const int len,double *I,double *Q);
-float rsfir(double *buff,const float *coeff,const int len ,const double offset ,const double delta);
+float fir(float *buff, const float *coeff, const int len);
+void  iqfir(float *buff, const float *coeff, const int len, double *I, double *Q);
+float rsfir(double *buff, const float *coeff, const int len, const double offset, const double delta);
 

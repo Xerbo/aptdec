@@ -6,15 +6,14 @@ typedef struct {
     float h, s, v;
 } hsvpix_t;
 
-static void HSVtoRGB(float *r, float *g, float *b, hsvpix_t pix)
-{
+static void HSVtoRGB(float *r, float *g, float *b, hsvpix_t pix) {
     int i;
     double f, p, q, t, h;
 
     if (pix.s == 0) {
-	// achromatic (grey)
-	*r = *g = *b = pix.v;
-	return;
+        // achromatic (grey)
+        *r = *g = *b = pix.v;
+        return;
     }
 
     h = pix.h / 60;		// sector 0 to 5
@@ -25,44 +24,44 @@ static void HSVtoRGB(float *r, float *g, float *b, hsvpix_t pix)
     t = pix.v * (1 - pix.s * (1 - f));
 
     switch (i) {
-    case 0:
-	*r = pix.v;
-	*g = t;
-	*b = p;
-	break;
-    case 1:
-	*r = q;
-	*g = pix.v;
-	*b = p;
-	break;
-    case 2:
-	*r = p;
-	*g = pix.v;
-	*b = t;
-	break;
-    case 3:
-	*r = p;
-	*g = q;
-	*b = pix.v;
-	break;
-    case 4:
-	*r = t;
-	*g = p;
-	*b = pix.v;
-	break;
-    default:			// case 5:
-	*r = pix.v;
-	*g = p;
-	*b = q;
-	break;
+        case 0:
+            *r = pix.v;
+            *g = t;
+            *b = p;
+            break;
+        case 1:
+            *r = q;
+            *g = pix.v;
+            *b = p;
+            break;
+        case 2:
+            *r = p;
+            *g = pix.v;
+            *b = t;
+            break;
+        case 3:
+            *r = p;
+            *g = q;
+            *b = pix.v;
+            break;
+        case 4:
+            *r = t;
+            *g = p;
+            *b = pix.v;
+            break;
+        default:			// case 5:
+            *r = pix.v;
+            *g = p;
+            *b = q;
+            break;
     }
 
 }
 
 static struct {
-    float Seathresold;
-    float Landthresold;
-    float Tthresold;
+    float Seathreshold;
+    float Landthreshold;
+    float Threshold;
     hsvpix_t CloudTop;
     hsvpix_t CloudBot;
     hsvpix_t SeaTop;
@@ -79,58 +78,47 @@ static struct {
     100.0, 0.0, 0.5}
 };
 
-void readfconf(char *file)
-{
+void readfconf(char *file) {
     FILE *fin;
 
     fin = fopen(file, "r");
     if (fin == NULL)
-	return;
+	    return;
 
-    fscanf(fin, "%g\n", &fcinfo.Seathresold);
-    fscanf(fin, "%g\n", &fcinfo.Landthresold);
-    fscanf(fin, "%g\n", &fcinfo.Tthresold);
-    fscanf(fin, "%g %g %g\n", &fcinfo.CloudTop.h, &fcinfo.CloudTop.s,
-	   &fcinfo.CloudTop.v);
-    fscanf(fin, "%g %g %g\n", &fcinfo.CloudBot.h, &fcinfo.CloudBot.s,
-	   &fcinfo.CloudBot.v);
-    fscanf(fin, "%g %g %g\n", &fcinfo.SeaTop.h, &fcinfo.SeaTop.s,
-	   &fcinfo.SeaTop.v);
-    fscanf(fin, "%g %g %g\n", &fcinfo.SeaBot.h, &fcinfo.SeaBot.s,
-	   &fcinfo.SeaBot.v);
-    fscanf(fin, "%g %g %g\n", &fcinfo.GroundTop.h, &fcinfo.GroundTop.s,
-	   &fcinfo.GroundTop.v);
-    fscanf(fin, "%g %g %g\n", &fcinfo.GroundBot.h, &fcinfo.GroundBot.s,
-	   &fcinfo.GroundBot.v);
+    fscanf(fin, "%g\n", &fcinfo.Seathreshold);
+    fscanf(fin, "%g\n", &fcinfo.Landthreshold);
+    fscanf(fin, "%g\n", &fcinfo.Threshold);
+    fscanf(fin, "%g %g %g\n", &fcinfo.CloudTop.h,  &fcinfo.CloudTop.s,  &fcinfo.CloudTop.v);
+    fscanf(fin, "%g %g %g\n", &fcinfo.CloudBot.h,  &fcinfo.CloudBot.s,  &fcinfo.CloudBot.v);
+    fscanf(fin, "%g %g %g\n", &fcinfo.SeaTop.h,    &fcinfo.SeaTop.s,    &fcinfo.SeaTop.v);
+    fscanf(fin, "%g %g %g\n", &fcinfo.SeaBot.h,    &fcinfo.SeaBot.s,    &fcinfo.SeaBot.v);
+    fscanf(fin, "%g %g %g\n", &fcinfo.GroundTop.h, &fcinfo.GroundTop.s, &fcinfo.GroundTop.v);
+    fscanf(fin, "%g %g %g\n", &fcinfo.GroundBot.h, &fcinfo.GroundBot.s, &fcinfo.GroundBot.v);
 
     fclose(fin);
-
 };
 
-void falsecolor(double v, double t, float *r, float *g, float *b)
-{
+void falsecolor(double v, double t, float *r, float *g, float *b) {
     hsvpix_t top, bot, c;
     double scv, sct;
 
-    if (t > fcinfo.Tthresold) {
-	if (v < fcinfo.Seathresold) {
-	    /* sea */
-	    top = fcinfo.SeaTop, bot = fcinfo.SeaBot;
-	    scv = v / fcinfo.Seathresold;
-	    sct = (256.0-t) / (256.0-fcinfo.Tthresold);
-	} else {
-	    /* ground */
-	    top = fcinfo.GroundTop, bot = fcinfo.GroundBot;
-	    scv =
-		(v - fcinfo.Seathresold) / (fcinfo.Landthresold -
-					    fcinfo.Seathresold);
-	    sct = (256.0-t) / (256.0-fcinfo.Tthresold);
-	}
+    if (t > fcinfo.Threshold) {
+        if (v < fcinfo.Seathreshold) {
+            /* sea */
+            top = fcinfo.SeaTop, bot = fcinfo.SeaBot;
+            scv = v / fcinfo.Seathreshold;
+            sct = (256.0 - t) / (256.0 - fcinfo.Threshold);
+        } else {
+            /* ground */
+            top = fcinfo.GroundTop, bot = fcinfo.GroundBot;
+            scv = (v - fcinfo.Seathreshold) / (fcinfo.Landthreshold - fcinfo.Seathreshold);
+            sct = (256.0 - t) / (256.0 - fcinfo.Threshold);
+        }
     } else {
-	/* clouds */
-	top = fcinfo.CloudTop, bot = fcinfo.CloudBot;
-	scv = v / 256.0;
-	sct = (256.0-t) / 256.0;
+        /* clouds */
+        top = fcinfo.CloudTop, bot = fcinfo.CloudBot;
+        scv = v / 256.0;
+        sct = (256.0 - t) / 256.0;
     }
 
     c.s = top.s + sct * (bot.s - top.s);
@@ -140,11 +128,10 @@ void falsecolor(double v, double t, float *r, float *g, float *b)
     HSVtoRGB(r, g, b, c);
 };
 
-void Ngvi(float **prow, int nrow)
-{
+void Ngvi(float **prow, int nrow) {
     int n;
 
-    printf("GVI ... ");
+    printf("GVI... ");
     fflush(stdout);
 
     for (n = 0; n < nrow; n++) {
@@ -154,11 +141,11 @@ void Ngvi(float **prow, int nrow)
         pixelv = prow[n];
         for (i = 0; i < CH_WIDTH; i++) {
             float pv;
-	    double gvi;
+	        double gvi;
 
-            gvi = (pixelv[i + CHA_OFFSET]-pixelv[i + CHB_OFFSET])/(pixelv[i + CHA_OFFSET]+pixelv[i + CHB_OFFSET]);
+            gvi = (pixelv[i + CHA_OFFSET] - pixelv[i + CHB_OFFSET]) / (pixelv[i + CHA_OFFSET] + pixelv[i + CHB_OFFSET]);
 
-            pv = (gvi+0.1)*340.0;
+            pv = (gvi + 0.1) * 340.0;
             if (pv > 255.0)
                 pv = 255.0;
             if (pv < 0.0)
