@@ -1,16 +1,16 @@
-CC=gcc
-BIN=/usr/bin
-INCLUDES=-I.
-CFLAGS= -O3 -Wall $(INCLUDES)
-OBJS= main.o image.o dsp.o filter.o reg.o fcolor.o
+CC = gcc
+BIN = /usr/bin
+INCLUDES = -I.
+CFLAGS = -O3 -Wall $(INCLUDES)
+OBJS = main.o image.o dsp.o filter.o reg.o fcolor.o
 
 aptdec:	$(OBJS)
 	$(CC) -o $@ $(OBJS) -lm -lsndfile -lpng
 
-main.o:	  main.c version.h temppalette.h gvipalette.h offsets.h
+main.o:	  main.c temppalette.h gvipalette.h offsets.h messages.h
 dsp.o:	  dsp.c filtercoeff.h filter.h
 filter.o: filter.c filter.h
-image.o:  image.c satcal.h offsets.h
+image.o:  image.c satcal.h offsets.h messages.h
 fcolor.o: fcolor.c offsets.h
 
 clean:

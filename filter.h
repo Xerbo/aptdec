@@ -1,5 +1,5 @@
 /*
- *  Aptec
+ *  Aptdec
  *  Copyright (c) 2003 by Thierry Leconte (F4DWV)
  *
  *      $Id$

@@ -12,10 +12,11 @@
 
 #include <math.h>
 
-#define DMAX 5			/* Maximum degree of polynomial */
-#define NMAX 10		/* Maximum number of points */
+#define DMAX 5	/* Maximum degree of polynomial */
+#define NMAX 10	/* Maximum number of points */
 
 static void FactPiv(int N, double A[DMAX][DMAX], double B[], double Cf[]);
+
 void polyreg(const int M, const int N, const double X[], const double Y[], double C[]) {
     int R, K, J;			/* Loop counters */
     double A[DMAX][DMAX];	/* A */
@@ -41,7 +42,8 @@ void polyreg(const int M, const int N, const double X[], const double Y[], doubl
 
     /* Zero the array */
     for (J = 1; J <= 2 * M; J++)
-	P[J] = 0;
+		P[J] = 0;
+	
     P[0] = N;
 
     /* Compute the sum of powers of x_(K-1) */
@@ -74,9 +76,8 @@ static void FactPiv(int N, double A[DMAX][DMAX], double B[], double Cf[]) {
     double SUM, DET = 1.0;
     int T;
 
-
     /* Initialize the pointer vector */
-    for (J = 0; J < N; J++)
+    for (J = 0; J < NMAX; J++)
 		Row[J] = J;
 
     /* Start LU factorization */
@@ -108,13 +109,15 @@ static void FactPiv(int N, double A[DMAX][DMAX], double B[], double Cf[]) {
 				A[Row[K]][C] -= A[Row[K]][P] * A[Row[P]][C];
 			}
 		}
-    }				/* End of  L*U  factorization routine */
+    }
+	/* End of  L*U  factorization routine */
     DET = DET * A[Row[N - 1]][N - 1];
 
     /* Start the forward substitution */
     for (K = 0; K < N; K++)
 		Y[K] = B[K];
-		Y[0] = B[Row[0]];
+	
+	Y[0] = B[Row[0]];
 	
     for (K = 1; K < N; K++) {
 		SUM = 0;

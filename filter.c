@@ -1,5 +1,5 @@
 /*
- *  Aptec
+ *  Aptdec
  *  Copyright (c) 2004 by Thierry Leconte (F4DWV)
  *
  *      $Id$
@@ -22,37 +22,39 @@
 #include "filter.h"
 #include <math.h>
 
+// Sum of a matrix multiplication of 2 arrays
 float fir(float *buff, const float *coeff, const int len) {
-    int i;
     double r;
 
     r = 0.0;
-    for (i = 0; i < len; i++) {
+    for (int i = 0; i < len; i++) {
 	    r += buff[i] * coeff[i];
     }
-    return r;
+    return(r);
 }
 
+// Create an IQ sample from a sample buffer
 void iqfir(float *buff, const float *coeff, const int len, double *I, double *Q) {
-    int k;
     double i, q;
 
     i = q = 0.0;
-    for (k = 0; k < len; k++) {
+    for (int k = 0; k < len; k++) {
         q += buff[2*k] * coeff[k];
+        // Average out the I samples, which gives us the DC offset
         i += buff[2*k];
     }
-    i= buff[len-1] - i / len;
-    *I=i, *Q=q;
+    // Grab the peak value of the wave and subtract the DC offset
+    i = buff[len-1] - (i / len);
+    *I = i, *Q = q;
 }
 
+// Denoise, I don't know how it works, but it does
 float rsfir(double *buff, const float *coeff, const int len, const double offset, const double delta) {
-    int i;
-    double n;
     double out;
 
     out = 0.0;
-    for (i = 0, n = offset; i < (len-1)/delta-1; n += delta, i++) {
+    double n = offset;
+    for (int i = 0; i < (len-1)/delta-1; n += delta, i++) {
         int k;
         double alpha;
 
@@ -60,6 +62,5 @@ float rsfir(double *buff, const float *coeff, const int len, const double offset
         alpha = n - k;
         out += buff[i] * (coeff[k] * (1.0 - alpha) + coeff[k + 1] * alpha);
     }
-    return out;
+    return(out);
 }
-

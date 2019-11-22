@@ -1,5 +1,5 @@
 /*
- *  Aptec
+ *  Aptdec
  *  Copyright (c) 2004 by Thierry Leconte (F4DWV)
  *
  *      $Id$
@@ -26,6 +26,7 @@
 #include <math.h>
 
 #include "offsets.h"
+#include "messages.h"
 
 #define REGORDER 3
 typedef struct {
@@ -33,7 +34,7 @@ typedef struct {
 } rgparam;
 
 static void rgcomp(double x[16], rgparam * rgpr) {
-	/*{ 0.106,0.215,0.324,0.433,0.542,0.652,0.78,0.87 ,0.0 }; */
+	//const double y[9] = { 0.106, 0.215, 0.324, 0.433, 0.542, 0.652, 0.78, 0.87, 0.0 };
     const double y[9] = { 31.07, 63.02, 94.96, 126.9, 158.86, 191.1, 228.62, 255.0, 0.0 };
     extern void polyreg(const int m, const int n, const double x[], const double y[], double c[]);
 
@@ -48,15 +49,53 @@ static double rgcal(float x, rgparam * rgpr) {
 		y += rgpr->cf[i] * p;
 		p = p * x;
     }
-    return (y);
+    return(y);
 }
-
 
 static double tele[16];
 static double Cs;
 static int nbtele;
 
-int Calibrate(float **prow, int nrow, int offset) {
+// Contrast enchance
+void equalise(float **prow, int nrow, int offset, int telestart, rgparam regr[30]){
+	for (int n = 0; n < nrow; n++) {
+		float *pixelv;
+		int i;
+
+		pixelv = prow[n];
+		for (i = 0; i < CH_WIDTH; i++) {
+			float pv;
+			int k, kof;
+
+			pv = pixelv[i + offset];
+
+			k = (n - telestart) / 128;
+			if (k >= nbtele)
+				k = nbtele - 1;
+			kof = (n - telestart) % 128;
+
+			if (kof < 64) {
+				if (k < 1) {
+					pv = rgcal(pv, &(regr[k]));
+				} else {
+					pv = rgcal(pv, &(regr[k])) * (64 + kof) / 128.0 + rgcal(pv, &(regr[k - 1])) * (64 - kof) / 128.0;
+				}
+			} else {
+				if ((k + 1) >= nbtele) {
+					pv = rgcal(pv, &(regr[k]));
+				} else {
+					pv = rgcal(pv, &(regr[k])) * (192 - kof) / 128.0 + rgcal(pv, &(regr[k + 1])) * (kof - 64) / 128.0;
+				}
+			}
+
+			pv = CLIP(pv, 0, 255);
+			pixelv[i + offset] = pv;
+		}
+	}
+}
+
+// Get telemetry data for thermal calibration
+int calibrate(float **prow, int nrow, int offset, int contrastBoost) {
     double teleline[3000];
     double wedge[16];
     rgparam regr[30];
@@ -66,58 +105,77 @@ int Calibrate(float **prow, int nrow, int offset) {
     int channel = -1;
     float max;
 
-    printf("Calibration... ");
-    fflush(stdout);
-
-	/* build telemetry values lines */
+	// Extract telemetry data, for a single pixel row
     for (n = 0; n < nrow; n++) {
 		int i;
 
 		teleline[n] = 0.0;
+		// Average the 40 center pixels from the telemetry block
 		for (i = 3; i < 43; i++) {
 			teleline[n] += prow[n][i + offset + CH_WIDTH];
 		}
+		// Compute the average
 		teleline[n] /= 40.0;
     }
 
+	// A good minimum amount of pixels to find the telemetry start
     if (nrow < 192) {
-		fprintf(stderr, " not possible, not enough rows!\n");
-		return (0);
+		fprintf(stderr, ERR_TELE_ROW);
+		return(0);
     }
 
-	/* find telemetry start in the 2nd third */
+	// Find the biggest contrast in the telemetry
     max = 0.0;
     mtelestart = 0;
+
+	// Only check the center of the image, where the signal is most likely strongest
     for (n = nrow / 3 - 64; n < 2 * nrow / 3 - 64; n++) {
 		float df;
 
+		// Calculate the contrast, in other words
+		// (sum 4px below) / (sum 4px above)
 		df = (teleline[n - 4] + teleline[n - 3] + teleline[n - 2] +
 			  teleline[n - 1]) / (teleline[n] + teleline[n + 1] +
 			  teleline[n + 2] + teleline[n + 3]);
+		// Find the biggest contrast
 		if (df > max) {
 			mtelestart = n;
 			max = df;
 		}
     }
 
-    mtelestart -= 64;
-    telestart = mtelestart % 128;
+	// Calculate relative offset
+    telestart = (mtelestart - 64) % 128;
 
+	// If we cannot find the start of the telemetry or if there is not enough of it
     if (mtelestart < 0 || nrow < telestart + 128) {
-		fprintf(stderr, " impossible, not enough row\n");
-		return (0);
+		fprintf(stderr, ERR_TELE_ROW);
+		return(0);
     }
 
-	/* compute wedges and regression */
+	/* Compute wedges and regression
+	 *
+	 * This loop loops every 128 pixels after the relative telemetry start.
+	 * Gets the values of where the wedges should be and then feeds into a 
+	 * regression algorithm which calculates the amount of noise on the
+	 * telemetry.
+	 * 
+	 * It then finds the part of the telemetry data with the least noise and
+	 * turns it into digital values.
+	 */
     for (n = telestart, k = 0; n < nrow - 128; n += 128, k++) {
 		int j;
 
+		// Loop through the 16 wedges
 		for (j = 0; j < 16; j++) {
 			int i;
 
 			wedge[j] = 0.0;
-			for (i = 1; i < 7; i++)
-			wedge[j] += teleline[n + j * 8 + i];
+			// Center 6 pixels
+			for (i = 1; i < 7; i++){
+				wedge[j] += teleline[(j * 8) + n + i];
+			}
+			// Average
 			wedge[j] /= 6;
 		}
 
@@ -126,12 +184,12 @@ int Calibrate(float **prow, int nrow, int offset) {
 		if (k == nrow / 256) {
 			int i, l;
 
-			/* telemetry calibration */
+			// Telemetry calibration
 			for (j = 0; j < 16; j++) {
 				tele[j] = rgcal(wedge[j], &(regr[k]));
 			}
 
-			/* channel ID */
+			// Channel ID
 			for (j = 0, max = 10000.0, channel = -1; j < 6; j++) {
 				float df;
 
@@ -162,49 +220,13 @@ int Calibrate(float **prow, int nrow, int offset) {
     }
     nbtele = k;
 
-	/* calibrate */
-    for (n = 0; n < nrow; n++) {
-		float *pixelv;
-		int i;
+	// Image contrast
+	if(contrastBoost) equalise(prow, nrow, offset, telestart, regr);
 
-		pixelv = prow[n];
-		for (i = 0; i < CH_WIDTH; i++) {
-			float pv;
-			int k, kof;
-
-			pv = pixelv[i + offset];
-
-			k = (n - telestart) / 128;
-			if (k >= nbtele)
-				k = nbtele - 1;
-				kof = (n - telestart) % 128;
-
-			if (kof < 64) {
-				if (k < 1) {
-					pv = rgcal(pv, &(regr[k]));
-				} else {
-					pv = rgcal(pv, &(regr[k])) * (64 + kof) / 128.0 + rgcal(pv, &(regr[k - 1])) * (64 - kof) / 128.0;
-				}
-			} else {
-				if ((k + 1) >= nbtele) {
-					pv = rgcal(pv, &(regr[k]));
-				} else {
-					pv = rgcal(pv, &(regr[k])) * (192 - kof) / 128.0 + rgcal(pv, &(regr[k + 1])) * (kof - 64) / 128.0;
-				}
-			}
-
-			if (pv > 255.0)
-				pv = 255.0;
-			if (pv < 0.0)
-				pv = 0.0;
-			pixelv[i + offset] = pv;
-		}
-    }
-    printf("Done\n");
-    return (channel + 1);
+    return(channel + 1);
 }
 
-/* ------------------------------temperature calibration -----------------------*/
+// --- Temperature Calibration --- //
 extern int satnum;
 #include "satcal.h"
 
@@ -241,7 +263,7 @@ static void tempcomp(double t[16], int ch, tempparam * tpr) {
 
     /* compute radiance Black body */
     C = satcal[satnum].rad[tpr->ch].vc;
-    tpr->Nbb = c1 * C * C * C / (exp(c2 * C / Tbb) - 1.0);
+    tpr->Nbb = c1 * C * C * C / (expm1(c2 * C / Tbb));
 
     /* store Count Blackbody and space */
     tpr->Cs = Cs * 4.0;
@@ -261,13 +283,13 @@ static double tempcal(float Ce, tempparam * rgpr) {
     Ne = Nl + Nc;
 
     vc = satcal[satnum].rad[rgpr->ch].vc;
-    T = c2 * vc / log(c1 * vc * vc * vc / Ne + 1.0);
+    T = c2 * vc / log1p(c1 * vc * vc * vc / Ne);
     T = (T - satcal[satnum].rad[rgpr->ch].A) / satcal[satnum].rad[rgpr->ch].B;
 
     /* rescale to range 0-255 for -60 +40 'C */
     T = (T - 273.15 + 60.0) / 100.0 * 256.0;
 
-    return (T);
+    return(T);
 }
 
 void Temperature(float **prow, int nrow, int channel, int offset) {
@@ -289,10 +311,7 @@ void Temperature(float **prow, int nrow, int channel, int offset) {
 
 			pv = tempcal(pixelv[i + offset], &temp);
 
-			if (pv > 255.0)
-				pv = 255.0;
-			if (pv < 0.0)
-				pv = 0.0;
+			pv = CLIP(pv, 0, 255);
 			pixelv[i + offset] = pv;
 		}
     }

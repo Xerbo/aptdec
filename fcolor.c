@@ -104,18 +104,18 @@ void falsecolor(double v, double t, float *r, float *g, float *b) {
 
     if (t > fcinfo.Threshold) {
         if (v < fcinfo.Seathreshold) {
-            /* sea */
+            // Sea
             top = fcinfo.SeaTop, bot = fcinfo.SeaBot;
             scv = v / fcinfo.Seathreshold;
             sct = (256.0 - t) / (256.0 - fcinfo.Threshold);
         } else {
-            /* ground */
+            // Ground
             top = fcinfo.GroundTop, bot = fcinfo.GroundBot;
             scv = (v - fcinfo.Seathreshold) / (fcinfo.Landthreshold - fcinfo.Seathreshold);
             sct = (256.0 - t) / (256.0 - fcinfo.Threshold);
         }
     } else {
-        /* clouds */
+        // Clouds
         top = fcinfo.CloudTop, bot = fcinfo.CloudBot;
         scv = v / 256.0;
         sct = (256.0 - t) / 256.0;
@@ -129,27 +129,21 @@ void falsecolor(double v, double t, float *r, float *g, float *b) {
 };
 
 void Ngvi(float **prow, int nrow) {
-    int n;
-
     printf("GVI... ");
     fflush(stdout);
 
-    for (n = 0; n < nrow; n++) {
+    for (int n = 0; n < nrow; n++) {
         float *pixelv;
-        int i;
 
         pixelv = prow[n];
-        for (i = 0; i < CH_WIDTH; i++) {
+        for (int i = 0; i < CH_WIDTH; i++) {
             float pv;
 	        double gvi;
 
             gvi = (pixelv[i + CHA_OFFSET] - pixelv[i + CHB_OFFSET]) / (pixelv[i + CHA_OFFSET] + pixelv[i + CHB_OFFSET]);
 
             pv = (gvi + 0.1) * 340.0;
-            if (pv > 255.0)
-                pv = 255.0;
-            if (pv < 0.0)
-                pv = 0.0;
+            pv = CLIP(pv, 0, 255);
 
             pixelv[i + CHB_OFFSET] = pv;
         }
