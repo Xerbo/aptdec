@@ -10,3 +10,4 @@
 
 #define CLIP(val, bottom, top) (val > top ? top : (val > bottom ? val : bottom))
 #define CONTAINS(str, char) (strchr(str, (int) char) != NULL)
+#define MCOMPOSITE(m1, a1, m2, a2) (m1*a1 + m2*a2*(1-a1))

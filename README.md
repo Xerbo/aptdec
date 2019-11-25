@@ -54,7 +54,7 @@ To uninstall
 -i [r|a|b|c|t|l]
 Output image type
 Raw (r), Channel A (a), Channel B (b), False Color (c), Temperature (t), Layered (l)
-Default: ab
+Default: "ab"
 
 -d <dir>
 Images destination directory (optional).
@@ -62,17 +62,17 @@ Default: Current directory
 
 -s [15|16|17|18|19]
 Satellite number
-For temperature and false color generation
-Default: 19
+For temperature calibration
+Default: "19"
 
 -e [c|t]
 Enhancements
 Contrast (c) or Crop Telemetry (t)
-Defaults: ct
+Defaults: "ct"
 
 -c <file>
 Use configuration file for false color generation.
-Default: Internal parameters
+Default: Internal defaults
 ```
 
 ## Output

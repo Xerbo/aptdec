@@ -3,133 +3,89 @@
 #include "offsets.h"
 
 typedef struct {
-    float h, s, v;
-} hsvpix_t;
-
-static void HSVtoRGB(float *r, float *g, float *b, hsvpix_t pix) {
-    int i;
-    double f, p, q, t, h;
-
-    if (pix.s == 0) {
-        // achromatic (grey)
-        *r = *g = *b = pix.v;
-        return;
-    }
-
-    h = pix.h / 60;		// sector 0 to 5
-    i = floor(h);
-    f = h - i;			// factorial part of h
-    p = pix.v * (1 - pix.s);
-    q = pix.v * (1 - pix.s * f);
-    t = pix.v * (1 - pix.s * (1 - f));
-
-    switch (i) {
-        case 0:
-            *r = pix.v;
-            *g = t;
-            *b = p;
-            break;
-        case 1:
-            *r = q;
-            *g = pix.v;
-            *b = p;
-            break;
-        case 2:
-            *r = p;
-            *g = pix.v;
-            *b = t;
-            break;
-        case 3:
-            *r = p;
-            *g = q;
-            *b = pix.v;
-            break;
-        case 4:
-            *r = t;
-            *g = p;
-            *b = pix.v;
-            break;
-        default:			// case 5:
-            *r = pix.v;
-            *g = p;
-            *b = q;
-            break;
-    }
-
-}
+    float r, g, b, a;
+} rgba;
 
 static struct {
-    float Seathreshold;
-    float Landthreshold;
-    float Threshold;
-    hsvpix_t CloudTop;
-    hsvpix_t CloudBot;
-    hsvpix_t SeaTop;
-    hsvpix_t SeaBot;
-    hsvpix_t GroundTop;
-    hsvpix_t GroundBot;
+    rgba Sea;
+    rgba Land;
+    rgba Cloud;
+    int Seaintensity;
+    float Seaoffset;
+    int Landthreshold;
+    int Landintensity;
+    int Landoffset;
+    int Cloudthreshold;
+    int Cloudintensity;
 } fcinfo = {
-    30.0, 90.0, 155.0, {
-    230, 0.2, 0.3}, {
-    230, 0.0, 1.0}, {
-    200.0, 0.7, 0.6}, {
-    240.0, 0.6, 0.4}, {
-    60.0, 0.6, 0.2}, {
-    100.0, 0.0, 0.5}
+    {28,  44,  95, 1},
+    {23,  78,  37, 1},
+    {240, 250, 255, 1},
+    50,
+    0.5,
+    24,
+    34,
+    14,
+    141,
+    114
 };
 
-void readfconf(char *file) {
+// Read the config file
+void readfcconf(char *file) {
     FILE *fin;
 
     fin = fopen(file, "r");
     if (fin == NULL)
 	    return;
 
-    fscanf(fin, "%g\n", &fcinfo.Seathreshold);
-    fscanf(fin, "%g\n", &fcinfo.Landthreshold);
-    fscanf(fin, "%g\n", &fcinfo.Threshold);
-    fscanf(fin, "%g %g %g\n", &fcinfo.CloudTop.h,  &fcinfo.CloudTop.s,  &fcinfo.CloudTop.v);
-    fscanf(fin, "%g %g %g\n", &fcinfo.CloudBot.h,  &fcinfo.CloudBot.s,  &fcinfo.CloudBot.v);
-    fscanf(fin, "%g %g %g\n", &fcinfo.SeaTop.h,    &fcinfo.SeaTop.s,    &fcinfo.SeaTop.v);
-    fscanf(fin, "%g %g %g\n", &fcinfo.SeaBot.h,    &fcinfo.SeaBot.s,    &fcinfo.SeaBot.v);
-    fscanf(fin, "%g %g %g\n", &fcinfo.GroundTop.h, &fcinfo.GroundTop.s, &fcinfo.GroundTop.v);
-    fscanf(fin, "%g %g %g\n", &fcinfo.GroundBot.h, &fcinfo.GroundBot.s, &fcinfo.GroundBot.v);
+    fscanf(fin, "%g %g %g\n", &fcinfo.Sea.r,   &fcinfo.Sea.g,   &fcinfo.Sea.b);
+    fscanf(fin, "%g %g %g\n", &fcinfo.Land.r,  &fcinfo.Land.g,  &fcinfo.Land.b);
+    fscanf(fin, "%g %g %g\n", &fcinfo.Cloud.r, &fcinfo.Cloud.g, &fcinfo.Cloud.b);
+    fscanf(fin, "%d\n",       &fcinfo.Seaintensity);
+    fscanf(fin, "%g\n",       &fcinfo.Seaoffset);
+    fscanf(fin, "%d\n",       &fcinfo.Landthreshold);
+    fscanf(fin, "%d\n",       &fcinfo.Landintensity);
+    fscanf(fin, "%d\n",       &fcinfo.Landoffset);
+    fscanf(fin, "%d\n",       &fcinfo.Cloudthreshold);
+    fscanf(fin, "%d",         &fcinfo.Cloudintensity);
 
     fclose(fin);
 };
 
-void falsecolor(double v, double t, float *r, float *g, float *b) {
-    hsvpix_t top, bot, c;
-    double scv, sct;
+// RGBA Composite
+rgba composite(rgba top, rgba bottom){
+    rgba composite;
+	composite.r = MCOMPOSITE(top.r, top.a, bottom.r, bottom.a);
+	composite.g = MCOMPOSITE(top.g, top.a, bottom.g, bottom.a);
+	composite.b = MCOMPOSITE(top.b, top.a, bottom.b, bottom.a);
+    composite.a = bottom.a == 1 || top.a == 1 ? 1 : (top.a+bottom.a)/2;
+    return composite;
+}
 
-    if (t > fcinfo.Threshold) {
-        if (v < fcinfo.Seathreshold) {
-            // Sea
-            top = fcinfo.SeaTop, bot = fcinfo.SeaBot;
-            scv = v / fcinfo.Seathreshold;
-            sct = (256.0 - t) / (256.0 - fcinfo.Threshold);
-        } else {
-            // Ground
-            top = fcinfo.GroundTop, bot = fcinfo.GroundBot;
-            scv = (v - fcinfo.Seathreshold) / (fcinfo.Landthreshold - fcinfo.Seathreshold);
-            sct = (256.0 - t) / (256.0 - fcinfo.Threshold);
-        }
-    } else {
-        // Clouds
-        top = fcinfo.CloudTop, bot = fcinfo.CloudBot;
-        scv = v / 256.0;
-        sct = (256.0 - t) / 256.0;
-    }
+void falsecolor(float vis, float temp, float *r, float *g, float *b){
+    rgba buffer;
+    fcinfo.Land.a = 0; fcinfo.Sea.a = 0;
 
-    c.s = top.s + sct * (bot.s - top.s);
-    c.v = top.v + scv * (bot.v - top.v);
-    c.h = top.h + scv * sct * (bot.h - top.h);
+    // Calculate intensity of sea and land
+    fcinfo.Sea.a  = CLIP(vis, 0, 20)/fcinfo.Seaintensity + fcinfo.Seaoffset;
+	if(vis > fcinfo.Landthreshold) fcinfo.Land.a = CLIP(vis-fcinfo.Landoffset, 0, fcinfo.Landintensity)/fcinfo.Landintensity;
 
-    HSVtoRGB(r, g, b, c);
-};
+    // Composite land on top of sea
+	buffer = composite(fcinfo.Land, fcinfo.Sea);
+    buffer.a = 1;
 
+    // Composite clouds on top
+	fcinfo.Cloud.a = CLIP(temp-fcinfo.Cloudthreshold, 0, fcinfo.Cloudintensity)/fcinfo.Cloudintensity;
+	buffer = composite(fcinfo.Cloud, buffer);
+
+    *r = buffer.r;
+    *g = buffer.g;
+    *b = buffer.b;
+}
+
+// GVI (global vegetation index) false color
 void Ngvi(float **prow, int nrow) {
-    printf("GVI... ");
+    printf("Computing GVI false color\n");
     fflush(stdout);
 
     for (int n = 0; n < nrow; n++) {
@@ -148,6 +104,4 @@ void Ngvi(float **prow, int nrow) {
             pixelv[i + CHB_OFFSET] = pv;
         }
     }
-    printf("Done\n");
 };
-

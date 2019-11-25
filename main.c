@@ -27,14 +27,15 @@
 
 #include <libgen.h>
 
+#include <math.h>
+
 #include <sndfile.h>
 #include <png.h>
 
 #include "messages.h"
 #include "offsets.h"
 
-#include "temppalette.h"
-#include "gvipalette.h"
+#include "colorpalette.h"
 
 extern int getpixelrow(float *pixelv);
 extern int init_dsp(double F);;
@@ -74,7 +75,7 @@ static int initsnd(char *filename) {
 
 // Get a sample from the wave file
 int getsample(float *sample, int nb) {
-    return(sf_read_float(inwav, sample, nb));
+    return sf_read_float(inwav, sample, nb);
 }
 
 static png_text text_ptr[] = {
@@ -95,7 +96,7 @@ static int ImageOut(char *filename, char *chid, float **prow, int nrow, int widt
     png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if (!png_ptr) {
 		fprintf(stderr, ERR_PNG_WRITE);
-		return(1);
+		return(0);
     }
 
 	// Metadata
@@ -103,7 +104,7 @@ static int ImageOut(char *filename, char *chid, float **prow, int nrow, int widt
     if (!info_ptr) {
 		png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
 		fprintf(stderr, ERR_PNG_INFO);
-		return(1);
+		return(0);
     }
 
     if(palette == NULL) {
@@ -156,9 +157,9 @@ static int ImageOut(char *filename, char *chid, float **prow, int nrow, int widt
 			}
 
 			if(layered){
-				// Layered image, basically overlay highlights in channel B over channel A
-				float cloud = CLIP(pixelv[i+CHB_OFFSET]-141, 0, 255)/114*255;
-				pixel[i] = CLIP(pixelv[i+CHA_OFFSET] + cloud, 0, 255);
+				// Layered image, overlay highlights in channel B over channel A
+				float cloud = CLIP(pixelv[i+CHB_OFFSET]-141, 0, 255)/114;
+				pixel[i] = MCOMPOSITE(255, cloud, pixelv[i+CHA_OFFSET], 1);
 			}else{
 				pixel[i] = pixelv[i + offset + f];
 			}
@@ -170,7 +171,7 @@ static int ImageOut(char *filename, char *chid, float **prow, int nrow, int widt
     fclose(pngfile);
     printf("\nDone\n");
     png_destroy_write_struct(&png_ptr, &info_ptr);
-    return(0);
+    return(1);
 }
 
 static int ImageRGBOut(char *filename, float **prow, int nrow) {
@@ -178,7 +179,7 @@ static int ImageRGBOut(char *filename, float **prow, int nrow) {
     png_infop info_ptr;
     png_structp png_ptr;
 
-    extern void falsecolor(double v, double t, float *r, float *g, float *b);
+    extern void falsecolor(float vis, float temp, float *r, float *g, float *b);
 
 	// Initalise the PNG writer
     png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
@@ -204,7 +205,7 @@ static int ImageRGBOut(char *filename, float **prow, int nrow) {
     text_ptr[1].text_length = strlen(text_ptr[1].text);
     png_set_text(png_ptr, info_ptr, text_ptr, 3);
 
-    printf("Computing false color & writing: %s... ", filename);
+    printf("Computing false color & writing: %s", filename);
     fflush(stdout);
     pngfile = fopen(filename, "wb");
     if (pngfile == NULL) {
@@ -221,23 +222,20 @@ static int ImageRGBOut(char *filename, float **prow, int nrow) {
 		pixelc = prow[n];
 
 		for (int i = 0; i < CH_WIDTH - 1; i++) {
-			float v, t;
-			float r, g, b;
+			float r = 0, g = 0, b = 0;
 
-			v = pixelc[i+CHA_OFFSET];
-			t = pixelc[i+CHB_OFFSET];
+			// False color computation
+			falsecolor(pixelc[i+CHA_OFFSET], pixelc[i+CHB_OFFSET], &r, &g, &b);
 
-			falsecolor(v, t, &r, &g, &b);
-
-			pix[i].red = 255.0 * r; 
-			pix[i].green = 255.0 * g;
-			pix[i].blue = 255.0 * b;
+			pix[i].red = r;
+			pix[i].green = g;
+			pix[i].blue = b;
 		}
 		png_write_row(png_ptr, (png_bytep) pix);
     }
     png_write_end(png_ptr, info_ptr);
     fclose(pngfile);
-    printf("Done\n");
+    printf("\nDone\n");
     png_destroy_write_struct(&png_ptr, &info_ptr);
     return(0);
 }
@@ -281,7 +279,7 @@ static void Distrib(char *filename, float **prow, int nrow) {
 extern int calibrate(float **prow, int nrow, int offset, int contrastBoost);
 extern void Temperature(float **prow, int nrow, int ch, int offset);
 extern int Ngvi(float **prow, int nrow);
-extern void readfconf(char *file);
+extern void readfcconf(char *file);
 extern int optind;
 extern char *optarg;
 
@@ -343,7 +341,7 @@ int main(int argc, char **argv) {
 				break;
 			// False color config file
 			case 'c':
-				readfconf(optarg);
+				readfcconf(optarg);
 				break;
 			// Output image type
 			case 'i':
@@ -366,7 +364,6 @@ int main(int argc, char **argv) {
 				usage();
 		}
     }
-
 	if(optind == argc){
 		printf("No audio files provided.\n");
 		usage();
@@ -419,7 +416,7 @@ int main(int argc, char **argv) {
 		sf_close(inwav);
 
 		// Layered images require contrast enhancements
-		int contrastBoost = CONTAINS(enchancements, 'c') || CONTAINS(imgopt, 'l');
+		int contrastBoost = CONTAINS(enchancements, 'c') || CONTAINS(imgopt, 'l') || CONTAINS(imgopt, 'c');
 
 		chA = calibrate(prow, nrow, CHA_OFFSET, 0);
 		chB = calibrate(prow, nrow, CHB_OFFSET, 0);
@@ -433,8 +430,8 @@ int main(int argc, char **argv) {
 			ImageOut(pngfilename, "Temperature", prow, nrow, CH_WIDTH, CHB_OFFSET, (png_color*)TempPalette, 0, 0);
 		}
 
-		// We have to run the contrast enhance here because the temperature function requires real data
-		// Yes, this is bodgy, yes I should replace this with something more elegant
+		// We have to run the contrast enhance here because the temperature calibration requires real data
+		// Yes, this requires running a large chunk of code again, but this will be addressed in the future
 		chA = calibrate(prow, nrow, CHA_OFFSET, contrastBoost);
 		chB = calibrate(prow, nrow, CHB_OFFSET, contrastBoost);
 
@@ -480,10 +477,10 @@ int main(int argc, char **argv) {
 
 		// False color image
 		if(CONTAINS(imgopt, 'c')){
-			if (chA == 2 && chB == 4) { // Normal false color
+			if (chA == 2 && chB >= 4) { // Normal false color
 				sprintf(pngfilename, "%s/%s-c.png", pngdirname, name);
 				ImageRGBOut(pngfilename, prow, nrow);
-			} else if (chA == 1 && chB == 2) { // GVI false color
+			} else if (chA == 1 && chB == 2) { // GVI (global vegetation index) false color
 				Ngvi(prow, nrow);
 				sprintf(pngfilename, "%s/%s-c.png", pngdirname, name);
 				ImageOut(pngfilename, "GVI False Color", prow, nrow, CH_WIDTH, CHB_OFFSET, (png_color*)GviPalette, 0, 0);
