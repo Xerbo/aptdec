@@ -1,6 +1,6 @@
 ![Aptdec logo](textlogo.png)
 
-Thierry Leconte F4DWV (c) 2004-2009
+Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019
 
 ## Description
 
@@ -89,14 +89,14 @@ Image names are `audiofile-x.png`, where `x` is:
 
 Currently there are 2 available enchancements:
 
- - `c` for contrast enhancements, on by default
+ - `c` for contrast equalise, on by default
  - `t` for crop telemetry, on by default, only has effects on raw images
 
 ## Example
 
 `aptdec -d images -i ab *.wav`
 
-This will process all `.wav` files in the current directory, generate contrast enhanced channel A and B images and put them in the `images` directory.
+This will process all `.wav` files in the current directory, generate equalised channel A and B images and put them in the `images` directory.
 
 ## Further reading
 

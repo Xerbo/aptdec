@@ -1,38 +1,35 @@
-/*
- *  Aptdec
- *  Copyright (c) 2003 by Thierry Leconte (F4DWV)
+/* 
+ *  This file is part of Aptdec.
+ *  Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019
  *
- *      $Id$
+ *  Aptdec is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Library General Public License as
- *   published by the Free Software Foundation; either version 2 of
- *   the License, or (at your option) any later version.
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU Library General Public License for more details.
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- *   You should have received a copy of the GNU Library General Public
- *   License along with this library; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- */  
-  
+ */
+
+// IQ finite impulse response filter
 #define IQFilterLen 32
 const float iqfilter[IQFilterLen] = { 0.0205361, 0.0219524, 0.0235785, 0.0254648, 0.0276791, 0.0303152,
 0.0335063, 0.0374482, 0.0424413, 0.0489708, 0.0578745, 0.0707355, 0.0909457, 0.127324, 0.212207, 0.63662,
 -0.63662, -0.212207, -0.127324, -0.0909457, -0.0707355, -0.0578745, -0.0489708, -0.0424413, -0.0374482,
 -0.0335063, -0.0303152, -0.0276791, -0.0254648, -0.0235785, -0.0219524, -0.0205361 };
 
-// Length of Sync
-#define SyncFilterLen 32
 // Pattern of a NOAA sync line
+#define SyncFilterLen 32
 const float Sync[SyncFilterLen] = { -14, -14, -14, 18, 18, -14, -14, 18, 18, -14, -14, 18, 18, -14, -14,
 18, 18, -14, -14, 18, 18, -14, -14, 18, 18, -14, -14, 18, 18, -14, -14, -14 };
 
-
+// Gaussian finite impulse response compensation filter
 #define RSFilterLen 437
 const float rsfilter[RSFilterLen] = { -3.37279e-04, -8.80292e-06, -3.96418e-04, -1.78544e-04, -5.27511e-04,
 -3.75376e-04, -6.95337e-04, -5.93148e-04, -8.79730e-04, -8.15327e-04, -1.05669e-03, -1.01377e-03,

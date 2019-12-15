@@ -1,28 +1,27 @@
-/*
- *  Aptdec
- *  Copyright (c) 2004 by Thierry Leconte (F4DWV)
+/* 
+ *  This file is part of Aptdec.
+ *  Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019
  *
- *      $Id$
+ *  Aptdec is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Library General Public License as
- *   published by the Free Software Foundation; either version 2 of
- *   the License, or (at your option) any later version.
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU Library General Public License for more details.
- *
- *   You should have received a copy of the GNU Library General Public
- *   License along with this library; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
-#include "filter.h"
+
 #include <math.h>
 
-// Sum of a matrix multiplication of 2 arrays
+#include "filter.h"
+
+// Finite impulse response
 float fir(float *buff, const float *coeff, const int len) {
     double r;
 
@@ -33,22 +32,24 @@ float fir(float *buff, const float *coeff, const int len) {
     return(r);
 }
 
-// Create an IQ sample from a sample buffer
+/* IQ finite impulse response
+ * Turn samples into a single IQ sample
+ */
 void iqfir(float *buff, const float *coeff, const int len, double *I, double *Q) {
     double i, q;
 
     i = q = 0.0;
     for (int k = 0; k < len; k++) {
         q += buff[2*k] * coeff[k];
-        // Average out the I samples, which gives us the DC offset
         i += buff[2*k];
     }
-    // Grab the peak value of the wave and subtract the DC offset
     i = buff[len-1] - (i / len);
     *I = i, *Q = q;
 }
 
-// Denoise, I don't know how it works, but it does
+/* Gaussian finite impulse responce compensation
+ * https://www.recordingblogs.com/wiki/gaussian-window
+ */
 float rsfir(double *buff, const float *coeff, const int len, const double offset, const double delta) {
     double out;
 
