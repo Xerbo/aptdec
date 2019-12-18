@@ -83,8 +83,8 @@ void histogramEqualise(float **prow, int nrow, int offset, int width){
 			prow[y][x+offset] = (prow[y][x+offset]-min) / (max-min) * 255;
 }
 
-// Brightness equalise, including telemetry
-void equalise(float **prow, int nrow, int offset, int width, int telestart, rgparam regr[30]){
+// Brightness calibrate, including telemetry
+void calibrateBrightness(float **prow, int nrow, int offset, int width, int telestart, rgparam regr[30]){
 	offset -= SYNC_WIDTH+SPC_WIDTH;
 
 	for (int n = 0; n < nrow; n++) {
@@ -126,7 +126,7 @@ void equalise(float **prow, int nrow, int offset, int width, int telestart, rgpa
 }
 
 // Get telemetry data for thermal calibration/equalization
-int calibrate(float **prow, int nrow, int offset, int width, int contrastEqualise) {
+int calibrate(float **prow, int nrow, int offset, int width, int calibrate) {
     double teleline[3000] = { 0.0 };
     double wedge[16];
     rgparam regr[30];
@@ -236,7 +236,7 @@ int calibrate(float **prow, int nrow, int offset, int width, int contrastEqualis
     }
     nbtele = k;
 
-	if(contrastEqualise) equalise(prow, nrow, offset, width, telestart, regr);
+	if(calibrate) calibrateBrightness(prow, nrow, offset, width, telestart, regr);
 
     return(channel + 1);
 }

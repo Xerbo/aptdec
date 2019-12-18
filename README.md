@@ -89,7 +89,7 @@ Image names are `audiofile-x.png`, where `x` is:
 
 Currently there are 3 available enhancements:
 
- - `c` for contrast equalise, on by default
+ - `c` for calibration, on by default
  - `t` for crop telemetry, on by default, only has effects on raw images
  - `h` for histogram equalise, make the darkest color black and the brightest white
 
@@ -97,7 +97,7 @@ Currently there are 3 available enhancements:
 
 `aptdec -d images -i ab *.wav`
 
-This will process all `.wav` files in the current directory, generate equalised channel A and B images and put them in the `images` directory.
+This will process all `.wav` files in the current directory, generate calibrated channel A and B images and put them in the `images` directory.
 
 ## Further reading
 

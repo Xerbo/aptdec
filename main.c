@@ -224,10 +224,10 @@ static void distrib(char *filename, float **prow, int nrow) {
 			distrib[y][x] = distrib[y][x] / max * 255;
 
 
-	ImageOut(filename, "Value distribution", distrib, 256, 256, 0, NULL, 0);
+	ImageOut(filename, "Brightness distribution", distrib, 256, 256, 0, NULL, 0);
 }
 
-extern int calibrate(float **prow, int nrow, int offset, int width, int contrastEqualise);
+extern int calibrate(float **prow, int nrow, int offset, int width, int calibrate);
 extern void histogramEqualise(float **prow, int nrow, int offset, int width);
 extern void temperature(float **prow, int nrow, int ch, int offset);
 extern int Ngvi(float **prow, int nrow);
@@ -242,7 +242,7 @@ static void usage(void) {
     printf("Aptdec [options] audio files ...\n"
 	"Options:\n"
 	" -e [c|t]       Enhancements\n"
-	"     c: Contrast equalise\n"
+	"     c: Contrast calibration\n"
 	"     t: Crop telemetry\n"
 	"     h: Histogram equalise\n"
 	" -i [r|a|b|c|t] Output image type\n"
@@ -371,11 +371,12 @@ int main(int argc, char **argv) {
 			ImageOut(pngfilename, "Temperature", prow, nrow, CH_WIDTH, CHB_OFFSET, (png_color*)TempPalette, 0);
 		}
 
-		// Run the contrast equalise here because the temperature calibration requires raw data
-		// Also layered & false color images both need brightness equalization
+		// Run the brightness calibration here because the temperature calibration requires raw data
+		// Layered & false color images both also need brightness calibration
 		if(CONTAINS(enchancements, 'c') || CONTAINS(enchancements, 'h') || CONTAINS(imgopt, 'l') || CONTAINS(imgopt, 'c'))
 			calibrate(prow, nrow, CHA_OFFSET, CH_WIDTH+TELE_WIDTH+SYNC_WIDTH+SPC_WIDTH+CH_WIDTH, 1);
 
+		// Histogram equalise
 		if(CONTAINS(enchancements, 'h')){
 			histogramEqualise(prow, nrow, CHA_OFFSET, CH_WIDTH);
 			histogramEqualise(prow, nrow, CHB_OFFSET, CH_WIDTH);
