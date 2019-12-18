@@ -65,9 +65,9 @@ Satellite number
 For temperature calibration
 Default: "19"
 
--e [c|t]
+-e [c|t|h]
 Enhancements
-Contrast (c) or Crop Telemetry (t)
+Contrast calibration (c), Histogram equalise (h), Crop Telemetry (t)
 Defaults: "ct"
 
 -c <file>
@@ -77,7 +77,7 @@ Default: Internal defaults
 
 ## Output
 
-Generated images are outputted in PNG, 8 bit greyscale for raw and channel A|B images, 24 bit RGB for false color.
+Generated images are outputted in PNG, 8 bit greyscale for raw and channel A|B images, palleted images for temperature and GVI false color, 24 bit RGB for false color.
 
 Image names are `audiofile-x.png`, where `x` is:
 
@@ -87,10 +87,11 @@ Image names are `audiofile-x.png`, where `x` is:
  - `t` for temperature calibrated images
  - `l` for layered images
 
-Currently there are 2 available enchancements:
+Currently there are 3 available enhancements:
 
  - `c` for contrast equalise, on by default
  - `t` for crop telemetry, on by default, only has effects on raw images
+ - `h` for histogram equalise, make the darkest color black and the brightest white
 
 ## Example
 

@@ -177,9 +177,9 @@ static int ImageOut(char *filename, char *chid, float **prow, int nrow, int widt
 			}else if(effects == 3){
 				// Layered image, overlay clouds in channel B over channel A
 				float cloud = CLIP(pixelv[i+CHB_OFFSET]-141, 0, 255)/114;
-				pixel[i] = MCOMPOSITE(255, cloud, pixelv[i+CHA_OFFSET], 1);
+				pixel[i] = MCOMPOSITE(240, cloud, pixelv[i+CHA_OFFSET], 1);
 			}else{
-				pixel[i] = pixelv[i + offset + f];
+				pixel[i] = CLIP(pixelv[i + offset + f], 0, 255);
 			}
 		}
 
@@ -228,6 +228,7 @@ static void distrib(char *filename, float **prow, int nrow) {
 }
 
 extern int calibrate(float **prow, int nrow, int offset, int width, int contrastEqualise);
+extern void histogramEqualise(float **prow, int nrow, int offset, int width);
 extern void temperature(float **prow, int nrow, int ch, int offset);
 extern int Ngvi(float **prow, int nrow);
 extern void readfcconf(char *file);
@@ -243,6 +244,7 @@ static void usage(void) {
 	" -e [c|t]       Enhancements\n"
 	"     c: Contrast equalise\n"
 	"     t: Crop telemetry\n"
+	"     h: Histogram equalise\n"
 	" -i [r|a|b|c|t] Output image type\n"
 	"     r: Raw\n"
 	"     a: Channel A\n"
@@ -350,16 +352,12 @@ int main(int argc, char **argv) {
 			if (getpixelrow(prow[nrow]) == 0)
 				break;
 
-
 			printf("Row: %d\r", nrow);
 			fflush(stdout);
 		}
 		printf("\nTotal rows: %d\n", nrow);
 
 		sf_close(inwav);
-
-		// Layered & false color images both need brightness equalization
-		int contrastEqualise = CONTAINS(enchancements, 'c') || CONTAINS(imgopt, 'l') || CONTAINS(imgopt, 'c');
 
 		chA = calibrate(prow, nrow, CHA_OFFSET, CH_WIDTH, 0);
 		chB = calibrate(prow, nrow, CHB_OFFSET, CH_WIDTH, 0);
@@ -374,8 +372,14 @@ int main(int argc, char **argv) {
 		}
 
 		// Run the contrast equalise here because the temperature calibration requires raw data
-		if(contrastEqualise)
+		// Also layered & false color images both need brightness equalization
+		if(CONTAINS(enchancements, 'c') || CONTAINS(enchancements, 'h') || CONTAINS(imgopt, 'l') || CONTAINS(imgopt, 'c'))
 			calibrate(prow, nrow, CHA_OFFSET, CH_WIDTH+TELE_WIDTH+SYNC_WIDTH+SPC_WIDTH+CH_WIDTH, 1);
+
+		if(CONTAINS(enchancements, 'h')){
+			histogramEqualise(prow, nrow, CHA_OFFSET, CH_WIDTH);
+			histogramEqualise(prow, nrow, CHB_OFFSET, CH_WIDTH);
+		}
 
 		// Layered
 		if (CONTAINS(imgopt, 'l')){

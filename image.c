@@ -56,6 +56,33 @@ static double tele[16];
 static double Cs;
 static int nbtele;
 
+void histogramEqualise(float **prow, int nrow, int offset, int width){
+	// Plot histogram
+	int histogram[256] = { 0 };
+	for(int y = 0; y < nrow; y++)
+		for(int x = 0; x < width; x++)
+			histogram[(int)floor(prow[y][x+offset])]++;
+
+	// Find min/max points
+	int min = -1, max = -1;
+	for(int i = 5; i < 250; i++){
+		if(histogram[i]/width/(nrow/255.0) > 1.0){
+			if(min == -1) min = i;
+			max = i;
+		}
+	}
+
+	//printf("Min Value: %i, Max Value %i\n", min, max);
+
+	// Spread values to avoid overshoot
+	min -= 5; max += 5;
+
+	// Stretch the brightness into the new range
+	for(int y = 0; y < nrow; y++)
+		for(int x = 0; x < width; x++)
+			prow[y][x+offset] = (prow[y][x+offset]-min) / (max-min) * 255;
+}
+
 // Brightness equalise, including telemetry
 void equalise(float **prow, int nrow, int offset, int width, int telestart, rgparam regr[30]){
 	offset -= SYNC_WIDTH+SPC_WIDTH;
@@ -100,7 +127,7 @@ void equalise(float **prow, int nrow, int offset, int width, int telestart, rgpa
 
 // Get telemetry data for thermal calibration/equalization
 int calibrate(float **prow, int nrow, int offset, int width, int contrastEqualise) {
-    double teleline[3000];
+    double teleline[3000] = { 0.0 };
     double wedge[16];
     rgparam regr[30];
     int n, k;
@@ -112,7 +139,6 @@ int calibrate(float **prow, int nrow, int offset, int width, int contrastEqualis
 		float *pixelv = prow[n];
 
 		// Average the center 40px
-		teleline[n] = 0.0;
 		for (int i = 3; i < 43; i++) teleline[n] += pixelv[i + offset + width];
 		teleline[n] /= 40.0;
     }
@@ -127,7 +153,7 @@ int calibrate(float **prow, int nrow, int offset, int width, int contrastEqualis
 	 * difference in brightness, this will always be in the center of
 	 * the frame and can thus be used to find the start of the frame
 	 */
-	float max = 0;
+	double max = 0.0;
     for (n = nrow / 3 - 64; n < 2 * nrow / 3 - 64; n++) {
 		float df;
 

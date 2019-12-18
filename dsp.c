@@ -213,7 +213,7 @@ int getpixelrow(float *pixelv) {
     static float pixels[PixelLine + SyncFilterLen];
     static int npv;
     static int synced = 0;
-    static double max = 0;
+    static double max = 0.0;
 
     double corr, ecorr, lcorr;
     int res;

@@ -83,7 +83,7 @@ rgba composite(rgba top, rgba bottom){
 
 void falsecolor(float vis, float temp, float *r, float *g, float *b){
     rgba buffer;
-    fcinfo.Land.a = 0; fcinfo.Sea.a = 0;
+    fcinfo.Land.a = 0.0f; fcinfo.Sea.a = 0.0f;
 
     // Calculate intensity of sea and land
     fcinfo.Sea.a  = CLIP(vis, 0, 20)/fcinfo.Seaintensity + fcinfo.Seaoffset;
@@ -91,7 +91,7 @@ void falsecolor(float vis, float temp, float *r, float *g, float *b){
 
     // Composite land on top of sea
 	buffer = composite(fcinfo.Land, fcinfo.Sea);
-    buffer.a = 1;
+    buffer.a = 1.0f;
 
     // Composite clouds on top
 	fcinfo.Cloud.a = CLIP(temp-fcinfo.Cloudthreshold, 0, fcinfo.Cloudintensity)/fcinfo.Cloudintensity;
