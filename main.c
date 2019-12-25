@@ -223,7 +223,6 @@ static void distrib(char *filename, float **prow, int nrow) {
 		for(int y = 0; y < 256; y++)
 			distrib[y][x] = distrib[y][x] / max * 255;
 
-
 	ImageOut(filename, "Brightness distribution", distrib, 256, 256, 0, NULL, 0);
 }
 
@@ -258,10 +257,68 @@ static void usage(void) {
    	exit(1);
 }
 
+int readRawImage(char *filename, float **prow, int *nrow) {
+	png_bytep *PNGrows = NULL;
+	FILE *fp = fopen(filename, "r");
+
+	// Create read struct
+	png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if(!png) return 0;
+
+	// Create info struct
+	png_infop info = png_create_info_struct(png);
+	if(!info) return 0;
+
+	// Init I/O
+	png_init_io(png, fp);
+
+	// Read info from header
+	png_read_info(png, info);
+	int width = png_get_image_width(png, info);
+	int height = png_get_image_height(png, info);
+	png_byte color_type = png_get_color_type(png, info);
+	png_byte bit_depth  = png_get_bit_depth(png, info);
+
+	// Check the image
+	if(width != 2080){
+		fprintf(stderr, "Expected a 2080px wide PNG, got a %ipx wide PNG", width);
+		return 0;
+	}
+	if(bit_depth != 8){
+		fprintf(stderr, "Expected an 8 bit PNG, got an %i bit PNG", bit_depth);
+		return 0;
+	}
+	if(color_type != PNG_COLOR_TYPE_GRAY){
+		fprintf(stderr, "Expected a grayscale PNG");
+		return 0;
+	}
+
+	// Create row buffers
+	PNGrows = (png_bytep *) malloc(sizeof(png_bytep) * height);
+	for(int y = 0; y < height; y++) PNGrows[y] = (png_byte *) malloc(png_get_rowbytes(png, info));
+
+	png_read_image(png, PNGrows);
+
+	// Tidy up	
+	fclose(fp);
+	png_destroy_read_struct(&png, &info, NULL);
+
+	// Put into prow
+	*nrow = height;
+	for(int y = 0; y < height; y++) {
+		prow[y] = (float *) malloc(sizeof(float) * width);
+		for(int x = 0; x < width; x++)
+			prow[y][x] = (float)PNGrows[y][x];
+	}
+
+	return 1;
+}
+
 int main(int argc, char **argv) {
     char pngfilename[1024];
-    char name[500];
-    char pngdirname[500] = "";
+    char name[128];
+    char pngdirname[128] = "";
+	char *extension;
 
 	// Default to a raw image, with equalization and cropped telemetry
     char imgopt[20] = "r";
@@ -323,7 +380,7 @@ int main(int argc, char **argv) {
 		}
     }
 	if(optind == argc){
-		printf("No audio files provided.\n");
+		printf("No input files provided.\n");
 		usage();
 	}
 
@@ -335,29 +392,35 @@ int main(int argc, char **argv) {
 		strcpy(pngfilename, argv[optind]);
 		strcpy(name, basename(pngfilename));
 		strtok(name, ".");
+		extension = strtok(NULL, ".");
 
 		if (pngdirname[0] == '\0')
 			strcpy(pngdirname, dirname(pngfilename));
 
-		// Open sound file, exit if that fails
-		if (initsnd(argv[optind]) == 0)
-			exit(1);
+		if(strcmp(extension, "png") == 0){
+			printf("Reading %s", argv[optind]);
+			readRawImage(argv[optind], prow, &nrow);
+		}else{
+			// Open sound file, exit if that fails
+			if (initsnd(argv[optind]) == 0) exit(1);
 
-		// Main image building loop
-		for (nrow = 0; nrow < 3000; nrow++) {
-			// Allocate 2150 floats worth of memory for every line of the image
-			prow[nrow] = (float *) malloc(sizeof(float) * 2150);
-			
-			// Read into prow and break the loop once we reach the end of the image
-			if (getpixelrow(prow[nrow]) == 0)
-				break;
+			// Main image building loop
+			for (nrow = 0; nrow < 3000; nrow++) {
+				// Allocate 2150 floats worth of memory for every line of the image
+				prow[nrow] = (float *) malloc(sizeof(float) * 2150);
+				
+				// Read into prow and break the loop once we reach the end of the image
+				if (getpixelrow(prow[nrow]) == 0) break;
 
-			printf("Row: %d\r", nrow);
-			fflush(stdout);
+				printf("Row: %d\r", nrow);
+				fflush(stdout);
+			}
+
+			// Close sound file
+			sf_close(inwav);
 		}
-		printf("\nTotal rows: %d\n", nrow);
 
-		sf_close(inwav);
+		printf("\nTotal rows: %d\n", nrow);
 
 		chA = calibrate(prow, nrow, CHA_OFFSET, CH_WIDTH, 0);
 		chB = calibrate(prow, nrow, CHB_OFFSET, CH_WIDTH, 0);
