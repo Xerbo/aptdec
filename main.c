@@ -30,7 +30,7 @@
 #include "offsets.h"
 #include "palette.h"
 
-extern int getpixelrow(float *pixelv);
+extern int getpixelrow(float *pixelv, int nrow, int *zenith);
 extern int init_dsp(double F);
 
 static SNDFILE *inwav;
@@ -77,119 +77,185 @@ static png_text text_ptr[] = {
     {PNG_TEXT_COMPRESSION_NONE, "Description", "NOAA satellite image", 20}
 };
 
-// TODO: this function needs to be tidied up
-/* Effects
- *  0 - Nothing
- *  1 - Crop telemetry
- *  2 - False color
- *  3 - Layered
- */
-static int ImageOut(char *filename, char *chid, float **prow, int nrow, int width, int offset, png_color *palette, int effects) {
+int mapOverlay(char *filename, float **crow, int nrow, int zenith, int MCIR) {
+	FILE *fp = fopen(filename, "rb");
+
+	// Create reader
+	png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if(!png) return 0;
+	png_infop info = png_create_info_struct(png);
+	if(!info) return 0;
+	png_init_io(png, fp);
+
+	// Read info from header
+	png_read_info(png, info);
+	int width = png_get_image_width(png, info);
+	int height = png_get_image_height(png, info);
+	png_byte color_type = png_get_color_type(png, info);
+	png_byte bit_depth = png_get_bit_depth(png, info);
+
+	// Check the image
+	if(width != 1040){
+		fprintf(stderr, "Map must be 1040px wide.\n");
+		return 0;
+	}else if(bit_depth != 16){
+		fprintf(stderr, "Map must be 16 bit color.\n");
+		return 0;
+	}else if(color_type != PNG_COLOR_TYPE_RGB){
+		fprintf(stderr, "Map must be RGB.\n");
+		return 0;
+	}else if(zenith > height/2 || nrow-zenith > height/2){
+		fprintf(stderr, "WARNING: Map is too short to cover entire image\n");
+	}
+
+	// Create row buffers
+	png_bytep *mapRows = NULL;
+	mapRows = (png_bytep *) malloc(sizeof(png_bytep) * height);
+	for(int y = 0; y < height; y++) mapRows[y] = (png_byte *) malloc(png_get_rowbytes(png, info));
+
+	// Read image
+	png_read_image(png, mapRows);
+
+	// Tidy up
+	fclose(fp);
+	png_destroy_read_struct(&png, &info, NULL);
+
+	int mapOffset = (height/2)-zenith;
+	for(int y = 0; y < nrow; y++) {
+		for(int x = 49; x < width - 82; x++){
+			// Maps are 16 bit / channel
+			png_bytep px = &mapRows[CLIP(y + mapOffset, 0, height)][x * 6];
+			uint16_t r = (uint16_t)(px[0] << 8) | px[1];
+			uint16_t g = (uint16_t)(px[2] << 8) | px[3];
+			uint16_t b = (uint16_t)(px[4] << 8) | px[5];
+
+			// Pointers to the current pixel in each channel
+			float *cha = &crow[y][(x+36) * 3];
+			float *chb = &crow[y][(x+CHB_OFFSET-49) * 3];
+
+			// Fill in map
+			if(MCIR){
+				// Sea
+				cha[0] = 42; cha[1] = 53; cha[2] = 105;
+
+				// Land
+				if(g > 128){
+					float vegetation = (r-160) / 96.0;
+					cha[0] = 120; cha[1] = vegetation*60.0 + 100; cha[2] = 95;
+				}
+			}
+
+			// Color -> alpha: composite
+			int composite = r + g + b;
+			// Color -> alpha: flattern color depth
+			float factor = (255 * 255 * 2.0) / composite;
+			r *= factor; g *= factor; b *= factor;
+			// Color -> alpha: convert black to alpha
+			float alpha = CLIP(abs(0 - composite) / 65535.0, 0, 1);
+
+			// Map overlay on channel A
+			cha[0] = MCOMPOSITE(r/257, alpha, cha[0], 1);
+			cha[1] = MCOMPOSITE(g/257, alpha, cha[1], 1);
+			cha[2] = MCOMPOSITE(b/257, alpha, cha[2], 1);
+
+			// Map overlay on channel B
+			if(!MCIR){
+				chb[0] = MCOMPOSITE(r/257, alpha, chb[0], 1);
+				chb[1] = MCOMPOSITE(g/257, alpha, chb[1], 1);
+				chb[2] = MCOMPOSITE(b/257, alpha, chb[2], 1);
+			}
+
+			// Cloud overlay on channel A
+			if(MCIR){
+				float cloud = (chb[0] - 110) / 120;
+				cha[0] = MCOMPOSITE(240, cloud, cha[0], 1);
+				cha[1] = MCOMPOSITE(250, cloud, cha[1], 1);
+				cha[2] = MCOMPOSITE(255, cloud, cha[2], 1);
+			}
+		}
+	}
+
+	return 1;
+}
+
+// Row where to satellite reaches peak elevation
+int zenith = 0;
+
+static int ImageOut(char *filename, char *chid, float **prow, int nrow, int width, int offset, char *palette, char *effects, char *mapFile) {
     FILE *pngfile;
-    png_infop info_ptr;
-    png_structp png_ptr;
 
 	// Reduce the width of the image to componsate for the missing telemetry
-	if(effects == 1) width -= TOTAL_TELE;
+	if(CONTAINS(effects, 't')) width -= TOTAL_TELE;
 
-	// Initalise the PNG writer
-    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	// Create writer
+    png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if (!png_ptr) {
+		png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
 		fprintf(stderr, ERR_PNG_WRITE);
 		return(0);
     }
-
-	// Metadata
-    info_ptr = png_create_info_struct(png_ptr);
+    png_infop info_ptr = png_create_info_struct(png_ptr);
     if (!info_ptr) {
 		png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
 		fprintf(stderr, ERR_PNG_INFO);
 		return(0);
     }
 
-	extern void falsecolor(float vis, float temp, float *r, float *g, float *b);
-
-    if(effects == 2){
-		// 8 bit RGB image
-		png_set_IHDR(png_ptr, info_ptr, width, nrow,
-		 		 	 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
-		 			 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-	}else if(palette == NULL) {
-		// Greyscale image
-    	png_set_IHDR(png_ptr, info_ptr, width, nrow,
-					 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE,
-				 	 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-    } else {
-		// Palleted color image
-    	png_set_IHDR(png_ptr, info_ptr, width, nrow,
-		 			 8, PNG_COLOR_TYPE_PALETTE, PNG_INTERLACE_NONE,
-		 			 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-		png_set_PLTE(png_ptr, info_ptr, palette, 256);
-    }
+	// 8 bit RGB image
+	png_set_IHDR(png_ptr, info_ptr, width, nrow,
+	 		 	 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+	 			 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
     text_ptr[1].text = chid;
     text_ptr[1].text_length = strlen(chid);
     png_set_text(png_ptr, info_ptr, text_ptr, 3);
-    png_set_pHYs(png_ptr, info_ptr, 4000, 4000, PNG_RESOLUTION_METER);
+    png_set_pHYs(png_ptr, info_ptr, 4160, 4160, PNG_RESOLUTION_METER);
 
-	if(effects == 2){
-		printf("Computing false color & writing: %s", filename);
-	}else{
-		printf("Writing %s", filename);
-	}
-    fflush(stdout);
-
+	// Init I/O
     pngfile = fopen(filename, "wb");
-    if (pngfile == NULL) {
+    if (!pngfile) {
 		fprintf(stderr, ERR_FILE_WRITE, filename);
 		return(1);
     }
     png_init_io(png_ptr, pngfile);
     png_write_info(png_ptr, info_ptr);
 
+	// Move prow into crow, crow ~ color rows
+	float *crow[3000];
+	for(int i = 0; i < nrow; i++){
+		crow[i] = (float *) malloc(sizeof(float) * 2080 * 3);
+
+		for(int x = 0; x < 2080; x++)
+			crow[i][x*3 + 0] = crow[i][x*3 + 1] = crow[i][x*3 + 2] = prow[i][x];
+	}
+
+	if(mapFile != NULL && mapFile[0] != '\0'){
+		if(mapOverlay(mapFile, crow, nrow, zenith, strcmp(chid, "MCIR") == 0) == 0){
+			fprintf(stderr, "Skipping MCIR generation; see above.\n");
+			return 0;
+		}
+	}else if(strcmp(chid, "MCIR")){
+		fprintf(stderr, "Skipping MCIR generation; no map provided.\n");
+		return 0;
+	}
+
+	printf("Writing %s", filename);
+
+	// Build RGB image
     for (int n = 0; n < nrow; n++) {
 		png_color pix[width];
-		png_byte pixel[width];
 
-		float *pixelv = prow[n];
-		int f = 0;
 		for (int i = 0; i < width; i++) {
-			// Skip parts of the image that are telemetry
-			if(effects == 1){
-				switch (i) {
-					case 0:
-						f += SYNC_WIDTH + SPC_WIDTH;
-						break;
-					case CH_WIDTH:
-						f += TELE_WIDTH + SYNC_WIDTH + SPC_WIDTH;
-						break;
-					case CH_WIDTH*2:
-						f += TELE_WIDTH;
-				}
-			}
-
-			if(effects == 2){
-				float r = 0, g = 0, b = 0;
-				falsecolor(pixelv[i+CHA_OFFSET], pixelv[i+CHB_OFFSET], &r, &g, &b);
-				pix[i].red = r;
-				pix[i].green = g;
-				pix[i].blue = b;
-			}else if(effects == 3){
-				// Layered image, overlay clouds in channel B over channel A
-				float cloud = CLIP(pixelv[i+CHB_OFFSET]-141, 0, 255)/114;
-				pixel[i] = MCOMPOSITE(240, cloud, pixelv[i+CHA_OFFSET], 1);
-			}else{
-				pixel[i] = CLIP(pixelv[i + offset + f], 0, 255);
-			}
+			float *px = &crow[n][offset*3 + i*3];
+			pix[i].red   = CLIP(px[0], 0, 255);
+			pix[i].green = CLIP(px[1], 0, 255);
+			pix[i].blue  = CLIP(px[2], 0, 255);
 		}
-
-		if(effects == 2){
-			png_write_row(png_ptr, (png_bytep) pix);
-		}else{
-			png_write_row(png_ptr, pixel);
-		}
+		
+		png_write_row(png_ptr, (png_bytep) pix);
     }
 
+	// Tidy up
     png_write_end(png_ptr, info_ptr);
     fclose(pngfile);
     printf("\nDone\n");
@@ -223,10 +289,10 @@ static void distrib(char *filename, float **prow, int nrow) {
 		for(int y = 0; y < 256; y++)
 			distrib[y][x] = distrib[y][x] / max * 255;
 
-	ImageOut(filename, "Brightness distribution", distrib, 256, 256, 0, NULL, 0);
+	ImageOut(filename, "Brightness distribution", distrib, 256, 256, 0, NULL, 0, NULL);
 }
 
-extern int calibrate(float **prow, int nrow, int offset, int width, int calibrate);
+extern int calibrate(float **prow, int nrow, int offset, int width);
 extern void histogramEqualise(float **prow, int nrow, int offset, int width);
 extern void temperature(float **prow, int nrow, int ch, int offset);
 extern int Ngvi(float **prow, int nrow);
@@ -240,8 +306,7 @@ int satnum = 4;
 static void usage(void) {
     printf("Aptdec [options] audio files ...\n"
 	"Options:\n"
-	" -e [c|t]       Enhancements\n"
-	"     c: Contrast calibration\n"
+	" -e [t|h]       Enhancements\n"
 	"     t: Crop telemetry\n"
 	"     h: Histogram equalise\n"
 	" -i [r|a|b|c|t] Output image type\n"
@@ -250,26 +315,22 @@ static void usage(void) {
 	"     b: Channel B\n"
 	"     c: False color\n"
 	"     t: Temperature\n"
-	"     l: Layered\n"
+	"     m: MCIR\n"
 	" -d <dir>       Image destination directory.\n"
 	" -s [15-19]     Satellite number\n"
-	" -c <file>      False color config file\n");
+	" -c <file>      False color config file\n"
+	" -m <file>      Map file\n");
    	exit(1);
 }
 
 int readRawImage(char *filename, float **prow, int *nrow) {
-	png_bytep *PNGrows = NULL;
 	FILE *fp = fopen(filename, "r");
 
-	// Create read struct
+	// Create reader
 	png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 	if(!png) return 0;
-
-	// Create info struct
 	png_infop info = png_create_info_struct(png);
 	if(!info) return 0;
-
-	// Init I/O
 	png_init_io(png, fp);
 
 	// Read info from header
@@ -281,25 +342,25 @@ int readRawImage(char *filename, float **prow, int *nrow) {
 
 	// Check the image
 	if(width != 2080){
-		fprintf(stderr, "Expected a 2080px wide PNG, got a %ipx wide PNG", width);
+		fprintf(stderr, "Raw image must be 2080px wide.\n");
 		return 0;
-	}
-	if(bit_depth != 8){
-		fprintf(stderr, "Expected an 8 bit PNG, got an %i bit PNG", bit_depth);
+	}else if(bit_depth != 8){
+		fprintf(stderr, "Raw image must have 8 bit color.\n");
 		return 0;
-	}
-	if(color_type != PNG_COLOR_TYPE_GRAY){
-		fprintf(stderr, "Expected a grayscale PNG");
+	}else if(color_type != PNG_COLOR_TYPE_GRAY){
+		fprintf(stderr, "Raw image must be grayscale.\n");
 		return 0;
 	}
 
 	// Create row buffers
+	png_bytep *PNGrows = NULL;
 	PNGrows = (png_bytep *) malloc(sizeof(png_bytep) * height);
 	for(int y = 0; y < height; y++) PNGrows[y] = (png_byte *) malloc(png_get_rowbytes(png, info));
 
+	// Read image
 	png_read_image(png, PNGrows);
 
-	// Tidy up	
+	// Tidy up
 	fclose(fp);
 	png_destroy_read_struct(&png, &info, NULL);
 
@@ -307,6 +368,7 @@ int readRawImage(char *filename, float **prow, int *nrow) {
 	*nrow = height;
 	for(int y = 0; y < height; y++) {
 		prow[y] = (float *) malloc(sizeof(float) * width);
+
 		for(int x = 0; x < width; x++)
 			prow[y][x] = (float)PNGrows[y][x];
 	}
@@ -318,11 +380,12 @@ int main(int argc, char **argv) {
     char pngfilename[1024];
     char name[128];
     char pngdirname[128] = "";
+	char mapFile[256];
 	char *extension;
 
-	// Default to a raw image, with equalization and cropped telemetry
+	// Default to a raw image, with no enhancements
     char imgopt[20] = "r";
-	char enchancements[20] = "ct";
+	char enhancements[20] = "";
 
 	// Image buffer
     float *prow[3000];
@@ -348,7 +411,7 @@ int main(int argc, char **argv) {
 		usage();
 
 	int c;
-    while ((c = getopt(argc, argv, "c:d:i:s:e:")) != EOF) {
+    while ((c = getopt(argc, argv, "c:m:d:i:s:e:")) != EOF) {
 		switch (c) {
 			// Output directory name
 			case 'd':
@@ -357,6 +420,10 @@ int main(int argc, char **argv) {
 			// False color config file
 			case 'c':
 				readfcconf(optarg);
+				break;
+			// Map file
+			case 'm':
+				strcpy(mapFile, optarg);
 				break;
 			// Output image type
 			case 'i':
@@ -373,7 +440,7 @@ int main(int argc, char **argv) {
 				break;
 			// Enchancements
 			case 'e':
-				strncpy(enchancements, optarg, 20);
+				strncpy(enhancements, optarg, 20);
 				break;
 			default:
 				usage();
@@ -399,7 +466,10 @@ int main(int argc, char **argv) {
 
 		if(strcmp(extension, "png") == 0){
 			printf("Reading %s", argv[optind]);
-			readRawImage(argv[optind], prow, &nrow);
+			if(readRawImage(argv[optind], prow, &nrow) == 0){
+				fprintf(stderr, "Skipping %s; see above.\n", name);
+				continue;
+			}
 		}else{
 			// Open sound file, exit if that fails
 			if (initsnd(argv[optind]) == 0) exit(1);
@@ -410,7 +480,7 @@ int main(int argc, char **argv) {
 				prow[nrow] = (float *) malloc(sizeof(float) * 2150);
 				
 				// Read into prow and break the loop once we reach the end of the image
-				if (getpixelrow(prow[nrow]) == 0) break;
+				if (getpixelrow(prow[nrow], nrow, &zenith) == 0) break;
 
 				printf("Row: %d\r", nrow);
 				fflush(stdout);
@@ -420,49 +490,61 @@ int main(int argc, char **argv) {
 			sf_close(inwav);
 		}
 
+		if(zenith == 0 & mapFile[0] != '\0'){
+			fprintf(stderr, "WARNING: Guessing peak elevation in image, map will most likely not be aligned.\n");
+			zenith = nrow / 2;
+		}
+
 		printf("\nTotal rows: %d\n", nrow);
 
-		chA = calibrate(prow, nrow, CHA_OFFSET, CH_WIDTH, 0);
-		chB = calibrate(prow, nrow, CHB_OFFSET, CH_WIDTH, 0);
+		// Calibrate
+		chA = calibrate(prow, nrow, CHA_OFFSET, CH_WIDTH);
+		chB = calibrate(prow, nrow, CHB_OFFSET, CH_WIDTH);
 		printf("Channel A: %s (%s)\n", ch.id[chA], ch.name[chA]);
 		printf("Channel B: %s (%s)\n", ch.id[chB], ch.name[chB]);
 
 		// Temperature
 		if (CONTAINS(imgopt, 't') && chB >= 4) {
+			// TODO: Doesn't work with channel 4
 			temperature(prow, nrow, chB, CHB_OFFSET);
 			sprintf(pngfilename, "%s/%s-t.png", pngdirname, name);
-			ImageOut(pngfilename, "Temperature", prow, nrow, CH_WIDTH, CHB_OFFSET, (png_color*)TempPalette, 0);
+			ImageOut(pngfilename, "Temperature", prow, nrow, 2080, 0, TempPalette, enhancements, mapFile);
 		}
 
-		// Run the brightness calibration here because the temperature calibration requires raw data
-		// Layered & false color images both also need brightness calibration
-		if(CONTAINS(enchancements, 'c') || CONTAINS(enchancements, 'h') || CONTAINS(imgopt, 'l') || CONTAINS(imgopt, 'c'))
-			calibrate(prow, nrow, CHA_OFFSET, CH_WIDTH+TELE_WIDTH+SYNC_WIDTH+SPC_WIDTH+CH_WIDTH, 1);
+		// False color image
+		if(CONTAINS(imgopt, 'c')){
+			if (chA == 2 && chB >= 4) { // Normal false color
+				sprintf(pngfilename, "%s/%s-c.png", pngdirname, name);
+				//ImageRGBOut(pngfilename, prow, nrow);
+				ImageOut(pngfilename, "False Color", prow, nrow, CH_WIDTH, 0, NULL, enhancements, mapFile);
+			} else if (chB == 2) { // GVI (global vegetation index) false color
+				Ngvi(prow, nrow);
+				sprintf(pngfilename, "%s/%s-c.png", pngdirname, name);
+				ImageOut(pngfilename, "GVI False Color", prow, nrow, CH_WIDTH, CHB_OFFSET, GviPalette, enhancements, mapFile);
+			} else {
+				fprintf(stderr, "Skipping False Color generation; lacking required channels.\n");
+			}
+		}
+
+		// MCIR
+		if (CONTAINS(imgopt, 'm')) {
+			sprintf(pngfilename, "%s/%s-m.png", pngdirname, name);
+			ImageOut(pngfilename, "MCIR", prow, nrow, 909, CHA_OFFSET, NULL, enhancements, mapFile);
+		}
 
 		// Histogram equalise
-		if(CONTAINS(enchancements, 'h')){
+		if(CONTAINS(enhancements, 'h')){
 			histogramEqualise(prow, nrow, CHA_OFFSET, CH_WIDTH);
 			histogramEqualise(prow, nrow, CHB_OFFSET, CH_WIDTH);
 		}
 
-		// Layered
-		if (CONTAINS(imgopt, 'l')){
-			if(chA == 1){
-				sprintf(pngfilename, "%s/%s-l.png", pngdirname, name);
-				ImageOut(pngfilename, "Layered", prow, nrow, CH_WIDTH, 0, NULL, 3);
-			}else{
-				fprintf(stderr, "Lacking channels required for generting a layered image.\n");
-			}
-		}
-
 		// Raw image
 		if (CONTAINS(imgopt, 'r')) {
-			int croptele = CONTAINS(enchancements, 't');
 			char channelstr[45];
 			sprintf(channelstr, "%s (%s) & %s (%s)", ch.id[chA], ch.name[chA], ch.id[chB], ch.name[chB]);
 
 			sprintf(pngfilename, "%s/%s-r.png", pngdirname, name);
-			ImageOut(pngfilename, channelstr, prow, nrow, IMG_WIDTH, 0, NULL, croptele ? 1 : 0);
+			ImageOut(pngfilename, channelstr, prow, nrow, IMG_WIDTH, 0, NULL, enhancements, mapFile);
 		}
 
 		// Channel A
@@ -471,7 +553,7 @@ int main(int argc, char **argv) {
 			sprintf(channelstr, "%s (%s)", ch.id[chA], ch.name[chA]);
 
 			sprintf(pngfilename, "%s/%s-%s.png", pngdirname, name, ch.id[chA]);
-			ImageOut(pngfilename, channelstr, prow, nrow, CH_WIDTH, CHA_OFFSET, NULL, 0);
+			ImageOut(pngfilename, channelstr, prow, nrow, CH_WIDTH, CHA_OFFSET, NULL, enhancements, mapFile);
 		}
 
 		// Channel B
@@ -480,28 +562,13 @@ int main(int argc, char **argv) {
 			sprintf(channelstr, "%s (%s)", ch.id[chB], ch.name[chB]);
 
 			sprintf(pngfilename, "%s/%s-%s.png", pngdirname, name, ch.id[chB]);
-			ImageOut(pngfilename, channelstr, prow, nrow, CH_WIDTH , CHB_OFFSET, NULL, 0);
+			ImageOut(pngfilename, channelstr, prow, nrow, CH_WIDTH , CHB_OFFSET, NULL, enhancements, mapFile);
 		}
 
 		// Distribution image
 		if (CONTAINS(imgopt, 'd')) {
 			sprintf(pngfilename, "%s/%s-d.png", pngdirname, name);
 			distrib(pngfilename, prow, nrow);
-		}
-
-		// False color image
-		if(CONTAINS(imgopt, 'c')){
-			if (chA == 2 && chB >= 4) { // Normal false color
-				sprintf(pngfilename, "%s/%s-c.png", pngdirname, name);
-				//ImageRGBOut(pngfilename, prow, nrow);
-				ImageOut(pngfilename, "False Color", prow, nrow, CH_WIDTH, 0, NULL, 2);
-			} else if (chB == 2) { // GVI (global vegetation index) false color
-				Ngvi(prow, nrow);
-				sprintf(pngfilename, "%s/%s-c.png", pngdirname, name);
-				ImageOut(pngfilename, "GVI False Color", prow, nrow, CH_WIDTH, CHB_OFFSET, (png_color*)GviPalette, 0);
-			} else {
-				fprintf(stderr, "Lacking channels required for generating a false color image.\n");
-			}
 		}
 	}
 

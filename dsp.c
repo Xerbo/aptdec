@@ -59,7 +59,7 @@ int init_dsp(double F) {
 
 	K1 = DFc / Fe;
 	K2 = K1 * K1 / 2.0;
-	// Number of samples for each cycle
+	// Number of samples per cycle
 	FreqOsc = Fc / Fe;
 
 	return(0);
@@ -209,7 +209,8 @@ int getpixelv(float *pvbuff, int count) {
 }
 
 // Get an entire row of pixels, aligned with sync markers
-int getpixelrow(float *pixelv) {
+double minDoppler = 100;
+int getpixelrow(float *pixelv, int nrow, int *zenith) {
     static float pixels[PixelLine + SyncFilterLen];
     static int npv;
     static int synced = 0;
@@ -230,11 +231,17 @@ int getpixelrow(float *pixelv) {
 		if (npv < SyncFilterLen + 2) return(0);
     }
 
-    // Calculate the sub-pixel offset
+    // Calculate the frequency offset
     ecorr = fir(pixelv, Sync, SyncFilterLen);
     corr = fir(&(pixelv[1]), Sync, SyncFilterLen - 1);
     lcorr = fir(&(pixelv[2]), Sync, SyncFilterLen - 2);
     FreqLine = 1.0+((ecorr-lcorr) / corr / PixelLine / 4.0);
+
+	// Find the point in which ecorr and lcorr intercept, make sure that it's not too perfect
+	if(fabs(lcorr - ecorr) < minDoppler && fabs(lcorr - ecorr) > 1){
+		minDoppler = fabs(lcorr - ecorr);
+		*zenith = nrow;
+	}
 	
 	// The point in which the pixel offset is recalculated
     if (corr < 0.75 * max) {

@@ -126,7 +126,7 @@ void calibrateBrightness(float **prow, int nrow, int offset, int width, int tele
 }
 
 // Get telemetry data for thermal calibration/equalization
-int calibrate(float **prow, int nrow, int offset, int width, int calibrate) {
+int calibrate(float **prow, int nrow, int offset, int width) {
     double teleline[3000] = { 0.0 };
     double wedge[16];
     rgparam regr[30];
@@ -236,7 +236,7 @@ int calibrate(float **prow, int nrow, int offset, int width, int calibrate) {
     }
     nbtele = k;
 
-	if(calibrate) calibrateBrightness(prow, nrow, offset, width, telestart, regr);
+	calibrateBrightness(prow, nrow, offset, width, telestart, regr);
 
     return(channel + 1);
 }
@@ -308,13 +308,13 @@ static double tempcal(float Ce, tempparam * rgpr) {
 }
 
 // Temperature calibration wrapper
-void temperature(float **prow, int nrow, int channel, int offset) {
+void temperature(float **prow, int nrow, int ch, int offset){
     tempparam temp;
 
     printf("Temperature... ");
     fflush(stdout);
 
-    tempcomp(tele, channel, &temp);
+    tempcomp(tele, ch, &temp);
 
     for (int n = 0; n < nrow; n++) {
 		float *pixelv = prow[n];

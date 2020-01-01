@@ -36,13 +36,13 @@ float fir(float *buff, const float *coeff, const int len) {
  * Turn samples into a single IQ sample
  */
 void iqfir(float *buff, const float *coeff, const int len, double *I, double *Q) {
-    double i, q;
+    double i = 0.0, q = 0.0;
 
-    i = q = 0.0;
     for (int k = 0; k < len; k++) {
         q += buff[2*k] * coeff[k];
         i += buff[2*k];
     }
+
     i = buff[len-1] - (i / len);
     *I = i, *Q = q;
 }
