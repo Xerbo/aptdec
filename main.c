@@ -181,6 +181,21 @@ int mapOverlay(char *filename, float **crow, int nrow, int zenith, int MCIR) {
 // Row where to satellite reaches peak elevation
 int zenith = 0;
 
+int applyPalette(float **crow, int nrow, int width, char *palette){
+	if(palette == NULL) return 0;
+
+	for(int y = 0; y < nrow; y++){
+		for(int x = 0; x < width; x++){
+			float *px = &crow[y][x * 3];
+			px[0] = palette[(int)CLIP(px[0], 0, 255)*3 + 0];
+			px[1] = palette[(int)CLIP(px[1], 0, 255)*3 + 1];
+			px[2] = palette[(int)CLIP(px[2], 0, 255)*3 + 2];
+		}
+	}
+
+	return 1;
+}
+
 static int ImageOut(char *filename, char *chid, float **prow, int nrow, int width, int offset, char *palette, char *effects, char *mapFile) {
     FILE *pngfile;
 
@@ -226,20 +241,26 @@ static int ImageOut(char *filename, char *chid, float **prow, int nrow, int widt
 		crow[i] = (float *) malloc(sizeof(float) * 2080 * 3);
 
 		for(int x = 0; x < 2080; x++)
-			crow[i][x*3 + 0] = crow[i][x*3 + 1] = crow[i][x*3 + 2] = prow[i][x];
+			crow[i][x*3] = crow[i][x*3 + 1] = crow[i][x*3 + 2] = prow[i][x];
 	}
+
+	applyPalette(crow, nrow, 2080, palette);
 
 	if(mapFile != NULL && mapFile[0] != '\0'){
 		if(mapOverlay(mapFile, crow, nrow, zenith, strcmp(chid, "MCIR") == 0) == 0){
 			fprintf(stderr, "Skipping MCIR generation; see above.\n");
 			return 0;
 		}
-	}else if(strcmp(chid, "MCIR")){
+	}else if(strcmp(chid, "MCIR") == 0){
 		fprintf(stderr, "Skipping MCIR generation; no map provided.\n");
 		return 0;
 	}
 
+	extern void falsecolor(float vis, float temp, float *r, float *g, float *b);
+
 	printf("Writing %s", filename);
+
+	int fcimage = strcmp(chid, "False Color") == 0;
 
 	// Build RGB image
     for (int n = 0; n < nrow; n++) {
@@ -247,9 +268,17 @@ static int ImageOut(char *filename, char *chid, float **prow, int nrow, int widt
 
 		for (int i = 0; i < width; i++) {
 			float *px = &crow[n][offset*3 + i*3];
-			pix[i].red   = CLIP(px[0], 0, 255);
-			pix[i].green = CLIP(px[1], 0, 255);
-			pix[i].blue  = CLIP(px[2], 0, 255);
+			if(fcimage){
+				float r = 0, g = 0, b = 0;
+				falsecolor(prow[n][i + CHA_OFFSET], prow[n][i + CHB_OFFSET], &r, &g, &b);
+				pix[i].red   = r;
+				pix[i].green = g;
+				pix[i].blue  = b;
+			}else{
+				pix[i].red   = px[0];
+				pix[i].green = px[1];
+				pix[i].blue  = px[2];
+			}
 		}
 		
 		png_write_row(png_ptr, (png_bytep) pix);
@@ -506,9 +535,9 @@ int main(int argc, char **argv) {
 		// Temperature
 		if (CONTAINS(imgopt, 't') && chB >= 4) {
 			// TODO: Doesn't work with channel 4
-			temperature(prow, nrow, chB, CHB_OFFSET);
+			//temperature(prow, nrow, chB, CHB_OFFSET);
 			sprintf(pngfilename, "%s/%s-t.png", pngdirname, name);
-			ImageOut(pngfilename, "Temperature", prow, nrow, 2080, 0, TempPalette, enhancements, mapFile);
+			ImageOut(pngfilename, "Temperature", prow, nrow, 909, CHB_OFFSET, (char *)TempPalette, enhancements, mapFile);
 		}
 
 		// False color image
@@ -520,7 +549,7 @@ int main(int argc, char **argv) {
 			} else if (chB == 2) { // GVI (global vegetation index) false color
 				Ngvi(prow, nrow);
 				sprintf(pngfilename, "%s/%s-c.png", pngdirname, name);
-				ImageOut(pngfilename, "GVI False Color", prow, nrow, CH_WIDTH, CHB_OFFSET, GviPalette, enhancements, mapFile);
+				ImageOut(pngfilename, "GVI False Color", prow, nrow, CH_WIDTH, CHB_OFFSET, (char *)GviPalette, enhancements, mapFile);
 			} else {
 				fprintf(stderr, "Skipping False Color generation; lacking required channels.\n");
 			}
