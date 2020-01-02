@@ -1,6 +1,6 @@
 ![Aptdec logo](textlogo.png)
 
-Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019
+Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019-2020
 
 ## Description
 

@@ -1,6 +1,6 @@
 /* 
  *  This file is part of Aptdec.
- *  Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019
+ *  Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019-2020
  *
  *  Aptdec is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -535,7 +535,7 @@ int main(int argc, char **argv) {
 		// Temperature
 		if (CONTAINS(imgopt, 't') && chB >= 4) {
 			// TODO: Doesn't work with channel 4
-			//temperature(prow, nrow, chB, CHB_OFFSET);
+			temperature(prow, nrow, chB, CHB_OFFSET);
 			sprintf(pngfilename, "%s/%s-t.png", pngdirname, name);
 			ImageOut(pngfilename, "Temperature", prow, nrow, 909, CHB_OFFSET, (char *)TempPalette, enhancements, mapFile);
 		}

@@ -1,6 +1,6 @@
 /* 
  *  This file is part of Aptdec.
- *  Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019
+ *  Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019-2020
  *
  *  Aptdec is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,4 +22,4 @@
 #define ERR_PNG_WRITE  "Could not create a PNG write struct\n"
 #define ERR_PNG_INFO   "Could not create a PNG info struct\n"
 #define ERR_TELE_ROW   "Telemetry decoding error, not enough rows.\n"
-#define VERSION        "Aptdec; copyright (c) 2004-2009 Thierry Leconte F4DWV, Xerbo (xerbo@protonmail.com) 2019"
+#define VERSION        "Aptdec; copyright (c) 2004-2009 Thierry Leconte F4DWV, Xerbo (xerbo@protonmail.com) 2019-2020"
