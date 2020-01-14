@@ -303,6 +303,7 @@ static void usage(void) {
 	"     t: Crop telemetry\n"
 	"     h: Histogram equalise\n"
 	"     d: Denoise\n"
+	"     p: Precipitation\n"
 	" -i [r|a|b|c|t] Output image\n"
 	"     r: Raw\n"
 	"     a: Channel A\n"

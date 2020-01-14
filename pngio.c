@@ -128,12 +128,6 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 				float cloud = CLIP((crow[y][chb].r - 115) / 107, 0, 1);
 				crow[y][cha] = RGBcomposite((rgb_t){240, 250, 255}, cloud, crow[y][cha], 1);
 			}
-
-			// Precipitation
-			if(crow[y][chb].r > 191){
-				float ramp = CLIP((crow[y][chb].r - 191) / 5.0, 0, 1);
-				crow[y][cha] = RGBcomposite(applyPalette(PrecipPalette, crow[y][chb].r), ramp, crow[y][cha], 1);
-			}
 		}
 	}
 
@@ -269,6 +263,17 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 				crow[y][x].r = crow[y][x].g = crow[y][x].b = CLIP(img->prow[y][x], 0, 255);
 			}else{
 				crow[y][x] = applyPalette(palette, img->prow[y][x]);
+			}
+		}
+	}
+
+	// Precipitation
+	// TODO: use temperature calibration for accuracy
+	if(CONTAINS(opts->effects, 'p')){
+		for(int y = 0; y < img->nrow; y++){
+			for(int x = 0; x < CH_WIDTH; x++){
+				if(img->prow[y][x + CHB_OFFSET] > 191)
+					crow[y][x + CHB_OFFSET] = applyPalette(PrecipPalette, img->prow[y][x + CHB_OFFSET]);
 			}
 		}
 	}

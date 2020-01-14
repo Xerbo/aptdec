@@ -67,7 +67,7 @@ Default: "19"
 
 -e [t|h]
 Effects
-Histogram equalise (h), Crop Telemetry (t) or Denoise (d)
+Histogram equalise (h), Crop Telemetry (t), Denoise (d) or Precipitation (p)
 Defaults: off
 
 -m <file>
@@ -90,11 +90,12 @@ Image names are `audiofile-x.png`, where `x` is:
  - `t` for temperature calibrated images
  - `m` for MCIR images
 
-Currently there are 3 available effects:
+Currently there are 4 available effects:
 
  - `t` for crop telemetry, off by default, only has effects on raw images
  - `h` for histogram equalise, stretch the colors in the image to black and white
  - `d` for a median denoise filter
+ - `p` for a precipitation overlay
 
 ## Example
 
