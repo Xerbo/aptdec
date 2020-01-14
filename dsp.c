@@ -51,7 +51,7 @@ static double FreqLine = 1.0;
 static double FreqOsc;
 static double K1, K2;
 
-// Check the input sample rate and calculate some constants
+// Check the sample rate and calculate some constants
 int init_dsp(double F) {
 	if(F > Fi) return(1);
 	if(F < Fp) return(-1);
@@ -72,8 +72,7 @@ static inline double Phase(double I, double Q) {
 	double angle, r;
 	int s;
 
-	if(I == 0.0 && Q == 0.0)
-		return(0.0);
+	if(I == 0.0 && Q == 0.0) return(0.0);
 
    	if (Q < 0) {
 		s = -1;
@@ -90,10 +89,11 @@ static inline double Phase(double I, double Q) {
     	angle = 0.75 - 0.25 * r;
    	}
 
-  	if(s > 0)
+  	if(s > 0){
   		return(angle);
-  	else
+  	}else{
   		return(-angle);
+	}
 }
 
 /* Phase locked loop
@@ -179,7 +179,7 @@ int getpixelv(float *pvbuff, int count) {
 
     double mult;
 
-	// Sub-pixel offset
+	// Gaussian resampling factor
     mult = (double) Fi / Fe * FreqLine;
     int m = RSFilterLen / mult + 1;
 
@@ -205,16 +205,18 @@ int getpixelv(float *pvbuff, int count) {
 		idxam += shift;
 		nam -= shift;
     }
+	
     return(count);
 }
 
 // Get an entire row of pixels, aligned with sync markers
-double minDoppler = 100;
+// FIXME: occasionally skips noisy lines
 int getpixelrow(float *pixelv, int nrow, int *zenith) {
     static float pixels[PixelLine + SyncFilterLen];
     static int npv;
     static int synced = 0;
     static double max = 0.0;
+	static double minDoppler = 100;
 
     double corr, ecorr, lcorr;
     int res;
@@ -233,12 +235,12 @@ int getpixelrow(float *pixelv, int nrow, int *zenith) {
 
     // Calculate the frequency offset
     ecorr = fir(pixelv, Sync, SyncFilterLen);
-    corr = fir(&(pixelv[1]), Sync, SyncFilterLen - 1);
-    lcorr = fir(&(pixelv[2]), Sync, SyncFilterLen - 2);
+    corr = fir(&pixelv[1], Sync, SyncFilterLen - 1);
+    lcorr = fir(&pixelv[2], Sync, SyncFilterLen - 2);
     FreqLine = 1.0+((ecorr-lcorr) / corr / PixelLine / 4.0);
 
-	// Find the point in which ecorr and lcorr intercept, make sure that it's not too perfect
-	if(fabs(lcorr - ecorr) < minDoppler && fabs(lcorr - ecorr) > 1){
+	// Find the point in which ecorr and lcorr intercept
+	if(fabs(lcorr - ecorr) < minDoppler && fabs(lcorr - ecorr) > 2){
 		minDoppler = fabs(lcorr - ecorr);
 		*zenith = nrow;
 	}

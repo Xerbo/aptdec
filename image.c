@@ -21,6 +21,7 @@
 #include <string.h>
 #include <sndfile.h>
 #include <math.h>
+#include <stdlib.h>
 
 #include "offsets.h"
 #include "messages.h"
@@ -28,12 +29,27 @@
 #define REGORDER 3
 typedef struct {
 	double cf[REGORDER + 1];
-} rgparam;
+} rgparam_t;
+
+typedef struct {
+	float *prow[3000]; // Row buffers
+	int nrow; // Number of rows
+	int chA, chB; // ID of each channel
+	char name[256]; // Stripped filename
+} image_t;
+
+typedef struct {
+	char *type; // Output image type
+	char *effects;
+	int   satnum; // The satellite number
+	char *map; // Path to a map file
+	char *path; // Output directory
+} options_t;
 
 extern void polyreg(const int m, const int n, const double x[], const double y[], double c[]);
 
 // Compute regression
-static void rgcomp(double x[16], rgparam * rgpr) {
+static void rgcomp(double x[16], rgparam_t * rgpr) {
 	//                  { 0.106, 0.215, 0.324, 0.433, 0.542,  0.652, 0.78,   0.87,  0.0 }
     const double y[9] = { 31.07, 63.02, 94.96, 126.9, 158.86, 191.1, 228.62, 255.0, 0.0 };
 
@@ -41,7 +57,7 @@ static void rgcomp(double x[16], rgparam * rgpr) {
 }
 
 // Convert a value to 0-255 based off the provided regression curve
-static double rgcal(float x, rgparam *rgpr) {
+static double rgcal(float x, rgparam_t *rgpr) {
     double y, p;
 	int i;
 	
@@ -66,13 +82,14 @@ void histogramEqualise(float **prow, int nrow, int offset, int width){
 	// Find min/max points
 	int min = -1, max = -1;
 	for(int i = 5; i < 250; i++){
-		if(histogram[i]/width/(nrow/255.0) > 1.0){
-			if(min == -1) min = i;
+		if(histogram[i]/width/(nrow/255.0) > 0.2){
+			if(min == -1)
+				min = i;
 			max = i;
 		}
 	}
 
-	//printf("Min Value: %i, Max Value %i\n", min, max);
+	//printf("Column %i-%i: Min: %i, Max %i\n", offset, offset+width, min, max);
 
 	// Spread values to avoid overshoot
 	min -= 5; max += 5;
@@ -80,11 +97,11 @@ void histogramEqualise(float **prow, int nrow, int offset, int width){
 	// Stretch the brightness into the new range
 	for(int y = 0; y < nrow; y++)
 		for(int x = 0; x < width; x++)
-			prow[y][x+offset] = (prow[y][x+offset]-min) / (max-min) * 255;
+			prow[y][x+offset] = CLIP((prow[y][x+offset]-min) / (max-min) * 255.0, 0, 255);
 }
 
 // Brightness calibrate, including telemetry
-void calibrateBrightness(float **prow, int nrow, int offset, int width, int telestart, rgparam regr[30]){
+void calibrateBrightness(float **prow, int nrow, int offset, int width, int telestart, rgparam_t regr[30]){
 	offset -= SYNC_WIDTH+SPC_WIDTH;
 
 	for (int n = 0; n < nrow; n++) {
@@ -94,19 +111,19 @@ void calibrateBrightness(float **prow, int nrow, int offset, int width, int tele
 			float pv = pixelv[i + offset];
 
 			// Blend between the calculated regression curves
-			/* TODO: this can actually make the image look *worse*
+			/* FIXME: this can actually make the image look *worse*
 			 * if the signal has a constant input gain.
 			 */
-			int k, kof;
+			/*int k, kof;
 			k = (n - telestart) / FRAME_LEN;
 			if (k >= nbtele)
 				k = nbtele - 1;
 			kof = (n - telestart) % FRAME_LEN;
 
 			if (kof < 64) {
-				if (k < 1) {
-					pv = rgcal(pv, &(regr[k]));
-				} else {
+				if (k < 1) {*/
+					pv = rgcal(pv, &(regr[4]));
+				/*} else {
 					pv = rgcal(pv, &(regr[k])) * (64 + kof) / FRAME_LEN +
 						 rgcal(pv, &(regr[k - 1])) * (64 - kof) / FRAME_LEN;
 				}
@@ -118,7 +135,7 @@ void calibrateBrightness(float **prow, int nrow, int offset, int width, int tele
 						 rgcal(pv, &(regr[k + 1])) * (kof - 64) / FRAME_LEN;
 				}
 			}
-
+*/
 			pv = CLIP(pv, 0, 255);
 			pixelv[i + offset] = pv;
 		}
@@ -129,7 +146,7 @@ void calibrateBrightness(float **prow, int nrow, int offset, int width, int tele
 int calibrate(float **prow, int nrow, int offset, int width) {
     double teleline[3000] = { 0.0 };
     double wedge[16];
-    rgparam regr[30];
+    rgparam_t regr[30];
     int n, k;
     int mtelestart = 0, telestart;
     int channel = -1;
@@ -204,13 +221,13 @@ int calibrate(float **prow, int nrow, int offset, int width) {
 			 * wedges, the wedge with the closest match will
 			 * be the channel ID
 			 */
-			float min = 10000;
+			float min = -1;
 			for (j = 0; j < 6; j++) {
 				float df;
 
 				df = tele[15] - tele[j];
 				df *= df;
-				if (df < min) {
+				if (df < min || min == -1) {
 					channel = j;
 					min = df;
 				}
@@ -242,7 +259,6 @@ int calibrate(float **prow, int nrow, int offset, int width) {
 }
 
 // --- Temperature Calibration --- //
-extern int satnum;
 #include "satcal.h"
 
 typedef struct {
@@ -250,10 +266,10 @@ typedef struct {
     double Cs;
     double Cb;
     int ch;
-} tempparam;
+} tempparam_t;
 
 // IR channel temperature compensation
-static void tempcomp(double t[16], int ch, tempparam *tpr) {
+static void tempcomp(double t[16], int ch, int satnum, tempparam_t *tpr) {
     double Tbb, T[4];
     double C;
 
@@ -285,7 +301,7 @@ static void tempcomp(double t[16], int ch, tempparam *tpr) {
 }
 
 // IR channel temperature calibration
-static double tempcal(float Ce, tempparam * rgpr) {
+static double tempcal(float Ce, int satnum, tempparam_t * rgpr) {
     double Nl, Nc, Ns, Ne;
     double T, vc;
 
@@ -308,23 +324,82 @@ static double tempcal(float Ce, tempparam * rgpr) {
 }
 
 // Temperature calibration wrapper
-void temperature(float **prow, int nrow, int ch, int offset){
-    tempparam temp;
+void temperature(options_t *opts, image_t *img, int offset, int width){
+    tempparam_t temp;
 
     printf("Temperature... ");
     fflush(stdout);
 
-    tempcomp(tele, ch, &temp);
+    tempcomp(tele, img->chB, opts->satnum - 15, &temp);
 
-    for (int n = 0; n < nrow; n++) {
-		float *pixelv = prow[n];
+    for (int y = 0; y < img->nrow; y++) {
+		float *pixelv = img->prow[y];
 
-		for (int i = 0; i < CH_WIDTH; i++) {
-			float pv = tempcal(pixelv[i + offset], &temp);
-
-			pv = CLIP(pv, 0, 255);
-			pixelv[i + offset] = pv;
+		for (int x = 0; x < width; x++) {
+			float pv = tempcal(pixelv[x + offset], opts->satnum - 15, &temp);
+			
+			pixelv[x + offset] = CLIP(pv, 0, 255);
 		}
     }
     printf("Done\n");
 }
+
+void distrib(options_t *opts, image_t *img, char *chid) {
+	int max = 0;
+
+	// Options
+	options_t options;
+	options.path = opts->path;
+
+	// Image options
+	image_t distrib;
+	strcpy(distrib.name, img->name);
+	distrib.nrow = 256;
+
+	// Assign memory
+	for(int i = 0; i < 256; i++)
+		distrib.prow[i] = (float *) malloc(sizeof(float) * 256);
+
+	for(int n = 0; n < img->nrow; n++) {
+		float *pixelv = img->prow[n];
+		
+		for(int i = 0; i < CH_WIDTH; i++) {
+			int y = CLIP((int)pixelv[i + CHA_OFFSET], 0, 255);
+			int x = CLIP((int)pixelv[i + CHB_OFFSET], 0, 255);
+			distrib.prow[y][x]++;
+			if(distrib.prow[y][x] > max)
+				max = distrib.prow[y][x];
+		}
+	}
+
+	// Scale to 0-255
+	for(int x = 0; x < 256; x++)
+		for(int y = 0; y < 256; y++)
+			distrib.prow[y][x] = distrib.prow[y][x] / max * 255.0;
+	
+	extern int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, char *chid, char *palette);
+	ImageOut(&options, &distrib, 0, 256, "Distribution", chid, NULL);
+}
+
+extern float quick_select(float arr[], int n);
+
+// Recursive biased median denoise
+#define TRIG_LEVEL 40
+void denoise(float **prow, int nrow, int offset, int width){
+	for(int y = 2; y < nrow-2; y++){
+		for(int x = offset+1; x < offset+width-1; x++){
+			if(prow[y][x+1] - prow[y][x] > TRIG_LEVEL ||
+			   prow[y][x-1] - prow[y][x] > TRIG_LEVEL ||
+			   prow[y+1][x] - prow[y][x] > TRIG_LEVEL ||
+			   prow[y-1][x] - prow[y][x] > TRIG_LEVEL){
+				prow[y][x] = quick_select((float[]){
+					prow[y+2][x-1], prow[y+2][x], prow[y+2][x+1],
+					prow[y+1][x-1], prow[y+1][x], prow[y+1][x+1],
+					prow[y-1][x-1], prow[y-1][x], prow[y-1][x+1],
+					prow[y-2][x-1], prow[y-2][x], prow[y-2][x+1]
+				}, 12);
+			}
+		}
+	}
+}
+#undef TRIG_LEVEL
