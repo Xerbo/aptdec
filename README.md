@@ -80,7 +80,7 @@ Default: Internal defaults
 
 ## Output
 
-Generated images are outputted in PNG, 8 bit greyscale for raw and channel A|B images, palleted images for temperature and GVI false color, 24 bit RGB for false color.
+Generated images are outputted in PNG and are 24 bit RGB for all image types apart from pure greyscale images.
 
 Image names are `audiofile-x.png`, where `x` is:
 

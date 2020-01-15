@@ -217,6 +217,7 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	};
 
 	// Reduce the width of the image to componsate for the missing telemetry
+	int fcimage = strcmp(desc, "False Color") == 0;
 	int skiptele = 0;
 	if(opts->effects != NULL && CONTAINS(opts->effects, 't')){
 		width -= TOTAL_TELE;
@@ -237,10 +238,20 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 		return(0);
     }
 
-	// 8 bit RGB image
-	png_set_IHDR(png_ptr, info_ptr, width, img->nrow,
-				 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
-				 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+	int greyscale = 0;
+	if(palette == NULL && !CONTAINS(opts->effects, 'p') && !fcimage && opts->map[0] == '\0' && strcmp(chid, "MCIR") != 0){
+		greyscale = 1;
+
+		// Greyscale image
+    	png_set_IHDR(png_ptr, info_ptr, width, img->nrow,
+					 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE,
+				 	 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+	}else{
+		// 8 bit RGB image
+		png_set_IHDR(png_ptr, info_ptr, width, img->nrow,
+					 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+					 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+	}
 
     png_set_text(png_ptr, info_ptr, text_ptr, 3);
 
@@ -294,14 +305,13 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	printf("Writing %s", outName);
 
 	extern rgb_t falsecolor(float vis, float temp);
-	int fcimage = strcmp(desc, "False Color") == 0;
 
-	// Build RGB image
-	int skip;
+	// Build image
     for (int y = 0; y < img->nrow; y++) {
 		png_color pix[width];
 		
-		for (int x = 0, skip = 0; x < width; x++) {
+		int skip = 0;
+		for (int x = 0; x < width; x++) {
 			if(skiptele){
 				switch (x) {
 					case 0:
@@ -315,15 +325,22 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 						break;
 				}
 			}
-			if(fcimage){
+			if(greyscale){
+				// Horrific but works
+				if(x % 3 == 0){
+					pix[x/3].red   = img->prow[y][x + skip + offset  ];
+					pix[x/3].green = img->prow[y][x + skip + offset+1];
+					pix[x/3].blue  = img->prow[y][x + skip + offset+2];
+				}
+			}else if(fcimage){
 				rgb_t pixel  = falsecolor(img->prow[y][x + CHA_OFFSET], img->prow[y][x + CHB_OFFSET]);
 				pix[x].red   = pixel.r;
 				pix[x].green = pixel.g;
 				pix[x].blue  = pixel.b;
 			}else{
-				pix[x].red   = (int)crow[y][x + skip + offset].r;
-				pix[x].green = (int)crow[y][x + skip + offset].g;
-				pix[x].blue  = (int)crow[y][x + skip + offset].b;
+				pix[x].red   = crow[y][x + skip + offset].r;
+				pix[x].green = crow[y][x + skip + offset].g;
+				pix[x].blue  = crow[y][x + skip + offset].b;
 			}
 		}
 		
