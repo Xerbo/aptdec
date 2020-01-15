@@ -217,8 +217,11 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	};
 
 	// Reduce the width of the image to componsate for the missing telemetry
-	if(opts->effects != NULL && CONTAINS(opts->effects, 't'))
+	int skiptele = 0;
+	if(opts->effects != NULL && CONTAINS(opts->effects, 't')){
 		width -= TOTAL_TELE;
+		skiptele = 1;
+	}
 
 	// Create writer
     png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
@@ -236,8 +239,8 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 	// 8 bit RGB image
 	png_set_IHDR(png_ptr, info_ptr, width, img->nrow,
-	 		 	 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
-	 			 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+				 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+				 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
     png_set_text(png_ptr, info_ptr, text_ptr, 3);
 
@@ -294,19 +297,33 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	int fcimage = strcmp(desc, "False Color") == 0;
 
 	// Build RGB image
+	int skip;
     for (int y = 0; y < img->nrow; y++) {
 		png_color pix[width];
-
-		for (int x = 0; x < width; x++) {
+		
+		for (int x = 0, skip = 0; x < width; x++) {
+			if(skiptele){
+				switch (x) {
+					case 0:
+						skip += SYNC_WIDTH + SPC_WIDTH;
+						break;
+					case CH_WIDTH:
+						skip += TELE_WIDTH + SYNC_WIDTH + SPC_WIDTH;
+						break;
+					case CH_WIDTH*2:
+						skip += TELE_WIDTH;
+						break;
+				}
+			}
 			if(fcimage){
 				rgb_t pixel  = falsecolor(img->prow[y][x + CHA_OFFSET], img->prow[y][x + CHB_OFFSET]);
 				pix[x].red   = pixel.r;
 				pix[x].green = pixel.g;
 				pix[x].blue  = pixel.b;
 			}else{
-				pix[x].red   = (int)crow[y][x + offset].r;
-				pix[x].green = (int)crow[y][x + offset].g;
-				pix[x].blue  = (int)crow[y][x + offset].b;
+				pix[x].red   = (int)crow[y][x + skip + offset].r;
+				pix[x].green = (int)crow[y][x + skip + offset].g;
+				pix[x].blue  = (int)crow[y][x + skip + offset].b;
 			}
 		}
 		
