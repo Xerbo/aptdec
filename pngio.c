@@ -288,20 +288,26 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 		return 0;
 	}
 
-	//extern void falsecolor(float vis, float temp, float *r, float *g, float *b);
-
 	printf("Writing %s", outName);
 
-	int fcimage = strcmp(chid, "False Color") == 0;
+	extern rgb_t falsecolor(float vis, float temp);
+	int fcimage = strcmp(desc, "False Color") == 0;
 
 	// Build RGB image
     for (int y = 0; y < img->nrow; y++) {
 		png_color pix[width];
 
 		for (int x = 0; x < width; x++) {
-			pix[x].red   = (int)crow[y][x + offset].r;
-			pix[x].green = (int)crow[y][x + offset].g;
-			pix[x].blue  = (int)crow[y][x + offset].b;
+			if(fcimage){
+				rgb_t pixel  = falsecolor(img->prow[y][x + CHA_OFFSET], img->prow[y][x + CHB_OFFSET]);
+				pix[x].red   = pixel.r;
+				pix[x].green = pixel.g;
+				pix[x].blue  = pixel.b;
+			}else{
+				pix[x].red   = (int)crow[y][x + offset].r;
+				pix[x].green = (int)crow[y][x + offset].g;
+				pix[x].blue  = (int)crow[y][x + offset].b;
+			}
 		}
 		
 		png_write_row(png_ptr, (png_bytep) pix);

@@ -65,16 +65,16 @@ int readfcconf(char *file) {
     return 1;
 };
 
-rgb_t falsecolor(float vis, float temp, float *r, float *g, float *b){
+rgb_t falsecolor(float vis, float temp){
     rgb_t buffer;
-    float land = 0, sea, cloud;
+    float land = 0.0, sea, cloud;
 
     // Calculate intensity of sea
     sea = CLIP(vis+fcinfo.Seaoffset, 0, fcinfo.Seaintensity)/fcinfo.Seaintensity;
 
     // Land
 	if(vis > fcinfo.Landthreshold)
-        land = CLIP(vis+fcinfo.Landoffset, 0, fcinfo.Landintensity)/fcinfo.Landintensity;
+        land = CLIP(vis-fcinfo.Landoffset, 0, fcinfo.Landintensity)/fcinfo.Landintensity;
     
     // Composite land on sea
 	buffer = RGBcomposite(fcinfo.Land, land, fcinfo.Sea, sea);
