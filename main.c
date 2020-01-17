@@ -38,10 +38,11 @@ typedef struct {
 	int   satnum; // The satellite number
 	char *map; // Path to a map file
 	char *path; // Output directory
+	int   realtime;
 } options_t;
 
 typedef struct {
-	float *prow[3000]; // Row buffers
+	float *prow[MAX_HEIGHT]; // Row buffers
 	int nrow; // Number of rows
 	int chA, chB; // ID of each channel
 	char name[256]; // Stripped filename
@@ -55,6 +56,9 @@ extern int init_dsp(double F);
 extern int readfcconf(char *file);
 extern int readRawImage(char *filename, float **prow, int *nrow);
 extern int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, char *chid, char *palette);
+extern void closeWriter();
+extern void pushRow(float *row, int width);
+extern int initWriter(options_t *opts, image_t *img, int width, int height, char *desc, char *chid);
 
 // Image functions
 extern int calibrate(float **prow, int nrow, int offset, int width);
@@ -90,11 +94,11 @@ int main(int argc, char **argv) {
 		usage();
 	}
 
-	options_t opts = { "r", "", 19, "", "." };
+	options_t opts = { "r", "", 19, "", ".", 0 };
 
 	// Parse arguments
 	int opt;
-    while ((opt = getopt(argc, argv, "c:m:d:i:s:e:")) != EOF) {
+    while ((opt = getopt(argc, argv, "c:m:d:i:s:e:r")) != EOF) {
 		switch (opt) {
 			case 'd':
 				opts.path = optarg;
@@ -117,6 +121,9 @@ int main(int argc, char **argv) {
 				break;
 			case 'e':
 				opts.effects = optarg;
+				break;
+			case 'r':
+				opts.realtime = 1;
 				break;
 			default:
 				usage();
@@ -153,6 +160,8 @@ static int processAudio(char *filename, options_t *opts){
 	strcpy(path, dirname(path));
 	sscanf(basename(filename), "%[^.].%s", img.name, extension);
 
+	if(opts->realtime) initWriter(opts, &img, IMG_WIDTH, MAX_HEIGHT, "Unprocessed realtime image", "r");
+
 	if(strcmp(extension, "png") == 0){
 		// Read PNG into image buffer
 		printf("Reading %s", filename);
@@ -166,13 +175,15 @@ static int processAudio(char *filename, options_t *opts){
 			exit(EPERM);
 
 		// Build image
-		for (img.nrow = 0; img.nrow < 3000; img.nrow++) {
+		for (img.nrow = 0; img.nrow < MAX_HEIGHT; img.nrow++) {
 			// Allocate memory for this row
 			img.prow[img.nrow] = (float *) malloc(sizeof(float) * 2150);
 				
 			// Write into memory and break the loop when there are no more samples to read
 			if (getpixelrow(img.prow[img.nrow], img.nrow, &zenith) == 0)
 				break;
+
+			if(opts->realtime) pushRow(img.prow[img.nrow], IMG_WIDTH);
 
 			fprintf(stderr, "Row: %d\r", img.nrow);
 			fflush(stderr);
@@ -181,6 +192,8 @@ static int processAudio(char *filename, options_t *opts){
 		// Close stream
 		sf_close(audioFile);
 	}
+
+	if(opts->realtime) closeWriter();
 
 	printf("\nTotal rows: %d\n", img.nrow);
 
@@ -248,7 +261,7 @@ static int processAudio(char *filename, options_t *opts){
 	// Channel B
 	if (CONTAINS(opts->type, 'b')) {
 		sprintf(desc, "%s (%s)", ch.id[img.chB], ch.name[img.chB]);
-		ImageOut(opts, &img, CHB_OFFSET, CH_WIDTH, desc, ch.id[img.chA], NULL);
+		ImageOut(opts, &img, CHB_OFFSET, CH_WIDTH, desc, ch.id[img.chB], NULL);
 	}
 
 	// Distribution image
@@ -292,7 +305,7 @@ static int initsnd(char *filename) {
 
 // Read samples from the wave file
 int getsample(float *sample, int nb) {
-    return sf_read_float(audioFile, sample, nb);
+	return sf_read_float(audioFile, sample, nb);
 }
 
 static void usage(void) {
@@ -304,7 +317,7 @@ static void usage(void) {
 	"     h: Histogram equalise\n"
 	"     d: Denoise\n"
 	"     p: Precipitation\n"
-	" -i [r|a|b|c|t] Output image\n"
+	" -i [r|a|b|c|t|m] Output image\n"
 	"     r: Raw\n"
 	"     a: Channel A\n"
 	"     b: Channel B\n"
@@ -314,7 +327,8 @@ static void usage(void) {
 	" -d <dir>       Image destination directory.\n"
 	" -s [15-19]     Satellite number\n"
 	" -c <file>      False color config file\n"
-	" -m <file>      Map file\n");
+	" -m <file>      Map file\n"
+	" -r             Realtime decode");
 
    	exit(EINVAL);
 }

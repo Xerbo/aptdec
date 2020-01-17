@@ -30,10 +30,27 @@ typedef struct {
     float r, g, b;
 } rgb_t;
 
+typedef struct {
+	float *prow[MAX_HEIGHT]; // Row buffers
+	int nrow; // Number of rows
+	int chA, chB; // ID of each channel
+	char name[256]; // Stripped filename
+} image_t;
+
+typedef struct {
+	char *type; // Output image type
+	char *effects;
+	int   satnum; // The satellite number
+	char *map; // Path to a map file
+	char *path; // Output directory
+	int   realtime;
+} options_t;
+
 extern int zenith;
 extern char PrecipPalette[256*3];
 extern rgb_t applyPalette(char *palette, int val);
 extern rgb_t RGBcomposite(rgb_t top, float top_a, rgb_t bottom, float bottom_a);
+extern rgb_t falsecolor(float vis, float temp);
 
 int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 	FILE *fp = fopen(filename, "rb");
@@ -118,7 +135,6 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 
 			// Map overlay on channel A
 			crow[y][cha] = RGBcomposite(map, alpha, crow[y][cha], 1);
-
 			// Map overlay on channel B
 			if(!MCIR)
 				crow[y][chb] = RGBcomposite(map, alpha, crow[y][chb], 1);
@@ -188,33 +204,20 @@ int readRawImage(char *filename, float **prow, int *nrow) {
 	return 1;
 }
 
-typedef struct {
-	float *prow[3000]; // Row buffers
-	int nrow; // Number of rows
-	int chA, chB; // ID of each channel
-	char name[256]; // Stripped filename
-} image_t;
+png_text text_ptr[] = {
+	{PNG_TEXT_COMPRESSION_NONE, "Software", VERSION},
+	{PNG_TEXT_COMPRESSION_NONE, "Channel", "Unknown", 7},
+	{PNG_TEXT_COMPRESSION_NONE, "Description", "NOAA satellite image", 20}
+};
 
-typedef struct {
-	char *type; // Output image type
-	char *effects;
-	int   satnum; // The satellite number
-	char *map; // Path to a map file
-	char *path; // Output directory
-} options_t;
-
-//int ImageOut(char *filename, char *chid, float **prow, int nrow, int width, int offset, char *palette, char *effects, char *mapFile) {
 int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, char *chid, char *palette){
 	char outName[384];
     sprintf(outName, "%s/%s-%s.png", opts->path, img->name, chid);
 	
-	FILE *pngfile;
+	text_ptr[1].text = desc;
+	text_ptr[1].text_length = sizeof(desc);
 
-	png_text text_ptr[] = {
-		{PNG_TEXT_COMPRESSION_NONE, "Software", VERSION},
-		{PNG_TEXT_COMPRESSION_NONE, "Channel", desc, sizeof(desc)},
-		{PNG_TEXT_COMPRESSION_NONE, "Description", "NOAA satellite image", 20}
-	};
+	FILE *pngfile;
 
 	// Reduce the width of the image to componsate for the missing telemetry
 	int fcimage = strcmp(desc, "False Color") == 0;
@@ -229,13 +232,13 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
     if (!png_ptr) {
 		png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
 		fprintf(stderr, ERR_PNG_WRITE);
-		return(0);
+		return 0;
     }
     png_infop info_ptr = png_create_info_struct(png_ptr);
     if (!info_ptr) {
 		png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
 		fprintf(stderr, ERR_PNG_INFO);
-		return(0);
+		return 0;
     }
 
 	int greyscale = 0;
@@ -254,35 +257,34 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	}
 
     png_set_text(png_ptr, info_ptr, text_ptr, 3);
-
-	// Channel = 25cm wide
     png_set_pHYs(png_ptr, info_ptr, 3636, 3636, PNG_RESOLUTION_METER);
 
 	// Init I/O
     pngfile = fopen(outName, "wb");
     if (!pngfile) {
 		fprintf(stderr, ERR_FILE_WRITE, outName);
-		return(1);
+		return 1;
     }
     png_init_io(png_ptr, pngfile);
     png_write_info(png_ptr, info_ptr);
 
 	// Move prow into crow, crow ~ color rows
 	rgb_t *crow[img->nrow];
-	for(int y = 0; y < img->nrow; y++){
-		crow[y] = (rgb_t *) malloc(sizeof(rgb_t) * IMG_WIDTH);
+	if(!greyscale){
+		for(int y = 0; y < img->nrow; y++){
+			crow[y] = (rgb_t *) malloc(sizeof(rgb_t) * IMG_WIDTH);
 
-		for(int x = 0; x < IMG_WIDTH; x++){
-			if(palette == NULL){				
-				crow[y][x].r = crow[y][x].g = crow[y][x].b = CLIP(img->prow[y][x], 0, 255);
-			}else{
-				crow[y][x] = applyPalette(palette, img->prow[y][x]);
+			for(int x = 0; x < IMG_WIDTH; x++){
+				if(palette == NULL)	
+					crow[y][x].r = crow[y][x].g = crow[y][x].b = CLIP(img->prow[y][x], 0, 255);
+				else
+					crow[y][x] = applyPalette(palette, img->prow[y][x]);
 			}
 		}
 	}
 
 	// Precipitation
-	// TODO: use temperature calibration for accuracy
+	// TODO: use temperature calibration
 	if(CONTAINS(opts->effects, 'p')){
 		for(int y = 0; y < img->nrow; y++){
 			for(int x = 0; x < CH_WIDTH; x++){
@@ -292,6 +294,7 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 		}
 	}
 
+	// Map stuff
 	if(opts->map != NULL && opts->map[0] != '\0'){
 		if(mapOverlay(opts->map, crow, img->nrow, zenith, strcmp(chid, "MCIR") == 0) == 0){
 			fprintf(stderr, "Skipping MCIR generation; see above.\n");
@@ -304,11 +307,10 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 	printf("Writing %s", outName);
 
-	extern rgb_t falsecolor(float vis, float temp);
-
 	// Build image
     for (int y = 0; y < img->nrow; y++) {
 		png_color pix[width];
+		png_byte gpix[width];
 		
 		int skip = 0;
 		for (int x = 0; x < width; x++) {
@@ -320,31 +322,24 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 					case CH_WIDTH:
 						skip += TELE_WIDTH + SYNC_WIDTH + SPC_WIDTH;
 						break;
-					case CH_WIDTH*2:
-						skip += TELE_WIDTH;
-						break;
 				}
 			}
+
 			if(greyscale){
-				// Horrific but works
-				if(x % 3 == 0){
-					pix[x/3].red   = img->prow[y][x + skip + offset  ];
-					pix[x/3].green = img->prow[y][x + skip + offset+1];
-					pix[x/3].blue  = img->prow[y][x + skip + offset+2];
-				}
+				gpix[x] = img->prow[y][x + skip + offset];
 			}else if(fcimage){
 				rgb_t pixel  = falsecolor(img->prow[y][x + CHA_OFFSET], img->prow[y][x + CHB_OFFSET]);
-				pix[x].red   = pixel.r;
-				pix[x].green = pixel.g;
-				pix[x].blue  = pixel.b;
+				pix[x] = (png_color){pixel.r, pixel.g, pixel.b};
 			}else{
-				pix[x].red   = crow[y][x + skip + offset].r;
-				pix[x].green = crow[y][x + skip + offset].g;
-				pix[x].blue  = crow[y][x + skip + offset].b;
+				pix[x] = (png_color){crow[y][x + skip + offset].r, crow[y][x + skip + offset].g, crow[y][x + skip + offset].b};
 			}
 		}
 		
-		png_write_row(png_ptr, (png_bytep) pix);
+		if(greyscale){
+			png_write_row(png_ptr, (png_bytep) gpix);
+		}else{
+			png_write_row(png_ptr, (png_bytep) pix);
+		}
     }
 
 	// Tidy up
@@ -353,6 +348,67 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
     printf("\nDone\n");
     png_destroy_write_struct(&png_ptr, &info_ptr);
 
-    return(1);
+    return 1;
 }
 
+// TODO: remove these from the global scope
+png_structp rt_png_ptr;
+png_infop rt_info_ptr;
+FILE *rt_pngfile;
+
+int initWriter(options_t *opts, image_t *img, int width, int height, char *desc, char *chid){
+	char outName[384];
+    sprintf(outName, "%s/%s-%s.png", opts->path, img->name, chid);
+
+	text_ptr[1].text = desc;
+	text_ptr[1].text_length = sizeof(desc);
+
+	// Create writer
+    rt_png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!rt_png_ptr) {
+		png_destroy_write_struct(&rt_png_ptr, (png_infopp) NULL);
+		fprintf(stderr, ERR_PNG_WRITE);
+		return 0;
+    }
+    rt_info_ptr = png_create_info_struct(rt_png_ptr);
+    if (!rt_info_ptr) {
+		png_destroy_write_struct(&rt_png_ptr, (png_infopp) NULL);
+		fprintf(stderr, ERR_PNG_INFO);
+		return 0;
+    }
+
+	// Greyscale image
+    png_set_IHDR(rt_png_ptr, rt_info_ptr, width, height,
+				 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE,
+			 	 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+	
+	png_set_text(rt_png_ptr, rt_info_ptr, text_ptr, 3);
+
+	// Channel = 25cm wide
+    png_set_pHYs(rt_png_ptr, rt_info_ptr, 3636, 3636, PNG_RESOLUTION_METER);
+
+	// Init I/O
+    rt_pngfile = fopen(outName, "wb");
+    if (!rt_pngfile) {
+		fprintf(stderr, ERR_FILE_WRITE, outName);
+		return 0;
+    }
+    png_init_io(rt_png_ptr, rt_pngfile);
+    png_write_info(rt_png_ptr, rt_info_ptr);
+	
+	return 1;
+}
+
+void pushRow(float *row, int width){
+	png_byte pix[width];
+	for(int i = 0; i < width; i++)
+		pix[i] = row[i];
+	
+	png_write_row(rt_png_ptr, (png_bytep) pix);
+}
+
+void closeWriter(){
+	png_write_end(rt_png_ptr, rt_info_ptr);
+    fclose(rt_pngfile);
+    png_destroy_write_struct(&rt_png_ptr, &rt_info_ptr);
+}

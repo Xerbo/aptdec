@@ -97,9 +97,8 @@ static inline double Phase(double I, double Q) {
 }
 
 /* Phase locked loop
- * https://en.wikipedia.org/wiki/Phase-locked_loop
  * https://arachnoid.com/phase_locked_loop/
- * https://simple.wikipedia.org/wiki/Phase-locked_loop
+ * Model of this filter here https://www.desmos.com/calculator/m0uadgkoee
  */
 static double pll(double I, double Q) {
 	// PLL coefficient

@@ -32,7 +32,7 @@ typedef struct {
 } rgparam_t;
 
 typedef struct {
-	float *prow[3000]; // Row buffers
+	float *prow[MAX_HEIGHT]; // Row buffers
 	int nrow; // Number of rows
 	int chA, chB; // ID of each channel
 	char name[256]; // Stripped filename
@@ -44,6 +44,7 @@ typedef struct {
 	int   satnum; // The satellite number
 	char *map; // Path to a map file
 	char *path; // Output directory
+	int   realtime;
 } options_t;
 
 extern void polyreg(const int m, const int n, const double x[], const double y[], double c[]);
@@ -70,7 +71,6 @@ static double rgcal(float x, rgparam_t *rgpr) {
 
 static double tele[16];
 static double Cs;
-static int nbtele;
 
 void histogramEqualise(float **prow, int nrow, int offset, int width){
 	// Plot histogram
@@ -101,77 +101,59 @@ void histogramEqualise(float **prow, int nrow, int offset, int width){
 }
 
 // Brightness calibrate, including telemetry
-void calibrateBrightness(float **prow, int nrow, int offset, int width, int telestart, rgparam_t regr[30]){
+void calibrateImage(float **prow, int nrow, int offset, int width, rgparam_t regr){
 	offset -= SYNC_WIDTH+SPC_WIDTH;
 
 	for (int n = 0; n < nrow; n++) {
 		float *pixelv = prow[n];
 
 		for (int i = 0; i < width+SYNC_WIDTH+SPC_WIDTH+TELE_WIDTH; i++) {
-			float pv = pixelv[i + offset];
+			float pv = rgcal(pixelv[i + offset], &regr);
 
-			// Blend between the calculated regression curves
-			/* FIXME: this can actually make the image look *worse*
-			 * if the signal has a constant input gain.
-			 */
-			/*int k, kof;
-			k = (n - telestart) / FRAME_LEN;
-			if (k >= nbtele)
-				k = nbtele - 1;
-			kof = (n - telestart) % FRAME_LEN;
-
-			if (kof < 64) {
-				if (k < 1) {*/
-					pv = rgcal(pv, &(regr[4]));
-				/*} else {
-					pv = rgcal(pv, &(regr[k])) * (64 + kof) / FRAME_LEN +
-						 rgcal(pv, &(regr[k - 1])) * (64 - kof) / FRAME_LEN;
-				}
-			} else {
-				if ((k + 1) >= nbtele) {
-					pv = rgcal(pv, &(regr[k]));
-				} else {
-					pv = rgcal(pv, &(regr[k])) * (192 - kof) / FRAME_LEN +
-						 rgcal(pv, &(regr[k + 1])) * (kof - 64) / FRAME_LEN;
-				}
-			}
-*/
-			pv = CLIP(pv, 0, 255);
-			pixelv[i + offset] = pv;
+			pixelv[i + offset] = CLIP(pv, 0, 255);
 		}
 	}
 }
 
+double teleNoise(double wedges[16]){
+	int pattern[9] = { 31, 63, 95, 127, 159, 191, 223, 255, 0 };
+	double noise = 0;
+	for(int i = 0; i < 9; i++)
+		noise += fabs(wedges[i] - (double)pattern[i]);
+	
+	return noise;
+}
+
 // Get telemetry data for thermal calibration/equalization
 int calibrate(float **prow, int nrow, int offset, int width) {
-    double teleline[3000] = { 0.0 };
+    double teleline[MAX_HEIGHT] = { 0.0 };
     double wedge[16];
     rgparam_t regr[30];
-    int n, k;
-    int mtelestart = 0, telestart;
-    int channel = -1;
-
-	// Calculate average of a row of telemetry
-    for (n = 0; n < nrow; n++) {
-		float *pixelv = prow[n];
-
-		// Average the center 40px
-		for (int i = 3; i < 43; i++) teleline[n] += pixelv[i + offset + width];
-		teleline[n] /= 40.0;
-    }
+    int telestart, mtelestart = 0;
+	int channel = -1;
 
 	// The minimum rows required to decode a full frame
     if (nrow < 192) {
 		fprintf(stderr, ERR_TELE_ROW);
-		return(0);
+		return 0;
     }
 
-	/* Wedge 7 is white and 8 is black, which will have the largest
+	// Calculate average of a row of telemetry
+    for (int n = 0; n < nrow; n++) {
+		float *pixelv = prow[n];
+
+		// Average the center 40px
+		for (int i = 3; i < 43; i++)
+			teleline[n] += pixelv[i + offset + width];
+		teleline[n] /= 40.0;
+    }
+
+	/* Wedge 7 is white and 8 is black, this will have the largest
 	 * difference in brightness, this will always be in the center of
 	 * the frame and can thus be used to find the start of the frame
 	 */
 	double max = 0.0;
-    for (n = nrow / 3 - 64; n < 2 * nrow / 3 - 64; n++) {
+    for (int n = nrow / 3 - 64; n < 2 * nrow / 3 - 64; n++) {
 		float df;
 
 		// (sum 4px below) / (sum 4px above)
@@ -194,68 +176,50 @@ int calibrate(float **prow, int nrow, int offset, int width) {
 		return(0);
     }
 
-	// For each frame
-    for (n = telestart, k = 0; n < nrow - FRAME_LEN; n += FRAME_LEN, k++) {
-		float *pixelv = prow[n];
-		int j;
-
-		// Turn each wedge into a value
-		for (j = 0; j < 16; j++) {
-			// Average the middle 6px
+	// Find the least noisy frame
+	double minNoise = -1;
+	int bestFrame = telestart;
+    for (int n = telestart, k = 0; n < nrow - FRAME_LEN; n += FRAME_LEN, k++) {
+		// Turn pixels into wedge values
+		for (int j = 0; j < 16; j++) {
 			wedge[j] = 0.0;
-			for (int i = 1; i < 7; i++) wedge[j] += teleline[(j * 8) + n + i];
+
+			// Average the middle 6px
+			for (int i = 1; i < 7; i++)
+				wedge[j] += teleline[(j * 8) + i + n];
 			wedge[j] /= 6;
 		}
 
-		// Compute regression on the wedges
-		rgcomp(wedge, &(regr[k]));
+		double noise = teleNoise(wedge);
+		if(noise < minNoise || minNoise == -1){
+			minNoise = noise;
+			bestFrame = k;
 
-		// Read the telemetry values from the middle of the image
-		if (k == nrow / (2*FRAME_LEN)) {
-			int l;
-
-			// Equalise
-			for (j = 0; j < 16; j++) tele[j] = rgcal(wedge[j], &(regr[k]));
+			// Compute & apply regression on the wedges
+			rgcomp(wedge, &regr[k]);
+			for (int j = 0; j < 16; j++)
+				tele[j] = rgcal(wedge[j], &regr[k]);
 
 			/* Compare the channel ID wedge to the reference
 			 * wedges, the wedge with the closest match will
 			 * be the channel ID
 			 */
 			float min = -1;
-			for (j = 0; j < 6; j++) {
-				float df;
-
-				df = tele[15] - tele[j];
+			for (int j = 0; j < 6; j++) {
+				float df = tele[15] - tele[j];
 				df *= df;
+
 				if (df < min || min == -1) {
 					channel = j;
 					min = df;
 				}
 			}
-
-			// Cs computation, still have no idea what this does
-			int i;
-			for (Cs = 0.0, i = 0, j = n; j < n + FRAME_LEN; j++) {
-				double csline;
-
-				for (csline = 0.0, l = 3; l < 43; l++)
-					csline += pixelv[l + offset - SPC_WIDTH];
-				
-				csline /= 40.0;
-				if (csline > 50.0) {
-					Cs += csline;
-					i++;
-				}
-			}
-			Cs /= i;
-			Cs = rgcal(Cs, &(regr[k]));
 		}
     }
-    nbtele = k;
 
-	calibrateBrightness(prow, nrow, offset, width, telestart, regr);
+	calibrateImage(prow, nrow, offset, width, regr[bestFrame]);
 
-    return(channel + 1);
+    return channel + 1;
 }
 
 // --- Temperature Calibration --- //
