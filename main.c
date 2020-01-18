@@ -328,7 +328,7 @@ static void usage(void) {
 	" -s [15-19]     Satellite number\n"
 	" -c <file>      False color config file\n"
 	" -m <file>      Map file\n"
-	" -r             Realtime decode");
+	" -r             Realtime decode\n");
 
    	exit(EINVAL);
 }
