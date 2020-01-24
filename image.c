@@ -79,25 +79,21 @@ void histogramEqualise(float **prow, int nrow, int offset, int width){
 		for(int x = 0; x < width; x++)
 			histogram[(int)floor(prow[y][x+offset])]++;
 
-	// Find min/max points
-	int min = -1, max = -1;
-	for(int i = 5; i < 250; i++){
-		if(histogram[i]/width/(nrow/255.0) > 0.2){
-			if(min == -1)
-				min = i;
-			max = i;
-		}
+	// Calculate cumulative frequency
+	long sum = 0, cf[256] = { 0 };
+	for(int i = 0; i < 255; i++){
+		sum += histogram[i];
+		cf[i] = sum;
 	}
 
-	//printf("Column %i-%i: Min: %i, Max %i\n", offset, offset+width, min, max);
-
-	// Spread values to avoid overshoot
-	min -= 5; max += 5;
-
-	// Stretch the brightness into the new range
-	for(int y = 0; y < nrow; y++)
-		for(int x = 0; x < width; x++)
-			prow[y][x+offset] = CLIP((prow[y][x+offset]-min) / (max-min) * 255.0, 0, 255);
+	// Apply histogram
+	int area = nrow * width;
+	for(int y = 0; y < nrow; y++){
+		for(int x = 0; x < width; x++){
+			int k = prow[y][x+offset];
+			prow[y][x+offset] = (256.0/area) * cf[k];
+		}
+	}
 }
 
 // Brightness calibrate, including telemetry
