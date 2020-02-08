@@ -53,8 +53,8 @@ static double K1, K2;
 
 // Check the sample rate and calculate some constants
 int init_dsp(double F) {
-	if(F > Fi) return(1);
-	if(F < Fp) return(-1);
+	if(F > Fi) return 1;
+	if(F < Fp) return -1;
 	Fe = F;
 
 	K1 = DFc / Fe;
@@ -62,7 +62,7 @@ int init_dsp(double F) {
 	// Number of samples per cycle
 	FreqOsc = Fc / Fe;
 
-	return(0);
+	return 0;
 }
 
 /* Fast phase estimator
@@ -72,7 +72,7 @@ static inline double Phase(double I, double Q) {
 	double angle, r;
 	int s;
 
-	if(I == 0.0 && Q == 0.0) return(0.0);
+	if(I == 0.0 && Q == 0.0) return 0.0;
 
    	if (Q < 0) {
 		s = -1;
@@ -90,9 +90,9 @@ static inline double Phase(double I, double Q) {
    	}
 
   	if(s > 0){
-  		return(angle);
+  		return angle;
   	}else{
-  		return(-angle);
+  		return -angle;
 	}
 }
 
@@ -129,7 +129,7 @@ static double pll(double I, double Q) {
     if (FreqOsc < ((Fc - DFc) / Fe))
 		FreqOsc = (Fc - DFc) / Fe;
 
-    return(Ip);
+    return Ip;
 }
 
 // Convert samples into pixels
@@ -154,7 +154,7 @@ static int getamp(double *ampbuff, int count) {
 			
 			// Make sure there is enough samples to continue
 			if (nin < IQFilterLen * 2 + 2)
-				return(n);
+				return n;
 		}
 
 		// Process read samples into a brightness value
@@ -166,7 +166,7 @@ static int getamp(double *ampbuff, int count) {
 		nin--;
     }
 
-    return(count);
+    return count;
 }
 
 // Sub-pixel offsetting + FIR compensation
@@ -192,7 +192,7 @@ int getpixelv(float *pvbuff, int count) {
 			res = getamp(&(ampbuff[nam]), BLKAMP - nam);
 			nam += res;
 			if (nam < m)
-				return(n);
+				return n;
 		}
 
 		// Gaussian FIR compensation filter
@@ -205,11 +205,11 @@ int getpixelv(float *pvbuff, int count) {
 		nam -= shift;
     }
 	
-    return(count);
+    return count;
 }
 
 // Get an entire row of pixels, aligned with sync markers
-// FIXME: occasionally skips noisy lines
+// FIXME: skips noisy lines with no findable sync marker
 int getpixelrow(float *pixelv, int nrow, int *zenith) {
     static float pixels[PixelLine + SyncFilterLen];
     static int npv;
@@ -228,8 +228,8 @@ int getpixelrow(float *pixelv, int nrow, int *zenith) {
     if (npv < SyncFilterLen + 2) {
 		res = getpixelv(&(pixelv[npv]), SyncFilterLen + 2 - npv);
 		npv += res;
-		// Exit if there are no pixels left
-		if (npv < SyncFilterLen + 2) return(0);
+		if (npv < SyncFilterLen + 2)
+			return 0;
     }
 
     // Calculate the frequency offset
@@ -258,7 +258,7 @@ int getpixelrow(float *pixelv, int nrow, int *zenith) {
 			res = getpixelv(&(pixelv[npv]), PixelLine + SyncFilterLen - npv);
 			npv += res;
 			if (npv < PixelLine + SyncFilterLen)
-				return(0);
+				return 0;
 		}
 
 		// Test every possible position until we get the best result
@@ -289,7 +289,7 @@ int getpixelrow(float *pixelv, int nrow, int *zenith) {
 		res = getpixelv(&(pixelv[npv]), PixelLine - npv);
 		npv += res;
 		if (npv < PixelLine)
-			return(0);
+			return 0;
     }
 
 	// Move the sync lines into the output buffer with the calculated offset
@@ -300,5 +300,5 @@ int getpixelrow(float *pixelv, int nrow, int *zenith) {
 		npv -= PixelLine;
     }
 
-    return(1);
+    return 1;
 }

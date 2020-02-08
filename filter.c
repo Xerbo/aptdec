@@ -29,7 +29,7 @@ float fir(float *buff, const float *coeff, const int len) {
     for (int i = 0; i < len; i++) {
 	    r += buff[i] * coeff[i];
     }
-    return(r);
+    return r;
 }
 
 /* IQ finite impulse response
@@ -63,5 +63,5 @@ float rsfir(double *buff, const float *coeff, const int len, const double offset
         alpha = n - k;
         out += buff[i] * (coeff[k] * (1.0 - alpha) + coeff[k + 1] * alpha);
     }
-    return(out);
+    return out;
 }

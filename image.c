@@ -23,29 +23,13 @@
 #include <math.h>
 #include <stdlib.h>
 
+#include "common.h"
 #include "offsets.h"
-#include "messages.h"
 
 #define REGORDER 3
 typedef struct {
 	double cf[REGORDER + 1];
 } rgparam_t;
-
-typedef struct {
-	float *prow[MAX_HEIGHT]; // Row buffers
-	int nrow; // Number of rows
-	int chA, chB; // ID of each channel
-	char name[256]; // Stripped filename
-} image_t;
-
-typedef struct {
-	char *type; // Output image type
-	char *effects;
-	int   satnum; // The satellite number
-	char *map; // Path to a map file
-	char *path; // Output directory
-	int   realtime;
-} options_t;
 
 extern void polyreg(const int m, const int n, const double x[], const double y[], double c[]);
 
@@ -54,7 +38,7 @@ static void rgcomp(double x[16], rgparam_t * rgpr) {
 	//                  { 0.106, 0.215, 0.324, 0.433, 0.542,  0.652, 0.78,   0.87,  0.0 }
     const double y[9] = { 31.07, 63.02, 94.96, 126.9, 158.86, 191.1, 228.62, 255.0, 0.0 };
 
-    polyreg(REGORDER, 9, x, y, rgpr -> cf);
+    polyreg(REGORDER, 9, x, y, rgpr->cf);
 }
 
 // Convert a value to 0-255 based off the provided regression curve
@@ -66,7 +50,7 @@ static double rgcal(float x, rgparam_t *rgpr) {
 		y += rgpr->cf[i] * p;
 		p = p * x;
     }
-    return(y);
+    return y;
 }
 
 static double tele[16];
@@ -77,7 +61,7 @@ void histogramEqualise(float **prow, int nrow, int offset, int width){
 	int histogram[256] = { 0 };
 	for(int y = 0; y < nrow; y++)
 		for(int x = 0; x < width; x++)
-			histogram[(int)floor(prow[y][x+offset])]++;
+			histogram[(int)CLIP(prow[y][x+offset], 0, 255)]++;
 
 	// Calculate cumulative frequency
 	long sum = 0, cf[256] = { 0 };
@@ -96,59 +80,76 @@ void histogramEqualise(float **prow, int nrow, int offset, int width){
 	}
 }
 
+void linearEnhance(float **prow, int nrow, int offset, int width){
+	// Plot histogram
+	int histogram[256] = { 0 };
+	for(int y = 0; y < nrow; y++)
+		for(int x = 0; x < width; x++)
+			histogram[(int)CLIP(prow[y][x+offset], 0, 255)]++;
+
+	// Find min/max points
+	int min = -1, max = -1;
+	for(int i = 5; i < 250; i++){
+		if(histogram[i]/width/(nrow/255.0) > 0.25){
+			if(min == -1) min = i;
+			max = i;
+		}
+	}
+
+	// Stretch the brightness into the new range
+	for(int y = 0; y < nrow; y++)
+		for(int x = 0; x < width; x++)
+			prow[y][x+offset] = (prow[y][x+offset]-min) / (max-min) * 255.0;
+}
+
 // Brightness calibrate, including telemetry
 void calibrateImage(float **prow, int nrow, int offset, int width, rgparam_t regr){
 	offset -= SYNC_WIDTH+SPC_WIDTH;
 
-	for (int n = 0; n < nrow; n++) {
-		float *pixelv = prow[n];
-
-		for (int i = 0; i < width+SYNC_WIDTH+SPC_WIDTH+TELE_WIDTH; i++) {
-			float pv = rgcal(pixelv[i + offset], &regr);
-
-			pixelv[i + offset] = CLIP(pv, 0, 255);
+	for (int y = 0; y < nrow; y++) {
+		for (int x = 0; x < width+SYNC_WIDTH+SPC_WIDTH+TELE_WIDTH; x++) {
+			float pv = rgcal(prow[y][x + offset], &regr);
+			prow[y][x + offset] = CLIP(pv, 0, 255);
 		}
 	}
 }
 
 double teleNoise(double wedges[16]){
-	int pattern[9] = { 31, 63, 95, 127, 159, 191, 223, 255, 0 };
+	double pattern[9] = { 31.07, 63.02, 94.96, 126.9, 158.86, 191.1, 228.62, 255.0, 0.0 };
 	double noise = 0;
 	for(int i = 0; i < 9; i++)
-		noise += fabs(wedges[i] - (double)pattern[i]);
+		noise += fabs(wedges[i] - pattern[i]);
 	
 	return noise;
 }
 
 // Get telemetry data for thermal calibration/equalization
 int calibrate(float **prow, int nrow, int offset, int width) {
-    double teleline[MAX_HEIGHT] = { 0.0 };
+	double teleline[MAX_HEIGHT] = { 0.0 };
     double wedge[16];
-    rgparam_t regr[30];
+    rgparam_t regr[MAX_HEIGHT/FRAME_LEN + 1];
     int telestart, mtelestart = 0;
 	int channel = -1;
 
 	// The minimum rows required to decode a full frame
     if (nrow < 192) {
-		fprintf(stderr, ERR_TELE_ROW);
+		fprintf(stderr, "Telemetry decoding error, not enough rows\n");
 		return 0;
     }
 
 	// Calculate average of a row of telemetry
-    for (int n = 0; n < nrow; n++) {
-		float *pixelv = prow[n];
-
-		// Average the center 40px
-		for (int i = 3; i < 43; i++)
-			teleline[n] += pixelv[i + offset + width];
-		teleline[n] /= 40.0;
+    for (int y = 0; y < nrow; y++) {
+		for (int x = 3; x < 43; x++)
+			teleline[y] += prow[y][x + offset + width];
+		
+		teleline[y] /= 40.0;
     }
 
 	/* Wedge 7 is white and 8 is black, this will have the largest
-	 * difference in brightness, this will always be in the center of
-	 * the frame and can thus be used to find the start of the frame
+	 * difference in brightness, this can be used to find the current
+	 * position within the telemetry.
 	 */
-	double max = 0.0;
+	float max = 0.0f;
     for (int n = nrow / 3 - 64; n < 2 * nrow / 3 - 64; n++) {
 		float df;
 
@@ -163,26 +164,26 @@ int calibrate(float **prow, int nrow, int offset, int width) {
 		}
     }
 
-	// Find the start of the first frame
-    telestart = (mtelestart - FRAME_LEN/2) % FRAME_LEN;
+    telestart = (mtelestart - 64) % FRAME_LEN;
 
-	// Make sure that theres at least one full frame in the image
+    // Make sure that theres at least one full frame in the image
     if (nrow < telestart + FRAME_LEN) {
-		fprintf(stderr, ERR_TELE_ROW);
-		return(0);
+		fprintf(stderr, "Telemetry decoding error, not enough rows\n");
+		return 0;
     }
 
 	// Find the least noisy frame
 	double minNoise = -1;
-	int bestFrame = telestart;
-    for (int n = telestart, k = 0; n < nrow - FRAME_LEN; n += FRAME_LEN, k++) {
-		// Turn pixels into wedge values
-		for (int j = 0; j < 16; j++) {
-			wedge[j] = 0.0;
+	int bestFrame = -1;
+     for (int n = telestart, k = 0; n < nrow - FRAME_LEN; n += FRAME_LEN, k++) {
+		int j;
 
-			// Average the middle 6px
-			for (int i = 1; i < 7; i++)
-				wedge[j] += teleline[(j * 8) + i + n];
+		for (j = 0; j < 16; j++) {
+			int i;
+
+			wedge[j] = 0.0;
+			for (i = 1; i < 7; i++)
+				wedge[j] += teleline[n + j * 8 + i];
 			wedge[j] /= 6;
 		}
 
@@ -210,98 +211,34 @@ int calibrate(float **prow, int nrow, int offset, int width) {
 					min = df;
 				}
 			}
+
+			// Find the brightness of the minute marker, I don't really know what for
+			Cs = 0.0;
+			int i, j = n;
+			for (i = 0, j = n; j < n + FRAME_LEN; j++) {
+				float csline = 0.0;
+				for (int l = 3; l < 43; l++)
+					csline += prow[n][l + offset - SPC_WIDTH];
+				csline /= 40.0;
+
+				if (csline > 50.0) {
+					Cs += csline;
+					i++;
+				}
+			}
+			Cs = rgcal(Cs / i, &regr[k]);
 		}
     }
+
+	if(bestFrame == -1){
+		fprintf(stderr, "Something has gone very wrong, please file a bug report.");
+		return 0;
+	}
 
 	calibrateImage(prow, nrow, offset, width, regr[bestFrame]);
 
     return channel + 1;
-}
-
-// --- Temperature Calibration --- //
-#include "satcal.h"
-
-typedef struct {
-    double Nbb;
-    double Cs;
-    double Cb;
-    int ch;
-} tempparam_t;
-
-// IR channel temperature compensation
-static void tempcomp(double t[16], int ch, int satnum, tempparam_t *tpr) {
-    double Tbb, T[4];
-    double C;
-
-    tpr -> ch = ch - 4;
-
-    // Compute equivalent T blackbody temperature
-    for (int n = 0; n < 4; n++) {
-		float d0, d1, d2;
-
-		C = t[9 + n] * 4.0;
-		d0 = satcal[satnum].d[n][0];
-		d1 = satcal[satnum].d[n][1];
-		d2 = satcal[satnum].d[n][2];
-		T[n] = d0;
-		T[n] += d1 * C;
-		C = C * C;
-		T[n] += d2 * C;
-    }
-    Tbb = (T[0] + T[1] + T[2] + T[3]) / 4.0;
-    Tbb = satcal[satnum].rad[tpr->ch].A + satcal[satnum].rad[tpr->ch].B * Tbb;
-
-    // Compute radiance blackbody
-    C = satcal[satnum].rad[tpr->ch].vc;
-    tpr->Nbb = c1 * C * C * C / (expm1(c2 * C / Tbb));
-
-    // Store count blackbody and space
-    tpr->Cs = Cs * 4.0;
-    tpr->Cb = t[14] * 4.0;
-}
-
-// IR channel temperature calibration
-static double tempcal(float Ce, int satnum, tempparam_t * rgpr) {
-    double Nl, Nc, Ns, Ne;
-    double T, vc;
-
-    Ns = satcal[satnum].cor[rgpr->ch].Ns;
-    Nl = Ns + (rgpr->Nbb - Ns) * (rgpr->Cs - Ce * 4.0) / (rgpr->Cs - rgpr->Cb);
-    Nc = satcal[satnum].cor[rgpr->ch].b[0] +
-		 satcal[satnum].cor[rgpr->ch].b[1] * Nl +
-		 satcal[satnum].cor[rgpr->ch].b[2] * Nl * Nl;
-
-    Ne = Nl + Nc;
-
-    vc = satcal[satnum].rad[rgpr->ch].vc;
-    T = c2 * vc / log1p(c1 * vc * vc * vc / Ne);
-    T = (T - satcal[satnum].rad[rgpr->ch].A) / satcal[satnum].rad[rgpr->ch].B;
-
-    // Rescale to 0-255 for -60'C to +40'C
-    T = (T - 273.15 + 60.0) / 100.0 * 256.0;
-
-    return(T);
-}
-
-// Temperature calibration wrapper
-void temperature(options_t *opts, image_t *img, int offset, int width){
-    tempparam_t temp;
-
-    printf("Temperature... ");
-    fflush(stdout);
-
-    tempcomp(tele, img->chB, opts->satnum - 15, &temp);
-
-    for (int y = 0; y < img->nrow; y++) {
-		float *pixelv = img->prow[y];
-
-		for (int x = 0; x < width; x++) {
-			float pv = tempcal(pixelv[x + offset], opts->satnum - 15, &temp);
-			
-			pixelv[x + offset] = CLIP(pv, 0, 255);
-		}
-    }
-    printf("Done\n");
+    
 }
 
 void distrib(options_t *opts, image_t *img, char *chid) {
@@ -310,6 +247,8 @@ void distrib(options_t *opts, image_t *img, char *chid) {
 	// Options
 	options_t options;
 	options.path = opts->path;
+	options.effects = "";
+	options.map = "";
 
 	// Image options
 	image_t distrib;
@@ -343,7 +282,7 @@ void distrib(options_t *opts, image_t *img, char *chid) {
 
 extern float quick_select(float arr[], int n);
 
-// Recursive biased median denoise
+// Biased median denoise, pretyt ugly
 #define TRIG_LEVEL 40
 void denoise(float **prow, int nrow, int offset, int width){
 	for(int y = 2; y < nrow-2; y++){
@@ -363,3 +302,99 @@ void denoise(float **prow, int nrow, int offset, int width){
 	}
 }
 #undef TRIG_LEVEL
+
+// Flips a channe, for southbound passes
+void flipImage(image_t *img, int width, int offset){
+	for(int y = 1; y < img->nrow; y++){
+		for(int x = 1; x < ceil(width / 2.0); x++){
+			// Flip top-left & bottom-right
+			float buffer = img->prow[img->nrow - y][offset + x];
+			img->prow[img->nrow - y][offset + x] = img->prow[y][offset + (width - x)];
+			img->prow[y][offset + (width - x)] = buffer;
+		}
+	}
+}
+
+// --- Temperature Calibration --- //
+#include "satcal.h"
+
+typedef struct {
+    double Nbb;
+    double Cs;
+    double Cb;
+    int ch;
+} tempparam_t;
+
+// IR channel temperature compensation
+static void tempcomp(double t[16], int ch, int satnum, tempparam_t *tpr) {
+    double Tbb, T[4];
+    double C;
+
+    tpr->ch = ch - 4;
+
+    // Compute equivalent T blackbody temperature
+    for (int n = 0; n < 4; n++) {
+		float d0, d1, d2;
+
+		C = t[9 + n] * 4.0;
+		d0 = satcal[satnum].d[n][0];
+		d1 = satcal[satnum].d[n][1];
+		d2 = satcal[satnum].d[n][2];
+		T[n] = d0;
+		T[n] += d1 * C;
+		C *= C;
+		T[n] += d2 * C;
+    }
+    Tbb = (T[0] + T[1] + T[2] + T[3]) / 4.0;
+    Tbb = satcal[satnum].rad[tpr->ch].A + satcal[satnum].rad[tpr->ch].B * Tbb;
+
+    // Compute blackbody radiance temperature
+    C = satcal[satnum].rad[tpr->ch].vc;
+    tpr->Nbb = c1 * C * C * C / (expm1(c2 * C / Tbb));
+
+    // Store blackbody count and space
+    tpr->Cs = Cs * 4.0;
+    tpr->Cb = t[14] * 4.0;
+}
+
+// IR channel temperature calibration
+static double tempcal(float Ce, int satnum, tempparam_t * rgpr) {
+    double Nl, Nc, Ns, Ne;
+    double T, vc;
+
+    Ns = satcal[satnum].cor[rgpr->ch].Ns;
+    Nl = Ns + (rgpr->Nbb - Ns) * (rgpr->Cs - Ce * 4.0) / (rgpr->Cs - rgpr->Cb);
+    Nc = satcal[satnum].cor[rgpr->ch].b[0] +
+		 satcal[satnum].cor[rgpr->ch].b[1] * Nl +
+		 satcal[satnum].cor[rgpr->ch].b[2] * Nl * Nl;
+
+    Ne = Nl + Nc;
+
+    vc = satcal[satnum].rad[rgpr->ch].vc;
+    T = c2 * vc / log(c1 * vc * vc * vc / Ne + 1.0);
+    T = (T - satcal[satnum].rad[rgpr->ch].A) / satcal[satnum].rad[rgpr->ch].B;
+
+	// Convert to celsius
+	T -= 273.15;
+    // Rescale to 0-255 for -100°C to +60°C
+    T = (T + 100.0) / 160.0 * 255.0;
+
+	return T;
+}
+
+// Temperature calibration wrapper
+void temperature(options_t *opts, image_t *img, int offset, int width){
+    tempparam_t temp;
+
+    printf("Temperature... ");
+    fflush(stdout);
+
+    tempcomp(tele, img->chB, opts->satnum - 15, &temp);
+
+    for (int y = 0; y < img->nrow; y++) {
+		for (int x = 0; x < width; x++) {			
+			img->prow[y][x + offset] = tempcal(img->prow[y][x + offset], opts->satnum - 15, &temp);
+		}
+    }
+    printf("Done\n");
+}

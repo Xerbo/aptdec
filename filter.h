@@ -20,4 +20,3 @@
 float fir(float *buff, const float *coeff, const int len);
 void  iqfir(float *buff, const float *coeff, const int len, double *I, double *Q);
 float rsfir(double *buff, const float *coeff, const int len, const double offset, const double delta);
-

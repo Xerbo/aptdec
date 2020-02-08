@@ -27,8 +27,3 @@
 #define CHA_OFFSET (SYNC_WIDTH+SPC_WIDTH)
 #define CHB_OFFSET (SYNC_WIDTH+SPC_WIDTH+CH_WIDTH+TELE_WIDTH+SYNC_WIDTH+SPC_WIDTH)
 #define TOTAL_TELE (SYNC_WIDTH+SPC_WIDTH+TELE_WIDTH+SYNC_WIDTH+SPC_WIDTH+TELE_WIDTH)
-#define MAX_HEIGHT 3000
-
-#define CLIP(val, bottom, top) (val > top ? top : (val > bottom ? val : bottom))
-#define CONTAINS(str, char) (strchr(str, (int) char) != NULL)
-#define MCOMPOSITE(m1, a1, m2, a2) (m1*a1 + m2*a2*(1-a1))

@@ -2,18 +2,19 @@ CC = gcc
 BIN = /usr/bin
 INCLUDES = -I.
 CFLAGS = -O3 -DNDEBUG -Wall -Wextra $(INCLUDES)
-OBJS = main.o image.o dsp.o filter.o reg.o fcolor.o pngio.o median.o color.o
+OBJS = main.o image.o dsp.o filter.o reg.o pngio.o median.o color.o
 
 aptdec:	$(OBJS)
 	$(CC) -o $@ $(OBJS) -lm -lsndfile -lpng
 
+reg.o:    reg.c
 color.o:  color.c
-main.o:	  main.c   offsets.h messages.h
-dsp.o:	  dsp.c    filtercoeff.h filter.h
-filter.o: filter.c filter.h
-image.o:  image.c  offsets.h messages.h offsets.h
-fcolor.o: fcolor.c offsets.h
-pngio.o:  pngio.c  offsets.h messages.h
+main.o:	  main.c
+media.o:  median.c
+dsp.o:	  dsp.c
+filter.o: filter.c
+image.o:  image.c
+pngio.o:  pngio.c
 
 clean:
 	rm -f *.o aptdec

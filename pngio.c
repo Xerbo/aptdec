@@ -23,34 +23,13 @@
 #include <string.h>
 #include <stdint.h>
 
+#include "common.h"
 #include "offsets.h"
-#include "messages.h"
-
-typedef struct {
-    float r, g, b;
-} rgb_t;
-
-typedef struct {
-	float *prow[MAX_HEIGHT]; // Row buffers
-	int nrow; // Number of rows
-	int chA, chB; // ID of each channel
-	char name[256]; // Stripped filename
-} image_t;
-
-typedef struct {
-	char *type; // Output image type
-	char *effects;
-	int   satnum; // The satellite number
-	char *map; // Path to a map file
-	char *path; // Output directory
-	int   realtime;
-} options_t;
 
 extern int zenith;
 extern char PrecipPalette[256*3];
 extern rgb_t applyPalette(char *palette, int val);
 extern rgb_t RGBcomposite(rgb_t top, float top_a, rgb_t bottom, float bottom_a);
-extern rgb_t falsecolor(float vis, float temp);
 
 int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 	FILE *fp = fopen(filename, "rb");
@@ -204,7 +183,7 @@ int readRawImage(char *filename, float **prow, int *nrow) {
 	return 1;
 }
 
-png_text text_ptr[] = {
+png_text meta[] = {
 	{PNG_TEXT_COMPRESSION_NONE, "Software", VERSION},
 	{PNG_TEXT_COMPRESSION_NONE, "Channel", "Unknown", 7},
 	{PNG_TEXT_COMPRESSION_NONE, "Description", "NOAA satellite image", 20}
@@ -214,13 +193,14 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	char outName[384];
     sprintf(outName, "%s/%s-%s.png", opts->path, img->name, chid);
 	
-	text_ptr[1].text = desc;
-	text_ptr[1].text_length = sizeof(desc);
+	meta[1].text = desc;
+	meta[1].text_length = sizeof(desc);
 
 	FILE *pngfile;
 
 	// Reduce the width of the image to componsate for the missing telemetry
-	int fcimage = strcmp(desc, "False Color") == 0;
+	int fc = strcmp(desc, "False Color") == 0;
+	int greyscale = 0;
 	int skiptele = 0;
 	if(opts->effects != NULL && CONTAINS(opts->effects, 't')){
 		width -= TOTAL_TELE;
@@ -231,18 +211,17 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
     png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if (!png_ptr) {
 		png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
-		fprintf(stderr, ERR_PNG_WRITE);
+		fprintf(stderr, "Could not create a PNG writer\n");
 		return 0;
     }
     png_infop info_ptr = png_create_info_struct(png_ptr);
     if (!info_ptr) {
 		png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
-		fprintf(stderr, ERR_PNG_INFO);
+		fprintf(stderr, "Could not create a PNG writer\n");
 		return 0;
     }
 
-	int greyscale = 0;
-	if(palette == NULL && !CONTAINS(opts->effects, 'p') && !fcimage && opts->map[0] == '\0' && strcmp(chid, "MCIR") != 0){
+	if(palette == NULL && !CONTAINS(opts->effects, 'p') && !fc && opts->map[0] == '\0' && strcmp(chid, "MCIR") != 0){
 		greyscale = 1;
 
 		// Greyscale image
@@ -256,13 +235,13 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 					 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 	}
 
-    png_set_text(png_ptr, info_ptr, text_ptr, 3);
+    png_set_text(png_ptr, info_ptr, meta, 3);
     png_set_pHYs(png_ptr, info_ptr, 3636, 3636, PNG_RESOLUTION_METER);
 
 	// Init I/O
     pngfile = fopen(outName, "wb");
     if (!pngfile) {
-		fprintf(stderr, ERR_FILE_WRITE, outName);
+		fprintf(stderr, "Could not open %s for writing\n", outName);
 		return 1;
     }
     png_init_io(png_ptr, pngfile);
@@ -270,13 +249,13 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 	// Move prow into crow, crow ~ color rows
 	rgb_t *crow[img->nrow];
-	if(!greyscale){
+	if(!greyscale && !fc){
 		for(int y = 0; y < img->nrow; y++){
 			crow[y] = (rgb_t *) malloc(sizeof(rgb_t) * IMG_WIDTH);
 
 			for(int x = 0; x < IMG_WIDTH; x++){
-				if(palette == NULL)	
-					crow[y][x].r = crow[y][x].g = crow[y][x].b = CLIP(img->prow[y][x], 0, 255);
+				if(palette == NULL)
+					crow[y][x].r = crow[y][x].g = crow[y][x].b = img->prow[y][x];
 				else
 					crow[y][x] = applyPalette(palette, img->prow[y][x]);
 			}
@@ -309,8 +288,8 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 	// Build image
     for (int y = 0; y < img->nrow; y++) {
-		png_color pix[width];
-		png_byte gpix[width];
+		png_color pix[width]; // Color
+		png_byte mpix[width]; // Mono
 		
 		int skip = 0;
 		for (int x = 0; x < width; x++) {
@@ -326,17 +305,24 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 			}
 
 			if(greyscale){
-				gpix[x] = img->prow[y][x + skip + offset];
-			}else if(fcimage){
-				rgb_t pixel  = falsecolor(img->prow[y][x + CHA_OFFSET], img->prow[y][x + CHB_OFFSET]);
-				pix[x] = (png_color){pixel.r, pixel.g, pixel.b};
+				mpix[x] = img->prow[y][x + skip + offset];
+			}else if(fc){
+				pix[x] = (png_color){
+					CLIP(img->prow[y][x + CHA_OFFSET], 0, 255),
+					CLIP(img->prow[y][x + CHA_OFFSET], 0, 255),
+					CLIP(img->prow[y][x + CHB_OFFSET], 0, 255)
+				};
 			}else{
-				pix[x] = (png_color){crow[y][x + skip + offset].r, crow[y][x + skip + offset].g, crow[y][x + skip + offset].b};
+				pix[x] = (png_color){
+					CLIP(crow[y][x + skip + offset].r, 0, 255),
+					CLIP(crow[y][x + skip + offset].g, 0, 255),
+					CLIP(crow[y][x + skip + offset].b, 0, 255)
+				};
 			}
 		}
 		
 		if(greyscale){
-			png_write_row(png_ptr, (png_bytep) gpix);
+			png_write_row(png_ptr, (png_bytep) mpix);
 		}else{
 			png_write_row(png_ptr, (png_bytep) pix);
 		}
@@ -351,7 +337,7 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
     return 1;
 }
 
-// TODO: remove these from the global scope
+// TODO: clean up everthing below this comment
 png_structp rt_png_ptr;
 png_infop rt_info_ptr;
 FILE *rt_pngfile;
@@ -360,20 +346,20 @@ int initWriter(options_t *opts, image_t *img, int width, int height, char *desc,
 	char outName[384];
     sprintf(outName, "%s/%s-%s.png", opts->path, img->name, chid);
 
-	text_ptr[1].text = desc;
-	text_ptr[1].text_length = sizeof(desc);
+	meta[1].text = desc;
+	meta[1].text_length = sizeof(desc);
 
 	// Create writer
     rt_png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if (!rt_png_ptr) {
 		png_destroy_write_struct(&rt_png_ptr, (png_infopp) NULL);
-		fprintf(stderr, ERR_PNG_WRITE);
+		fprintf(stderr, "Could not create a PNG writer\n");
 		return 0;
     }
     rt_info_ptr = png_create_info_struct(rt_png_ptr);
     if (!rt_info_ptr) {
 		png_destroy_write_struct(&rt_png_ptr, (png_infopp) NULL);
-		fprintf(stderr, ERR_PNG_INFO);
+		fprintf(stderr, "Could not create a PNG writer\n");
 		return 0;
     }
 
@@ -382,7 +368,7 @@ int initWriter(options_t *opts, image_t *img, int width, int height, char *desc,
 				 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE,
 			 	 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 	
-	png_set_text(rt_png_ptr, rt_info_ptr, text_ptr, 3);
+	png_set_text(rt_png_ptr, rt_info_ptr, meta, 3);
 
 	// Channel = 25cm wide
     png_set_pHYs(rt_png_ptr, rt_info_ptr, 3636, 3636, PNG_RESOLUTION_METER);
@@ -390,7 +376,7 @@ int initWriter(options_t *opts, image_t *img, int width, int height, char *desc,
 	// Init I/O
     rt_pngfile = fopen(outName, "wb");
     if (!rt_pngfile) {
-		fprintf(stderr, ERR_FILE_WRITE, outName);
+		fprintf(stderr, "Could not open %s for writing\n", outName);
 		return 0;
     }
     png_init_io(rt_png_ptr, rt_pngfile);

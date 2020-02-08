@@ -17,9 +17,29 @@
  *
  */
 
-#define ERR_FILE_WRITE "Could not open %s for writing\n"
-#define ERR_FILE_READ  "Could not open %s for reading\n"
-#define ERR_PNG_WRITE  "Could not create a PNG write struct\n"
-#define ERR_PNG_INFO   "Could not create a PNG info struct\n"
-#define ERR_TELE_ROW   "Telemetry decoding error, not enough rows.\n"
-#define VERSION        "Aptdec; copyright (c) 2004-2009 Thierry Leconte F4DWV, Xerbo (xerbo@protonmail.com) 2019-2020"
+// Constants
+#define VERSION "Aptdec; (c) 2004-2009 Thierry Leconte F4DWV, Xerbo (xerbo@protonmail.com) 2019-2020"
+#define MAX_HEIGHT 3000
+
+// Useful macros
+#define CLIP(v, lo, hi) (v > hi ? hi : (v > lo ? v : lo))
+#define CONTAINS(str, char) (strchr(str, (int) char) != NULL)
+
+// Typedefs
+typedef struct {
+	float r, g, b;
+} rgb_t;
+typedef struct {
+	float *prow[MAX_HEIGHT]; // Row buffers
+	int nrow; // Number of rows
+	int chA, chB; // ID of each channel
+	char name[256]; // Stripped filename
+} image_t;
+typedef struct {
+	char *type; // Output image type
+	char *effects; // Effects on the image
+	int   satnum; // The satellite number
+	char *map; // Path to a map file
+	char *path; // Output directory
+	int   realtime; // Realtime decoding
+} options_t;

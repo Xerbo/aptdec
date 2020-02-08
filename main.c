@@ -25,48 +25,30 @@
 #include <math.h>
 #include <sndfile.h>
 #include <errno.h>
+#include <time.h>
 
-#include "messages.h"
+#include "common.h"
 #include "offsets.h"
 
-#define FAILURE 0
-#define SUCCESS 1
-
-typedef struct {
-	char *type; // Output image type
-	char *effects;
-	int   satnum; // The satellite number
-	char *map; // Path to a map file
-	char *path; // Output directory
-	int   realtime;
-} options_t;
-
-typedef struct {
-	float *prow[MAX_HEIGHT]; // Row buffers
-	int nrow; // Number of rows
-	int chA, chB; // ID of each channel
-	char name[256]; // Stripped filename
-} image_t;
-
 // DSP
-extern int getpixelrow(float *pixelv, int nrow, int *zenith);
 extern int init_dsp(double F);
+extern int getpixelrow(float *pixelv, int nrow, int *zenith);
 
 // I/O
-extern int readfcconf(char *file);
 extern int readRawImage(char *filename, float **prow, int *nrow);
 extern int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, char *chid, char *palette);
-extern void closeWriter();
-extern void pushRow(float *row, int width);
 extern int initWriter(options_t *opts, image_t *img, int width, int height, char *desc, char *chid);
+extern void pushRow(float *row, int width);
+extern void closeWriter();
 
 // Image functions
 extern int calibrate(float **prow, int nrow, int offset, int width);
 extern void histogramEqualise(float **prow, int nrow, int offset, int width);
+extern void linearEnhance(float **prow, int nrow, int offset, int width);
 extern void temperature(options_t *opts, image_t *img, int offset, int width);
-extern int Ngvi(float **prow, int nrow);
 extern void denoise(float **prow, int nrow, int offset, int width);
 extern void distrib(options_t *opts, image_t *img, char *chid);
+extern void flipImage(image_t *img, int width, int offset);
 
 // Palettes
 extern char GviPalette[256*3];
@@ -77,6 +59,7 @@ int zenith = 0;
 // Audio file
 static SNDFILE *audioFile;
 
+// Function predeclarations
 static int initsnd(char *filename);
 int getsample(float *sample, int nb);
 static int processAudio(char *filename, options_t *opts);
@@ -85,11 +68,8 @@ static void usage(void);
 int main(int argc, char **argv) {
     fprintf(stderr, VERSION"\n");
 
-	if(argc == 1)
-		usage();
-
 	// Check if there are actually any input files
-	if(optind == argc){
+	if(argc == optind || argc == 1){
 		fprintf(stderr, "No input files provided.\n");
 		usage();
 	}
@@ -98,13 +78,10 @@ int main(int argc, char **argv) {
 
 	// Parse arguments
 	int opt;
-    while ((opt = getopt(argc, argv, "c:m:d:i:s:e:r")) != EOF) {
+    while ((opt = getopt(argc, argv, "m:d:i:s:e:r")) != EOF) {
 		switch (opt) {
 			case 'd':
 				opts.path = optarg;
-				break;
-			case 'c':
-				readfcconf(optarg);
 				break;
 			case 'm':
 				opts.map = optarg;
@@ -160,6 +137,13 @@ static int processAudio(char *filename, options_t *opts){
 	strcpy(path, dirname(path));
 	sscanf(basename(filename), "%[^.].%s", img.name, extension);
 
+	// Set output filename to current time when in realtime mode
+	if(opts->realtime){
+		time_t t;
+		time(&t);
+		strncpy(img.name, ctime(&t), 24);
+	}
+
 	if(opts->realtime) initWriter(opts, &img, IMG_WIDTH, MAX_HEIGHT, "Unprocessed realtime image", "r");
 
 	if(strcmp(extension, "png") == 0){
@@ -167,7 +151,7 @@ static int processAudio(char *filename, options_t *opts){
 		printf("Reading %s", filename);
 		if(readRawImage(filename, img.prow, &img.nrow) == 0){
 			fprintf(stderr, "Skipping %s; see above.\n", img.name);
-			return FAILURE;
+			return 0;
 		}
 	}else{
 		// Attempt to open the audio file
@@ -175,6 +159,7 @@ static int processAudio(char *filename, options_t *opts){
 			exit(EPERM);
 
 		// Build image
+		// TODO: multithreading, would require some sort of input buffer
 		for (img.nrow = 0; img.nrow < MAX_HEIGHT; img.nrow++) {
 			// Allocate memory for this row
 			img.prow[img.nrow] = (float *) malloc(sizeof(float) * 2150);
@@ -216,34 +201,41 @@ static int processAudio(char *filename, options_t *opts){
 		denoise(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
 	}
 
+	// Flip, for southbound passes
+	if(CONTAINS(opts->effects, 'f')){
+		flipImage(&img, CH_WIDTH, CHA_OFFSET);
+		flipImage(&img, CH_WIDTH, CHB_OFFSET);
+	}
+
 	// Temperature
 	if (CONTAINS(opts->type, 't') && img.chB >= 4) {
 		temperature(opts, &img, CHB_OFFSET, CH_WIDTH);
 		ImageOut(opts, &img, CHB_OFFSET, CH_WIDTH, "Temperature", "t", (char *)TempPalette);
 	}
 
-	// False color image
-	if(CONTAINS(opts->type, 'c')){
-		if (img.chA == 2 && img.chB >= 4) { // Normal false color
-			// TODO: use real MSA
-			// TODO: provide more than just "natural" color images
-			ImageOut(opts, &img, 0, CH_WIDTH, "False Color", "c", NULL);
-		} else if (img.chB == 2) { // GVI (global vegetation index) false color
-			Ngvi(img.prow, img.nrow);
-			ImageOut(opts, &img, CHB_OFFSET, CH_WIDTH, "GVI False Color", "c", (char *)GviPalette);
-		} else {
-			fprintf(stderr, "Skipping False Color generation; lacking required channels.\n");
-		}
-	}
-
 	// MCIR
 	if (CONTAINS(opts->type, 'm'))
 		ImageOut(opts, &img, 0, IMG_WIDTH, "MCIR", "m", NULL);
+
+	// Linear equalise
+	if(CONTAINS(opts->effects, 'l')){
+		linearEnhance(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
+		linearEnhance(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
+	}
 
 	// Histogram equalise
 	if(CONTAINS(opts->effects, 'h')){
 		histogramEqualise(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
 		histogramEqualise(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
+	}
+
+	// False color
+	if(CONTAINS(opts->type, 'c')){
+		if(img.chA == 2 && img.chB >= 4){
+			ImageOut(opts, &img, 0, CH_WIDTH, "False Color", "c", NULL);
+		}else{
+			fprintf(stderr, "Lacking channels required for false color computation\n");
+		}
 	}
 
 	// Raw image
@@ -268,7 +260,7 @@ static int processAudio(char *filename, options_t *opts){
 	if (CONTAINS(opts->type, 'd'))
 		distrib(opts, &img, "d");
 	
-	return SUCCESS;
+	return 1;
 }
 
 static int initsnd(char *filename) {
@@ -279,28 +271,28 @@ static int initsnd(char *filename) {
     infwav.format = 0;
     audioFile = sf_open(filename, SFM_READ, &infwav);
     if (audioFile == NULL) {
-		fprintf(stderr, ERR_FILE_READ, filename);
-		return FAILURE;
+		fprintf(stderr, "Could not open %s for reading\n", filename);
+		return 0;
     }
 
     res = init_dsp(infwav.samplerate);
 	printf("Input file: %s\n", filename);
     if(res < 0) {
 		fprintf(stderr, "Input sample rate too low: %d\n", infwav.samplerate);
-		return FAILURE;
+		return 0;
     }else if(res > 0) {
 		fprintf(stderr, "Input sample rate too high: %d\n", infwav.samplerate);
-		return FAILURE;
+		return 0;
     }
     printf("Input sample rate: %d\n", infwav.samplerate);
 
 	// TODO: accept stereo audio
     if (infwav.channels != 1) {
 		fprintf(stderr, "Too many channels in input file: %d\n", infwav.channels);
-		return FAILURE;
+		return 0;
     }
 
-    return SUCCESS;
+    return 1;
 }
 
 // Read samples from the wave file
@@ -312,11 +304,13 @@ static void usage(void) {
     fprintf(stderr,
 	"Aptdec [options] audio files ...\n"
 	"Options:\n"
-	" -e [t|h]       Effects\n"
+	" -e [t|h|d|p|f|l] Effects\n"
 	"     t: Crop telemetry\n"
 	"     h: Histogram equalise\n"
 	"     d: Denoise\n"
 	"     p: Precipitation\n"
+	"     f: Flip image\n"
+	"     l: Linear equalise\n"
 	" -i [r|a|b|c|t|m] Output image\n"
 	"     r: Raw\n"
 	"     a: Channel A\n"
@@ -324,11 +318,11 @@ static void usage(void) {
 	"     c: False color\n"
 	"     t: Temperature\n"
 	"     m: MCIR\n"
-	" -d <dir>       Image destination directory.\n"
-	" -s [15-19]     Satellite number\n"
-	" -c <file>      False color config file\n"
-	" -m <file>      Map file\n"
-	" -r             Realtime decode\n");
+	" -d <dir>         Image destination directory.\n"
+	" -s [15-19]       Satellite number\n"
+	" -m <file>        Map file\n"
+	" -r               Realtime decode\n"
+	"\nRefer to the README for more infomation\n");
 
    	exit(EINVAL);
 }
