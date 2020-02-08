@@ -9,9 +9,9 @@ aptdec:	$(OBJS)
 
 reg.o:    reg.c
 color.o:  color.c
-main.o:	  main.c
+main.o:   main.c
 media.o:  median.c
-dsp.o:	  dsp.c
+dsp.o:    dsp.c
 filter.o: filter.c
 image.o:  image.c
 pngio.o:  pngio.c

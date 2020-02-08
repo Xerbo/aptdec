@@ -74,25 +74,25 @@ static inline double Phase(double I, double Q) {
 
 	if(I == 0.0 && Q == 0.0) return 0.0;
 
-   	if (Q < 0) {
+	if (Q < 0) {
 		s = -1;
 		Q = -Q;
-   	} else {
+	} else {
 		s = 1;
-   	}
-	
-   	if (I >= 0) {
-    	r = (I - Q) / (I + Q);
-    	angle = 0.25 - 0.25 * r;
-   	} else {
-    	r = (I + Q) / (Q - I);
-    	angle = 0.75 - 0.25 * r;
-   	}
+	}
 
-  	if(s > 0){
-  		return angle;
-  	}else{
-  		return -angle;
+	if (I >= 0) {
+		r = (I - Q) / (I + Q);
+		angle = 0.25 - 0.25 * r;
+	} else {
+		r = (I + Q) / (Q - I);
+		angle = 0.75 - 0.25 * r;
+	}
+
+	if(s > 0){
+		return angle;
+	}else{
+		return -angle;
 	}
 }
 
@@ -102,44 +102,44 @@ static inline double Phase(double I, double Q) {
  */
 static double pll(double I, double Q) {
 	// PLL coefficient
-    static double PhaseOsc = 0.0;
-    double Io, Qo;
-    double Ip, Qp;
-    double DPhi;
+	static double PhaseOsc = 0.0;
+	double Io, Qo;
+	double Ip, Qp;
+	double DPhi;
 
 	// Quadrature oscillator / reference
-    Io = cos(PhaseOsc);
-    Qo = sin(PhaseOsc);
+	Io = cos(PhaseOsc);
+	Qo = sin(PhaseOsc);
 
 	// Phase detector
-    Ip = I * Io + Q * Qo;
-    Qp = Q * Io - I * Qo;
-    DPhi = Phase(Ip, Qp);
+	Ip = I * Io + Q * Qo;
+	Qp = Q * Io - I * Qo;
+	DPhi = Phase(Ip, Qp);
 
 	// Loop filter
-    PhaseOsc += 2.0 * M_PI * (K1 * DPhi + FreqOsc);
-    if (PhaseOsc > M_PI)
+	PhaseOsc += 2.0 * M_PI * (K1 * DPhi + FreqOsc);
+	if (PhaseOsc > M_PI)
 		PhaseOsc -= 2.0 * M_PI;
-    if (PhaseOsc <= -M_PI)
+	if (PhaseOsc <= -M_PI)
 		PhaseOsc += 2.0 * M_PI;
 
-    FreqOsc += K2 * DPhi;
-    if (FreqOsc > ((Fc + DFc) / Fe))
+	FreqOsc += K2 * DPhi;
+	if (FreqOsc > ((Fc + DFc) / Fe))
 		FreqOsc = (Fc + DFc) / Fe;
-    if (FreqOsc < ((Fc - DFc) / Fe))
+	if (FreqOsc < ((Fc - DFc) / Fe))
 		FreqOsc = (Fc - DFc) / Fe;
 
-    return Ip;
+	return Ip;
 }
 
 // Convert samples into pixels
 static int getamp(double *ampbuff, int count) {
-    static float inbuff[BLKIN];
-    static int idxin = 0;
-    static int nin = 0;
+	static float inbuff[BLKIN];
+	static int idxin = 0;
+	static int nin = 0;
 
-    for (int n = 0; n < count; n++) {
-    	double I, Q;
+	for (int n = 0; n < count; n++) {
+		double I, Q;
 
 		// Get some more samples when needed
 		if (nin < IQFilterLen * 2 + 2) {
@@ -147,11 +147,11 @@ static int getamp(double *ampbuff, int count) {
 			int res;
 			memmove(inbuff, &(inbuff[idxin]), nin * sizeof(float));
 			idxin = 0;
-			
+
 			// Read some samples
 			res = getsample(&(inbuff[nin]), BLKIN - nin);
 			nin += res;
-			
+
 			// Make sure there is enough samples to continue
 			if (nin < IQFilterLen * 2 + 2)
 				return n;
@@ -164,25 +164,25 @@ static int getamp(double *ampbuff, int count) {
 		// Increment current sample
 		idxin++;
 		nin--;
-    }
+	}
 
-    return count;
+	return count;
 }
 
 // Sub-pixel offsetting + FIR compensation
 int getpixelv(float *pvbuff, int count) {
 	// Amplitude buffer
-    static double ampbuff[BLKAMP];
-    static int nam = 0;
-    static int idxam = 0;
+	static double ampbuff[BLKAMP];
+	static int nam = 0;
+	static int idxam = 0;
 
-    double mult;
+	double mult;
 
 	// Gaussian resampling factor
-    mult = (double) Fi / Fe * FreqLine;
-    int m = RSFilterLen / mult + 1;
+	mult = (double) Fi / Fe * FreqLine;
+	int m = RSFilterLen / mult + 1;
 
-    for (int n = 0; n < count; n++) {
+	for (int n = 0; n < count; n++) {
 		int shift;
 
 		if (nam < m) {
@@ -203,53 +203,53 @@ int getpixelv(float *pvbuff, int count) {
 
 		idxam += shift;
 		nam -= shift;
-    }
-	
-    return count;
+	}
+
+	return count;
 }
 
 // Get an entire row of pixels, aligned with sync markers
 // FIXME: skips noisy lines with no findable sync marker
 int getpixelrow(float *pixelv, int nrow, int *zenith) {
-    static float pixels[PixelLine + SyncFilterLen];
-    static int npv;
-    static int synced = 0;
-    static double max = 0.0;
+	static float pixels[PixelLine + SyncFilterLen];
+	static int npv;
+	static int synced = 0;
+	static double max = 0.0;
 	static double minDoppler = 100;
 
-    double corr, ecorr, lcorr;
-    int res;
+	double corr, ecorr, lcorr;
+	int res;
 
 	// Move the row buffer into the the image buffer
-    if (npv > 0)
+	if (npv > 0)
 		memmove(pixelv, pixels, npv * sizeof(float));
 
 	// Get the sync line
-    if (npv < SyncFilterLen + 2) {
+	if (npv < SyncFilterLen + 2) {
 		res = getpixelv(&(pixelv[npv]), SyncFilterLen + 2 - npv);
 		npv += res;
 		if (npv < SyncFilterLen + 2)
 			return 0;
-    }
+	}
 
-    // Calculate the frequency offset
-    ecorr = fir(pixelv, Sync, SyncFilterLen);
-    corr = fir(&pixelv[1], Sync, SyncFilterLen - 1);
-    lcorr = fir(&pixelv[2], Sync, SyncFilterLen - 2);
-    FreqLine = 1.0+((ecorr-lcorr) / corr / PixelLine / 4.0);
+	// Calculate the frequency offset
+	ecorr = fir(pixelv, Sync, SyncFilterLen);
+	corr = fir(&pixelv[1], Sync, SyncFilterLen - 1);
+	lcorr = fir(&pixelv[2], Sync, SyncFilterLen - 2);
+	FreqLine = 1.0+((ecorr-lcorr) / corr / PixelLine / 4.0);
 
 	// Find the point in which ecorr and lcorr intercept
 	if(fabs(lcorr - ecorr) < minDoppler && fabs(lcorr - ecorr) > 2){
 		minDoppler = fabs(lcorr - ecorr);
 		*zenith = nrow;
 	}
-	
+
 	// The point in which the pixel offset is recalculated
-    if (corr < 0.75 * max) {
+	if (corr < 0.75 * max) {
 		synced = 0;
 		FreqLine = 1.0;
-    }
-    max = corr;
+	}
+	max = corr;
 
 	if (synced < 8) {
 		int mshift;
@@ -285,20 +285,20 @@ int getpixelrow(float *pixelv, int nrow, int *zenith) {
 	}
 
 	// Get the rest of this row
-    if (npv < PixelLine) {
+	if (npv < PixelLine) {
 		res = getpixelv(&(pixelv[npv]), PixelLine - npv);
 		npv += res;
 		if (npv < PixelLine)
 			return 0;
-    }
+	}
 
 	// Move the sync lines into the output buffer with the calculated offset
-    if (npv == PixelLine) {
+	if (npv == PixelLine) {
 		npv = 0;
-    } else {
+	} else {
 		memmove(pixels, &(pixelv[PixelLine]), (npv - PixelLine) * sizeof(float));
 		npv -= PixelLine;
-    }
+	}
 
-    return 1;
+	return 1;
 }

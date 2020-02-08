@@ -191,8 +191,8 @@ png_text meta[] = {
 
 int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, char *chid, char *palette){
 	char outName[384];
-    sprintf(outName, "%s/%s-%s.png", opts->path, img->name, chid);
-	
+	sprintf(outName, "%s/%s-%s.png", opts->path, img->name, chid);
+
 	meta[1].text = desc;
 	meta[1].text_length = sizeof(desc);
 
@@ -208,24 +208,24 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	}
 
 	// Create writer
-    png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    if (!png_ptr) {
+	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if (!png_ptr) {
 		png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
 		fprintf(stderr, "Could not create a PNG writer\n");
 		return 0;
-    }
-    png_infop info_ptr = png_create_info_struct(png_ptr);
-    if (!info_ptr) {
+	}
+	png_infop info_ptr = png_create_info_struct(png_ptr);
+	if (!info_ptr) {
 		png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
 		fprintf(stderr, "Could not create a PNG writer\n");
 		return 0;
-    }
+	}
 
 	if(palette == NULL && !CONTAINS(opts->effects, 'p') && !fc && opts->map[0] == '\0' && strcmp(chid, "MCIR") != 0){
 		greyscale = 1;
 
 		// Greyscale image
-    	png_set_IHDR(png_ptr, info_ptr, width, img->nrow,
+		png_set_IHDR(png_ptr, info_ptr, width, img->nrow,
 					 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE,
 				 	 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 	}else{
@@ -235,17 +235,17 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 					 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 	}
 
-    png_set_text(png_ptr, info_ptr, meta, 3);
-    png_set_pHYs(png_ptr, info_ptr, 3636, 3636, PNG_RESOLUTION_METER);
+	png_set_text(png_ptr, info_ptr, meta, 3);
+	png_set_pHYs(png_ptr, info_ptr, 3636, 3636, PNG_RESOLUTION_METER);
 
 	// Init I/O
-    pngfile = fopen(outName, "wb");
-    if (!pngfile) {
+	pngfile = fopen(outName, "wb");
+	if (!pngfile) {
 		fprintf(stderr, "Could not open %s for writing\n", outName);
 		return 1;
-    }
-    png_init_io(png_ptr, pngfile);
-    png_write_info(png_ptr, info_ptr);
+	}
+	png_init_io(png_ptr, pngfile);
+	png_write_info(png_ptr, info_ptr);
 
 	// Move prow into crow, crow ~ color rows
 	rgb_t *crow[img->nrow];
@@ -287,10 +287,10 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	printf("Writing %s", outName);
 
 	// Build image
-    for (int y = 0; y < img->nrow; y++) {
+	for (int y = 0; y < img->nrow; y++) {
 		png_color pix[width]; // Color
 		png_byte mpix[width]; // Mono
-		
+
 		int skip = 0;
 		for (int x = 0; x < width; x++) {
 			if(skiptele){
@@ -320,21 +320,21 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 				};
 			}
 		}
-		
+
 		if(greyscale){
 			png_write_row(png_ptr, (png_bytep) mpix);
 		}else{
 			png_write_row(png_ptr, (png_bytep) pix);
 		}
-    }
+	}
 
 	// Tidy up
-    png_write_end(png_ptr, info_ptr);
-    fclose(pngfile);
-    printf("\nDone\n");
-    png_destroy_write_struct(&png_ptr, &info_ptr);
+	png_write_end(png_ptr, info_ptr);
+	fclose(pngfile);
+	printf("\nDone\n");
+	png_destroy_write_struct(&png_ptr, &info_ptr);
 
-    return 1;
+	return 1;
 }
 
 // TODO: clean up everthing below this comment
@@ -344,44 +344,44 @@ FILE *rt_pngfile;
 
 int initWriter(options_t *opts, image_t *img, int width, int height, char *desc, char *chid){
 	char outName[384];
-    sprintf(outName, "%s/%s-%s.png", opts->path, img->name, chid);
+	sprintf(outName, "%s/%s-%s.png", opts->path, img->name, chid);
 
 	meta[1].text = desc;
 	meta[1].text_length = sizeof(desc);
 
 	// Create writer
-    rt_png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    if (!rt_png_ptr) {
+	rt_png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if (!rt_png_ptr) {
 		png_destroy_write_struct(&rt_png_ptr, (png_infopp) NULL);
 		fprintf(stderr, "Could not create a PNG writer\n");
 		return 0;
-    }
-    rt_info_ptr = png_create_info_struct(rt_png_ptr);
-    if (!rt_info_ptr) {
+	}
+	rt_info_ptr = png_create_info_struct(rt_png_ptr);
+	if (!rt_info_ptr) {
 		png_destroy_write_struct(&rt_png_ptr, (png_infopp) NULL);
 		fprintf(stderr, "Could not create a PNG writer\n");
 		return 0;
-    }
+	}
 
 	// Greyscale image
-    png_set_IHDR(rt_png_ptr, rt_info_ptr, width, height,
+	png_set_IHDR(rt_png_ptr, rt_info_ptr, width, height,
 				 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE,
 			 	 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-	
+
 	png_set_text(rt_png_ptr, rt_info_ptr, meta, 3);
 
 	// Channel = 25cm wide
-    png_set_pHYs(rt_png_ptr, rt_info_ptr, 3636, 3636, PNG_RESOLUTION_METER);
+	png_set_pHYs(rt_png_ptr, rt_info_ptr, 3636, 3636, PNG_RESOLUTION_METER);
 
 	// Init I/O
-    rt_pngfile = fopen(outName, "wb");
-    if (!rt_pngfile) {
+	rt_pngfile = fopen(outName, "wb");
+	if (!rt_pngfile) {
 		fprintf(stderr, "Could not open %s for writing\n", outName);
 		return 0;
-    }
-    png_init_io(rt_png_ptr, rt_pngfile);
-    png_write_info(rt_png_ptr, rt_info_ptr);
-	
+	}
+	png_init_io(rt_png_ptr, rt_pngfile);
+	png_write_info(rt_png_ptr, rt_info_ptr);
+
 	return 1;
 }
 
@@ -389,12 +389,12 @@ void pushRow(float *row, int width){
 	png_byte pix[width];
 	for(int i = 0; i < width; i++)
 		pix[i] = row[i];
-	
+
 	png_write_row(rt_png_ptr, (png_bytep) pix);
 }
 
 void closeWriter(){
 	png_write_end(rt_png_ptr, rt_info_ptr);
-    fclose(rt_pngfile);
-    png_destroy_write_struct(&rt_png_ptr, &rt_info_ptr);
+	fclose(rt_pngfile);
+	png_destroy_write_struct(&rt_png_ptr, &rt_info_ptr);
 }

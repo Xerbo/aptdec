@@ -66,7 +66,7 @@ static int processAudio(char *filename, options_t *opts);
 static void usage(void);
 
 int main(int argc, char **argv) {
-    fprintf(stderr, VERSION"\n");
+	fprintf(stderr, VERSION"\n");
 
 	// Check if there are actually any input files
 	if(argc == optind || argc == 1){
@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
 
 	// Parse arguments
 	int opt;
-    while ((opt = getopt(argc, argv, "m:d:i:s:e:r")) != EOF) {
+	while ((opt = getopt(argc, argv, "m:d:i:s:e:r")) != EOF) {
 		switch (opt) {
 			case 'd':
 				opts.path = optarg;
@@ -105,14 +105,14 @@ int main(int argc, char **argv) {
 			default:
 				usage();
 		}
-    }
+	}
 
 	// Process the files
 	for (; optind < argc; optind++) {
 		processAudio(argv[optind], &opts);
 	}
 
-    exit(0);
+	exit(0);
 }
 
 static int processAudio(char *filename, options_t *opts){
@@ -124,7 +124,7 @@ static int processAudio(char *filename, options_t *opts){
 		char *id[7];
 		char *name[7];
 	} ch = {
-		{ "?", 		 "1", 	   "2", 			"3A", 		    "4", 				"5", 				"3B"           },
+		{ "?", 		 "1", 	   "2", 			"3A", 			"4", 				"5", 				"3B"		   },
 		{ "unknown", "visble", "near-infrared", "mid-infrared", "thermal-infrared", "thermal-infrared", "mid-infrared" }
 	};
 
@@ -163,7 +163,7 @@ static int processAudio(char *filename, options_t *opts){
 		for (img.nrow = 0; img.nrow < MAX_HEIGHT; img.nrow++) {
 			// Allocate memory for this row
 			img.prow[img.nrow] = (float *) malloc(sizeof(float) * 2150);
-				
+
 			// Write into memory and break the loop when there are no more samples to read
 			if (getpixelrow(img.prow[img.nrow], img.nrow, &zenith) == 0)
 				break;
@@ -259,40 +259,40 @@ static int processAudio(char *filename, options_t *opts){
 	// Distribution image
 	if (CONTAINS(opts->type, 'd'))
 		distrib(opts, &img, "d");
-	
+
 	return 1;
 }
 
 static int initsnd(char *filename) {
-    SF_INFO infwav;
-    int	res;
+	SF_INFO infwav;
+	int	res;
 
 	// Open audio file
-    infwav.format = 0;
-    audioFile = sf_open(filename, SFM_READ, &infwav);
-    if (audioFile == NULL) {
+	infwav.format = 0;
+	audioFile = sf_open(filename, SFM_READ, &infwav);
+	if (audioFile == NULL) {
 		fprintf(stderr, "Could not open %s for reading\n", filename);
 		return 0;
-    }
+	}
 
-    res = init_dsp(infwav.samplerate);
+	res = init_dsp(infwav.samplerate);
 	printf("Input file: %s\n", filename);
-    if(res < 0) {
+	if(res < 0) {
 		fprintf(stderr, "Input sample rate too low: %d\n", infwav.samplerate);
 		return 0;
-    }else if(res > 0) {
+	}else if(res > 0) {
 		fprintf(stderr, "Input sample rate too high: %d\n", infwav.samplerate);
 		return 0;
-    }
-    printf("Input sample rate: %d\n", infwav.samplerate);
+	}
+	printf("Input sample rate: %d\n", infwav.samplerate);
 
 	// TODO: accept stereo audio
-    if (infwav.channels != 1) {
+	if (infwav.channels != 1) {
 		fprintf(stderr, "Too many channels in input file: %d\n", infwav.channels);
 		return 0;
-    }
+	}
 
-    return 1;
+	return 1;
 }
 
 // Read samples from the wave file
@@ -301,28 +301,28 @@ int getsample(float *sample, int nb) {
 }
 
 static void usage(void) {
-    fprintf(stderr,
+	fprintf(stderr,
 	"Aptdec [options] audio files ...\n"
 	"Options:\n"
 	" -e [t|h|d|p|f|l] Effects\n"
-	"     t: Crop telemetry\n"
-	"     h: Histogram equalise\n"
-	"     d: Denoise\n"
-	"     p: Precipitation\n"
-	"     f: Flip image\n"
-	"     l: Linear equalise\n"
+	"	 t: Crop telemetry\n"
+	"	 h: Histogram equalise\n"
+	"	 d: Denoise\n"
+	"	 p: Precipitation\n"
+	"	 f: Flip image\n"
+	"	 l: Linear equalise\n"
 	" -i [r|a|b|c|t|m] Output image\n"
-	"     r: Raw\n"
-	"     a: Channel A\n"
-	"     b: Channel B\n"
-	"     c: False color\n"
-	"     t: Temperature\n"
-	"     m: MCIR\n"
-	" -d <dir>         Image destination directory.\n"
-	" -s [15-19]       Satellite number\n"
-	" -m <file>        Map file\n"
-	" -r               Realtime decode\n"
+	"	 r: Raw\n"
+	"	 a: Channel A\n"
+	"	 b: Channel B\n"
+	"	 c: False color\n"
+	"	 t: Temperature\n"
+	"	 m: MCIR\n"
+	" -d <dir>		 Image destination directory.\n"
+	" -s [15-19]	   Satellite number\n"
+	" -m <file>		Map file\n"
+	" -r			   Realtime decode\n"
 	"\nRefer to the README for more infomation\n");
 
-   	exit(EINVAL);
+	exit(EINVAL);
 }

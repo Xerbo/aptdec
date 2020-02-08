@@ -7,24 +7,24 @@
 
 #define ELEM_SWAP(a, b) { register float t = (a); (a) = (b); (b) = t; }
 float quick_select(float arr[], int n) {
-    int low, median, high;
-    int middle, ll, hh;
+	int low, median, high;
+	int middle, ll, hh;
 
-    low = 0; high = n-1; median = (low + high) / 2;
-    for (;;) {
-        if (high <= low) /* One element only */
-            return arr[median] ;
+	low = 0; high = n-1; median = (low + high) / 2;
+	for (;;) {
+		if (high <= low) /* One element only */
+			return arr[median] ;
 
-        if (high == low + 1) { /* Two elements only */
-            if (arr[low] > arr[high])
-                ELEM_SWAP(arr[low], arr[high]);
-            return arr[median];
-        }
+		if (high == low + 1) { /* Two elements only */
+			if (arr[low] > arr[high])
+				ELEM_SWAP(arr[low], arr[high]);
+			return arr[median];
+		}
 
 		/* Find median of low, middle and high items; swap into position low */
 		middle = (low + high) / 2;
 		if (arr[middle] > arr[high]) ELEM_SWAP(arr[middle], arr[high]);
-		if (arr[low]    > arr[high]) ELEM_SWAP(arr[low], arr[high]);
+		if (arr[low]	> arr[high]) ELEM_SWAP(arr[low], arr[high]);
 		if (arr[middle] > arr[low])  ELEM_SWAP(arr[middle], arr[low]);
 
 		/* Swap low item (now in position middle) into position (low+1) */
@@ -51,6 +51,6 @@ float quick_select(float arr[], int n) {
 			low = ll;
 		if (hh >= median)
 			high = hh - 1;
-    }
+	}
 }
 #undef ELEM_SWAP

@@ -23,45 +23,45 @@
 
 // Finite impulse response
 float fir(float *buff, const float *coeff, const int len) {
-    double r;
+	double r;
 
-    r = 0.0;
-    for (int i = 0; i < len; i++) {
-	    r += buff[i] * coeff[i];
-    }
-    return r;
+	r = 0.0;
+	for (int i = 0; i < len; i++) {
+		r += buff[i] * coeff[i];
+	}
+	return r;
 }
 
 /* IQ finite impulse response
  * Turn samples into a single IQ sample
  */
 void iqfir(float *buff, const float *coeff, const int len, double *I, double *Q) {
-    double i = 0.0, q = 0.0;
+	double i = 0.0, q = 0.0;
 
-    for (int k = 0; k < len; k++) {
-        q += buff[2*k] * coeff[k];
-        i += buff[2*k];
-    }
+	for (int k = 0; k < len; k++) {
+		q += buff[2*k] * coeff[k];
+		i += buff[2*k];
+	}
 
-    i = buff[len-1] - (i / len);
-    *I = i, *Q = q;
+	i = buff[len-1] - (i / len);
+	*I = i, *Q = q;
 }
 
 /* Gaussian finite impulse responce compensation
  * https://www.recordingblogs.com/wiki/gaussian-window
  */
 float rsfir(double *buff, const float *coeff, const int len, const double offset, const double delta) {
-    double out;
+	double out;
 
-    out = 0.0;
-    double n = offset;
-    for (int i = 0; i < (len-1)/delta-1; n += delta, i++) {
-        int k;
-        double alpha;
+	out = 0.0;
+	double n = offset;
+	for (int i = 0; i < (len-1)/delta-1; n += delta, i++) {
+		int k;
+		double alpha;
 
-        k = (int)floor(n);
-        alpha = n - k;
-        out += buff[i] * (coeff[k] * (1.0 - alpha) + coeff[k + 1] * alpha);
-    }
-    return out;
+		k = (int)floor(n);
+		alpha = n - k;
+		out += buff[i] * (coeff[k] * (1.0 - alpha) + coeff[k + 1] * alpha);
+	}
+	return out;
 }
