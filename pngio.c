@@ -75,6 +75,8 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 	fclose(fp);
 	png_destroy_read_struct(&png, &info, NULL);
 
+	printf("Adding map overlay\n");
+
 	// Map overlay / MCIR / Precipitation
 	int mapOffset = (height/2)-zenith;
 	for(int y = 0; y < nrow; y++) {
@@ -96,8 +98,8 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 				if(map.b < 128 && map.g > 128){
 					// Land
 					float green = CLIP((map.g-256)/32.0, 0, 1);
-					float blue = 1-CLIP((map.b-32)/64.0, 0, 1);
-					crow[y][cha] = (rgb_t){50 + blue*50, 80 + green*70, 64};
+					float blue = 1 - CLIP((map.b-32)/64.0, 0, 1);
+					crow[y][cha] = (rgb_t){blue*127, 30+green*80, 40};
 				}else{
 					// Sea
 					crow[y][cha] = (rgb_t){12, 30, 85};
@@ -275,7 +277,7 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 	// Map stuff
 	if(opts->map != NULL && opts->map[0] != '\0'){
-		if(mapOverlay(opts->map, crow, img->nrow, zenith, strcmp(chid, "MCIR") == 0) == 0){
+		if(mapOverlay(opts->map, crow, img->nrow, zenith, strcmp(desc, "MCIR") == 0) == 0){
 			fprintf(stderr, "Skipping MCIR generation; see above.\n");
 			return 0;
 		}
@@ -314,9 +316,9 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 				};
 			}else{
 				pix[x] = (png_color){
-					CLIP(crow[y][x + skip + offset].r, 0, 255),
-					CLIP(crow[y][x + skip + offset].g, 0, 255),
-					CLIP(crow[y][x + skip + offset].b, 0, 255)
+					crow[y][x + skip + offset].r,
+					crow[y][x + skip + offset].g,
+					crow[y][x + skip + offset].b
 				};
 			}
 		}

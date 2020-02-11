@@ -148,7 +148,7 @@ static int processAudio(char *filename, options_t *opts){
 
 	if(strcmp(extension, "png") == 0){
 		// Read PNG into image buffer
-		printf("Reading %s", filename);
+		printf("Reading %s\n", filename);
 		if(readRawImage(filename, img.prow, &img.nrow) == 0){
 			fprintf(stderr, "Skipping %s; see above.\n", img.name);
 			return 0;
@@ -180,7 +180,7 @@ static int processAudio(char *filename, options_t *opts){
 
 	if(opts->realtime) closeWriter();
 
-	printf("\nTotal rows: %d\n", img.nrow);
+	printf("Total rows: %d\n", img.nrow);
 
 	// Fallback for detecting the zenith
 	// TODO: encode zenith in raw images
@@ -215,7 +215,7 @@ static int processAudio(char *filename, options_t *opts){
 
 	// MCIR
 	if (CONTAINS(opts->type, 'm'))
-		ImageOut(opts, &img, 0, IMG_WIDTH, "MCIR", "m", NULL);
+		ImageOut(opts, &img, CHA_OFFSET, CH_WIDTH, "MCIR", "m", NULL);
 
 	// Linear equalise
 	if(CONTAINS(opts->effects, 'l')){
