@@ -61,7 +61,7 @@ static SNDFILE *audioFile;
 // Number of channels in audio file
 int channels = 1;
 
-// Function predeclarations
+// Function declarations
 static int initsnd(char *filename);
 int getsample(float *sample, int nb);
 static int processAudio(char *filename, options_t *opts);
@@ -76,11 +76,11 @@ int main(int argc, char **argv) {
 		usage();
 	}
 
-	options_t opts = { "r", "", 19, "", ".", 0 };
+	options_t opts = { "r", "", 19, "", ".", 0, "" };
 
 	// Parse arguments
 	int opt;
-	while ((opt = getopt(argc, argv, "m:d:i:s:e:r")) != EOF) {
+	while ((opt = getopt(argc, argv, "o:m:d:i:s:e:r")) != EOF) {
 		switch (opt) {
 			case 'd':
 				opts.path = optarg;
@@ -103,6 +103,9 @@ int main(int argc, char **argv) {
 				break;
 			case 'r':
 				opts.realtime = 1;
+				break;
+			case 'o':
+				opts.filename = optarg;
 				break;
 			default:
 				usage();
@@ -139,14 +142,15 @@ static int processAudio(char *filename, options_t *opts){
 	strcpy(path, dirname(path));
 	sscanf(basename(filename), "%[^.].%s", img.name, extension);
 
-	// Set output filename to current time when in realtime mode
 	if(opts->realtime){
+		// Set output filename to current time when in realtime mode
 		time_t t;
 		time(&t);
 		strncpy(img.name, ctime(&t), 24);
-	}
 
-	if(opts->realtime) initWriter(opts, &img, IMG_WIDTH, MAX_HEIGHT, "Unprocessed realtime image", "r");
+		// Init a row writer
+		initWriter(opts, &img, IMG_WIDTH, MAX_HEIGHT, "Unprocessed realtime image", "r");
+	}		
 
 	if(strcmp(extension, "png") == 0){
 		// Read PNG into image buffer
@@ -185,7 +189,7 @@ static int processAudio(char *filename, options_t *opts){
 	printf("Total rows: %d\n", img.nrow);
 
 	// Fallback for detecting the zenith
-	// TODO: encode zenith in raw images
+	// TODO: encode metadata in raw images
 	if(opts->map != NULL && opts->map[0] != '\0' && zenith == 0){
 		fprintf(stderr, "Guessing zenith in image, map will most likely be misaligned.\n");
 		zenith = img.nrow / 2;
@@ -258,7 +262,7 @@ static int processAudio(char *filename, options_t *opts){
 		ImageOut(opts, &img, CHB_OFFSET, CH_WIDTH, desc, ch.id[img.chB], NULL);
 	}
 
-	// Distribution image
+	// Value distribution image
 	if (CONTAINS(opts->type, 'd'))
 		distrib(opts, &img, "d");
 
@@ -326,10 +330,11 @@ static void usage(void) {
 	"	 c: False color\n"
 	"	 t: Temperature\n"
 	"	 m: MCIR\n"
-	" -d <dir>		 Image destination directory.\n"
-	" -s [15-19]	   Satellite number\n"
-	" -m <file>		Map file\n"
-	" -r			   Realtime decode\n"
+	" -d <dir>         Image destination directory.\n"
+	" -o <name>        Output filename\n"
+	" -s [15-19]       Satellite number\n"
+	" -m <file>        Map file\n"
+	" -r               Realtime decode\n"
 	"\nRefer to the README for more infomation\n");
 
 	exit(EINVAL);

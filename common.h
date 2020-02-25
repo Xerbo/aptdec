@@ -42,4 +42,5 @@ typedef struct {
 	char *map; // Path to a map file
 	char *path; // Output directory
 	int   realtime; // Realtime decoding
+	char *filename; // Output filename
 } options_t;

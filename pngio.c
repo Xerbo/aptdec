@@ -193,7 +193,11 @@ png_text meta[] = {
 
 int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, char *chid, char *palette){
 	char outName[384];
-	sprintf(outName, "%s/%s-%s.png", opts->path, img->name, chid);
+	if(opts->filename == NULL || opts->filename[0] == '\0'){
+		sprintf(outName, "%s/%s-%s.png", opts->path, img->name, chid);
+	}else{
+		sprintf(outName, "%s/%s", opts->path, opts -> filename);
+	}
 
 	meta[1].text = desc;
 	meta[1].text_length = sizeof(desc);
