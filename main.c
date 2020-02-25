@@ -58,6 +58,8 @@ extern char TempPalette[256*3];
 int zenith = 0;
 // Audio file
 static SNDFILE *audioFile;
+// Number of channels in audio file
+int channels = 1;
 
 // Function predeclarations
 static int initsnd(char *filename);
@@ -286,18 +288,24 @@ static int initsnd(char *filename) {
 	}
 	printf("Input sample rate: %d\n", infwav.samplerate);
 
-	// TODO: accept stereo audio
-	if (infwav.channels != 1) {
-		fprintf(stderr, "Too many channels in input file: %d\n", infwav.channels);
-		return 0;
-	}
+	channels = infwav.channels;
 
 	return 1;
 }
 
 // Read samples from the wave file
 int getsample(float *sample, int nb) {
-	return sf_read_float(audioFile, sample, nb);
+	if(channels == 1){
+		return sf_read_float(audioFile, sample, nb);
+	}else{
+		/* Multi channel audio is encoded such as:
+		 *  Ch1,Ch2,Ch1,Ch2,Ch1,Ch2
+		 */
+		float buf[nb * channels]; // Something like BLKIN*2 could also be used
+		int samples = sf_read_float(audioFile, buf, nb * channels);
+		for(int i = 0; i < nb; i++) sample[i] = buf[i * channels];
+		return samples / channels;
+	}
 }
 
 static void usage(void) {
