@@ -33,6 +33,10 @@ extern rgb_t RGBcomposite(rgb_t top, float top_a, rgb_t bottom, float bottom_a);
 
 int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 	FILE *fp = fopen(filename, "rb");
+	if(!fp) {
+		fprintf(stderr, "Cannot open %s\n", filename);
+		return 0;
+	}
 
 	// Create reader
 	png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
@@ -133,6 +137,10 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 
 int readRawImage(char *filename, float **prow, int *nrow) {
 	FILE *fp = fopen(filename, "r");
+	if(!fp) {
+		fprintf(stderr, "Cannot open %s\n", filename);
+		return 0;
+	}
 
 	// Create reader
 	png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
@@ -205,7 +213,7 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	FILE *pngfile;
 
 	// Reduce the width of the image to componsate for the missing telemetry
-	int fc = strcmp(desc, "False Color") == 0;
+	int fc = (chid[0] == 'c');
 	int greyscale = 0;
 	int skiptele = 0;
 	if(opts->effects != NULL && CONTAINS(opts->effects, 't')){
@@ -227,7 +235,7 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 		return 0;
 	}
 
-	if(palette == NULL && !CONTAINS(opts->effects, 'p') && !fc && opts->map[0] == '\0' && strcmp(chid, "MCIR") != 0){
+	if(palette == NULL && !CONTAINS(opts->effects, 'p') && !fc && opts->map[0] == '\0' && chid[0] != 'm'){
 		greyscale = 1;
 
 		// Greyscale image
@@ -281,11 +289,11 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 	// Map stuff
 	if(opts->map != NULL && opts->map[0] != '\0'){
-		if(mapOverlay(opts->map, crow, img->nrow, zenith, strcmp(desc, "MCIR") == 0) == 0){
-			fprintf(stderr, "Skipping MCIR generation; see above.\n");
+		if(mapOverlay(opts->map, crow, img->nrow, zenith, (chid[0] == 'm')) == 0){
+			fprintf(stderr, "Skipping MCIR generation.\n");
 			return 0;
 		}
-	}else if(strcmp(chid, "MCIR") == 0){
+	}else if(chid[0] == 'm'){
 		fprintf(stderr, "Skipping MCIR generation; no map provided.\n");
 		return 0;
 	}

@@ -210,12 +210,14 @@ int getpixelv(float *pvbuff, int count) {
 
 // Get an entire row of pixels, aligned with sync markers
 // FIXME: skips noisy lines with no findable sync marker
-int getpixelrow(float *pixelv, int nrow, int *zenith) {
+int getpixelrow(float *pixelv, int nrow, int *zenith, int reset) {
 	static float pixels[PixelLine + SyncFilterLen];
 	static int npv;
 	static int synced = 0;
 	static double max = 0.0;
 	static double minDoppler = 100;
+
+	if(reset) synced = 0;
 
 	double corr, ecorr, lcorr;
 	int res;

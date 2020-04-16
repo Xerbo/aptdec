@@ -32,7 +32,7 @@
 
 // DSP
 extern int init_dsp(double F);
-extern int getpixelrow(float *pixelv, int nrow, int *zenith);
+extern int getpixelrow(float *pixelv, int nrow, int *zenith, int reset);
 
 // I/O
 extern int readRawImage(char *filename, float **prow, int *nrow);
@@ -156,7 +156,7 @@ static int processAudio(char *filename, options_t *opts){
 		// Read PNG into image buffer
 		printf("Reading %s\n", filename);
 		if(readRawImage(filename, img.prow, &img.nrow) == 0){
-			fprintf(stderr, "Skipping %s; see above.\n", img.name);
+			fprintf(stderr, "Skipping %s\n", img.name);
 			return 0;
 		}
 	}else{
@@ -171,7 +171,7 @@ static int processAudio(char *filename, options_t *opts){
 			img.prow[img.nrow] = (float *) malloc(sizeof(float) * 2150);
 
 			// Write into memory and break the loop when there are no more samples to read
-			if (getpixelrow(img.prow[img.nrow], img.nrow, &zenith) == 0)
+			if (getpixelrow(img.prow[img.nrow], img.nrow, &zenith, (img.nrow == 0)) == 0)
 				break;
 
 			if(opts->realtime) pushRow(img.prow[img.nrow], IMG_WIDTH);
