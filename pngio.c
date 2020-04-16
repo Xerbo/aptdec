@@ -388,6 +388,9 @@ int initWriter(options_t *opts, image_t *img, int width, int height, char *desc,
 	png_init_io(rt_png_ptr, rt_pngfile);
 	png_write_info(rt_png_ptr, rt_info_ptr);
 
+	// Turn off compression
+	png_set_compression_level(rt_png_ptr, 0);
+
 	return 1;
 }
 
