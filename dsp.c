@@ -209,7 +209,7 @@ int getpixelv(float *pvbuff, int count) {
 }
 
 // Get an entire row of pixels, aligned with sync markers
-// FIXME: skips noisy lines with no findable sync marker
+// FIXME: loses sync easily
 int getpixelrow(float *pixelv, int nrow, int *zenith, int reset) {
 	static float pixels[PixelLine + SyncFilterLen];
 	static int npv;

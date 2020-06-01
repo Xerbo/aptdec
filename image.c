@@ -164,7 +164,7 @@ int calibrate(float **prow, int nrow, int offset, int width) {
 		}
 	}
 
-	telestart = (mtelestart - 64) % FRAME_LEN;
+	telestart = (mtelestart + 64) % FRAME_LEN;
 
 	// Make sure that theres at least one full frame in the image
 	if (nrow < telestart + FRAME_LEN) {

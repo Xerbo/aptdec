@@ -86,7 +86,7 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 	for(int y = 0; y < nrow; y++) {
 		for(int x = 49; x < width - 82; x++){
 			// Maps are 16 bit / channel
-			png_bytep px = &mapRows[CLIP(y + mapOffset, 0, height)][x * 6];
+			png_bytep px = &mapRows[CLIP(y + mapOffset, 0, height-1)][x * 6];
 			rgb_t map = {
 				(px[0] << 8) | px[1],
 				(px[2] << 8) | px[3],
