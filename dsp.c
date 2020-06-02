@@ -248,7 +248,7 @@ int getpixelrow(float *pixelv, int nrow, int *zenith, int reset) {
 
 	// The point in which the pixel offset is recalculated
 	if (corr < 0.75 * max) {
-		//synced = 0;
+		synced = 0;
 		FreqLine = 1.0;
 	}
 	max = corr;

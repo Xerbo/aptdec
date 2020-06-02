@@ -34,6 +34,7 @@ typedef struct {
 	int nrow; // Number of rows
 	int chA, chB; // ID of each channel
 	char name[256]; // Stripped filename
+	char *palette; // Filename of palette
 } image_t;
 typedef struct {
 	char *type; // Output image type
@@ -43,4 +44,5 @@ typedef struct {
 	char *path; // Output directory
 	int   realtime; // Realtime decoding
 	char *filename; // Output filename
+	char *palette; // Filename of palette
 } options_t;

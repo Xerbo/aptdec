@@ -15,7 +15,7 @@ For each audio file up to 6 images can be generated:
 2. Calibrated channel A image
 3. Calibrated channel B image
 4. Temperature compensated IR image
-5. False color image
+5. Palleted image
 6. MCIR (Map Color InfraRed) image
 
 The input audio file must be mono with a sample rate in the range of 4160-62400 Hz, lower samples rates will process faster.
@@ -51,9 +51,9 @@ To uninstall
 ## Options
 
 ```
--i [r|a|b|c|t|m]
+-i [r|a|b|t|m|p]
 Output image type
-Raw (r), Channel A (a), Channel B (b), False Color (c), Temperature (t) or MCIR (m)
+Raw (r), Channel A (a), Channel B (b), Palleted (p), Temperature (t) or MCIR (m)
 Default: "ab"
 
 -d <dir>
@@ -88,18 +88,18 @@ Image names are `audiofile-x.png`, where `x` is:
 
  - `r` for raw images
  - Sensor ID (`1`, `2`, `3A`, `3B`, `4`, `5`) for channel A|B images
- - `c` for false color
+ - `p` for a paletted image
  - `t` for temperature calibrated images
  - `m` for MCIR images
 
 Currently there are 6 available effects:
 
  - `t` for crop telemetry, off by default, only has effects on raw images
- - `h` for histogram equalise, stretch the colors in the image to black and white
+ - `h` for histogram equalise
  - `d` for a median denoise filter
  - `p` for a precipitation overlay
  - `f` to flip the image (for southbound passes)
- - `l` to linearly equalise the image (recommended for falsecolor images)
+ - `l` to linearly equalise the image, stretch the colors in the image to black and white
 
 ## Examples
 
@@ -111,6 +111,10 @@ This will process all `.wav` files in the current directory, generate calibrated
 
 Decode `audio.wav` with denoise and histogram equalization and save it into the current directory.
 
+`aptdec -e d -p palettes/N19-June-High-Vegetation.png -i p audio.wav`
+
+Create a false color image from the `N19-June-High-Vegetation.pn` palette.
+
 ## Realtime decoding
 
 As of recently a realtime output was added allowing realtime decoding of images.
@@ -121,7 +125,7 @@ aptdec /tmp/aptaudio
 sox -t pulseaudio alsa_output.pci-0000_00_1b.0.analog-stereo.monitor -c 1 -t wav /tmp/aptaudio
 ```
 
-Perform a realtime decode with the audio being played out of `alsa_output.pci-0000_00_1b.0.analog`.
+Perform a realtime decode with the audio being played out of `alsa_output.pci-0000_00_1b.0.analog`. To stop the decode kill the `sox` process
 
 ## Further reading
 

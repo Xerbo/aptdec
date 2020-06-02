@@ -193,6 +193,67 @@ int readRawImage(char *filename, float **prow, int *nrow) {
 	return 1;
 }
 
+int readPalette(char *filename, rgb_t **crow) {
+	FILE *fp = fopen(filename, "r");
+	if(!fp) {
+		fprintf(stderr, "Cannot open %s\n", filename);
+		return 0;
+	}
+
+	// Create reader
+	png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if(!png) return 0;
+	png_infop info = png_create_info_struct(png);
+	if(!info) return 0;
+	png_init_io(png, fp);
+
+	// Read info from header
+	png_read_info(png, info);
+	int width = png_get_image_width(png, info);
+	int height = png_get_image_height(png, info);
+	png_byte color_type = png_get_color_type(png, info);
+	png_byte bit_depth  = png_get_bit_depth(png, info);
+
+	// Check the image
+	if(width != 256 && height != 256){
+		fprintf(stderr, "Palette must be 256x256.\n");
+		return 0;
+	}else if(bit_depth != 8){
+		fprintf(stderr, "Palette must be 8 bit color.\n");
+		return 0;
+	}else if(color_type != PNG_COLOR_TYPE_RGBA){
+		fprintf(stderr, "Palette must be RGB.\n");
+		return 0;
+	}
+
+	// Create row buffers
+	png_bytep *PNGrows = NULL;
+	PNGrows = (png_bytep *) malloc(sizeof(png_bytep) * height);
+	for(int y = 0; y < height; y++)
+		PNGrows[y] = (png_byte *) malloc(png_get_rowbytes(png, info));
+
+	// Read image
+	png_read_image(png, PNGrows);
+
+	// Tidy up
+	fclose(fp);
+	png_destroy_read_struct(&png, &info, NULL);
+
+	// Put into crow
+	for(int y = 0; y < height; y++) {
+		crow[y] = (rgb_t *) malloc(sizeof(rgb_t) * width);
+
+		for(int x = 0; x < width; x++)
+			crow[y][x] = (rgb_t){
+				PNGrows[y][x*4],
+				PNGrows[y][x*4 + 1], 
+				PNGrows[y][x*4 + 2]
+			};
+	}
+
+	return 1;
+}
+
 png_text meta[] = {
 	{PNG_TEXT_COMPRESSION_NONE, "Software", VERSION},
 	{PNG_TEXT_COMPRESSION_NONE, "Channel", "Unknown", 7},
@@ -216,6 +277,7 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	int fc = (chid[0] == 'c');
 	int greyscale = 0;
 	int skiptele = 0;
+	int imgpalette = (chid[0] == 'p');
 	if(opts->effects != NULL && CONTAINS(opts->effects, 't')){
 		width -= TOTAL_TELE;
 		skiptele = 1;
@@ -235,7 +297,7 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 		return 0;
 	}
 
-	if(palette == NULL && !CONTAINS(opts->effects, 'p') && !fc && opts->map[0] == '\0' && chid[0] != 'm'){
+	if(palette == NULL && !CONTAINS(opts->effects, 'p') && !fc && opts->map[0] == '\0' && chid[0] != 'm' && !imgpalette){
 		greyscale = 1;
 
 		// Greyscale image
@@ -300,6 +362,13 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 	printf("Writing %s", outName);
 
+	rgb_t *pal_row[256];
+	if(imgpalette){
+		if(!readPalette(img->palette, pal_row)){
+			return 0;
+		}
+	}
+
 	// Build image
 	for (int y = 0; y < img->nrow; y++) {
 		png_color pix[width]; // Color
@@ -325,6 +394,14 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 					CLIP(img->prow[y][x + CHA_OFFSET], 0, 255),
 					CLIP(img->prow[y][x + CHA_OFFSET], 0, 255),
 					CLIP(img->prow[y][x + CHB_OFFSET], 0, 255)
+				};
+			}else if(imgpalette){
+				int cha = img->prow[y][x + CHA_OFFSET];
+				int cbb = img->prow[y][x + CHB_OFFSET];
+				pix[x] = (png_color){
+					pal_row[cbb][cha].r,
+					pal_row[cbb][cha].g,
+					pal_row[cbb][cha].b
 				};
 			}else{
 				pix[x] = (png_color){

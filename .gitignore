@@ -43,6 +43,7 @@
 # Program specifics
 *.png
 !textlogo.png
+!palettes/*
 *.wav
 aptdec
 

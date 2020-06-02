@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
 
 	// Parse arguments
 	int opt;
-	while ((opt = getopt(argc, argv, "o:m:d:i:s:e:r")) != EOF) {
+	while ((opt = getopt(argc, argv, "o:m:d:i:s:e:rp:")) != EOF) {
 		switch (opt) {
 			case 'd':
 				opts.path = optarg;
@@ -106,6 +106,9 @@ int main(int argc, char **argv) {
 				break;
 			case 'o':
 				opts.filename = optarg;
+				break;
+			case 'p':
+				opts.palette = optarg;
 				break;
 			default:
 				usage();
@@ -235,19 +238,17 @@ static int processAudio(char *filename, options_t *opts){
 		histogramEqualise(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
 	}
 
-	// False color
-	if(CONTAINS(opts->type, 'c')){
-		if(img.chA == 2 && img.chB >= 4){
-			ImageOut(opts, &img, 0, CH_WIDTH, "False Color", "c", NULL);
-		}else{
-			fprintf(stderr, "Lacking channels required for false color computation\n");
-		}
-	}
-
 	// Raw image
 	if (CONTAINS(opts->type, 'r')) {
 		sprintf(desc, "%s (%s) & %s (%s)", ch.id[img.chA], ch.name[img.chA], ch.id[img.chB], ch.name[img.chB]);
 		ImageOut(opts, &img, 0, IMG_WIDTH, desc, "r", NULL);
+	}
+
+	// Palette image
+	if (CONTAINS(opts->type, 'p')) {
+		img.palette = opts->palette;
+		strcpy(desc, "Palette composite");
+		ImageOut(opts, &img, 0, 909, desc, "p", NULL);
 	}
 
 	// Channel A
@@ -317,24 +318,25 @@ static void usage(void) {
 	"Aptdec [options] audio files ...\n"
 	"Options:\n"
 	" -e [t|h|d|p|f|l] Effects\n"
-	"	 t: Crop telemetry\n"
-	"	 h: Histogram equalise\n"
-	"	 d: Denoise\n"
-	"	 p: Precipitation\n"
-	"	 f: Flip image\n"
-	"	 l: Linear equalise\n"
-	" -i [r|a|b|c|t|m] Output image\n"
-	"	 r: Raw\n"
-	"	 a: Channel A\n"
-	"	 b: Channel B\n"
-	"	 c: False color\n"
-	"	 t: Temperature\n"
-	"	 m: MCIR\n"
+	"    t: Crop telemetry\n"
+	"    h: Histogram equalise\n"
+	"    d: Denoise\n"
+	"    p: Precipitation\n"
+	"    f: Flip image\n"
+	"    l: Linear equalise\n"
+	" -i [r|a|b|c|t|m|p] Output image\n"
+	"    r: Raw\n"
+	"    a: Channel A\n"
+	"    b: Channel B\n"
+	"    t: Temperature\n"
+	"    m: MCIR\n"
+	"    p: Paletted image\n"
 	" -d <dir>         Image destination directory.\n"
 	" -o <name>        Output filename\n"
 	" -s [15-19]       Satellite number\n"
 	" -m <file>        Map file\n"
 	" -r               Realtime decode\n"
+	" -p               Path to palette\n"
 	"\nRefer to the README for more infomation\n");
 
 	exit(EINVAL);

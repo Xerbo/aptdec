@@ -1,7 +1,7 @@
 CC = gcc
 BIN = /usr/bin
 INCLUDES = -I.
-CFLAGS = -O3 -DNDEBUG -Wall -Wextra $(INCLUDES)
+CFLAGS = -O3 -g -Wall -Wextra $(INCLUDES)
 OBJS = main.o image.o dsp.o filter.o reg.o pngio.o median.o color.o
 
 aptdec:	$(OBJS)
