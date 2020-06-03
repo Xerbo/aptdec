@@ -87,7 +87,8 @@ Generated images are outputted in PNG and are 24 bit RGB for all image types apa
 Image names are `audiofile-x.png`, where `x` is:
 
  - `r` for raw images
- - Sensor ID (`1`, `2`, `3A`, `3B`, `4`, `5`) for channel A|B images
+ - `a` channel A images
+ - `b` channel B images
  - `p` for a paletted image
  - `t` for temperature calibrated images
  - `m` for MCIR images

@@ -54,8 +54,6 @@ extern void flipImage(image_t *img, int width, int offset);
 extern char GviPalette[256*3];
 extern char TempPalette[256*3];
 
-// Row where the satellite is closest to the observer
-int zenith = 0;
 // Audio file
 static SNDFILE *audioFile;
 // Number of channels in audio file
@@ -174,7 +172,7 @@ static int processAudio(char *filename, options_t *opts){
 			img.prow[img.nrow] = (float *) malloc(sizeof(float) * 2150);
 
 			// Write into memory and break the loop when there are no more samples to read
-			if (getpixelrow(img.prow[img.nrow], img.nrow, &zenith, (img.nrow == 0)) == 0)
+			if (getpixelrow(img.prow[img.nrow], img.nrow, &img.zenith, (img.nrow == 0)) == 0)
 				break;
 
 			if(opts->realtime) pushRow(img.prow[img.nrow], IMG_WIDTH);
@@ -193,9 +191,9 @@ static int processAudio(char *filename, options_t *opts){
 
 	// Fallback for detecting the zenith
 	// TODO: encode metadata in raw images
-	if(opts->map != NULL && opts->map[0] != '\0' && zenith == 0){
+	if(opts->map != NULL && opts->map[0] != '\0' && img.zenith == 0){
 		fprintf(stderr, "Guessing zenith in image, map will most likely be misaligned.\n");
-		zenith = img.nrow / 2;
+		img.zenith = img.nrow / 2;
 	}
 
 	// Calibrate
@@ -205,67 +203,67 @@ static int processAudio(char *filename, options_t *opts){
 	printf("Channel B: %s (%s)\n", ch.id[img.chB], ch.name[img.chB]);
 
 	// Denoise
-	if(CONTAINS(opts->effects, 'd')){
+	if(CONTAINS(opts->effects, Denoise)){
 		denoise(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
 		denoise(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
 	}
 
 	// Flip, for southbound passes
-	if(CONTAINS(opts->effects, 'f')){
+	if(CONTAINS(opts->effects, Flip_Image)){
 		flipImage(&img, CH_WIDTH, CHA_OFFSET);
 		flipImage(&img, CH_WIDTH, CHB_OFFSET);
 	}
 
 	// Temperature
-	if (CONTAINS(opts->type, 't') && img.chB >= 4) {
+	if (CONTAINS(opts->type, Temperature) && img.chB >= 4) {
 		temperature(opts, &img, CHB_OFFSET, CH_WIDTH);
-		ImageOut(opts, &img, CHB_OFFSET, CH_WIDTH, "Temperature", "t", (char *)TempPalette);
+		ImageOut(opts, &img, CHB_OFFSET, CH_WIDTH, "Temperature", Temperature, (char *)TempPalette);
 	}
 
 	// MCIR
-	if (CONTAINS(opts->type, 'm'))
-		ImageOut(opts, &img, CHA_OFFSET, CH_WIDTH, "MCIR", "m", NULL);
+	if (CONTAINS(opts->type, MCIR))
+		ImageOut(opts, &img, CHA_OFFSET, CH_WIDTH, "MCIR", MCIR, NULL);
 
 	// Linear equalise
-	if(CONTAINS(opts->effects, 'l')){
+	if(CONTAINS(opts->effects, Linear_Equalise)){
 		linearEnhance(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
 		linearEnhance(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
 	}
 
 	// Histogram equalise
-	if(CONTAINS(opts->effects, 'h')){
+	if(CONTAINS(opts->effects, Histogram_Equalise)){
 		histogramEqualise(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
 		histogramEqualise(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
 	}
 
 	// Raw image
-	if (CONTAINS(opts->type, 'r')) {
+	if (CONTAINS(opts->type, Raw_Image)) {
 		sprintf(desc, "%s (%s) & %s (%s)", ch.id[img.chA], ch.name[img.chA], ch.id[img.chB], ch.name[img.chB]);
-		ImageOut(opts, &img, 0, IMG_WIDTH, desc, "r", NULL);
+		ImageOut(opts, &img, 0, IMG_WIDTH, desc, Raw_Image, NULL);
 	}
 
 	// Palette image
-	if (CONTAINS(opts->type, 'p')) {
+	if (CONTAINS(opts->type, Palleted)) {
 		img.palette = opts->palette;
 		strcpy(desc, "Palette composite");
-		ImageOut(opts, &img, 0, 909, desc, "p", NULL);
+		ImageOut(opts, &img, CHA_OFFSET, 909, desc, Palleted, NULL);
 	}
 
 	// Channel A
-	if (CONTAINS(opts->type, 'a')) {
+	if (CONTAINS(opts->type, Channel_A)) {
 		sprintf(desc, "%s (%s)", ch.id[img.chA], ch.name[img.chA]);
-		ImageOut(opts, &img, CHA_OFFSET, CH_WIDTH, desc, ch.id[img.chA], NULL);
+		ImageOut(opts, &img, CHA_OFFSET, CH_WIDTH, desc, Channel_A, NULL);
 	}
 
 	// Channel B
-	if (CONTAINS(opts->type, 'b')) {
+	if (CONTAINS(opts->type, Channel_B)) {
 		sprintf(desc, "%s (%s)", ch.id[img.chB], ch.name[img.chB]);
-		ImageOut(opts, &img, CHB_OFFSET, CH_WIDTH, desc, ch.id[img.chB], NULL);
+		ImageOut(opts, &img, CHB_OFFSET, CH_WIDTH, desc, Channel_B, NULL);
 	}
 
 	// Value distribution image
-	if (CONTAINS(opts->type, 'd'))
-		distrib(opts, &img, "d");
+	if (CONTAINS(opts->type, Distribution))
+		distrib(opts, &img, Distribution);
 
 	return 1;
 }

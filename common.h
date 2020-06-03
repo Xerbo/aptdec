@@ -32,6 +32,7 @@ typedef struct {
 typedef struct {
 	float *prow[MAX_HEIGHT]; // Row buffers
 	int nrow; // Number of rows
+	int zenith;
 	int chA, chB; // ID of each channel
 	char name[256]; // Stripped filename
 	char *palette; // Filename of palette
@@ -46,3 +47,21 @@ typedef struct {
 	char *filename; // Output filename
 	char *palette; // Filename of palette
 } options_t;
+
+enum imagetypes {
+	Raw_Image='r',
+	MCIR='m',
+	Palleted='p',
+	Temperature='t',
+	Channel_A='a',
+	Channel_B='b',
+	Distribution='d'
+};
+enum effects {
+	Crop_Telemetry='t',
+	Histogram_Equalise='h',
+	Denoise='d',
+	Precipitation_Overlay='p',
+	Flip_Image='f',
+	Linear_Equalise='l'
+};

@@ -26,7 +26,6 @@
 #include "common.h"
 #include "offsets.h"
 
-extern int zenith;
 extern char PrecipPalette[256*3];
 extern rgb_t applyPalette(char *palette, int val);
 extern rgb_t RGBcomposite(rgb_t top, float top_a, rgb_t bottom, float bottom_a);
@@ -193,7 +192,7 @@ int readRawImage(char *filename, float **prow, int *nrow) {
 	return 1;
 }
 
-int readPalette(char *filename, rgb_t **crow) {
+int readPalette(char *filename, rgb_t **pixels) {
 	FILE *fp = fopen(filename, "r");
 	if(!fp) {
 		fprintf(stderr, "Cannot open %s\n", filename);
@@ -222,7 +221,7 @@ int readPalette(char *filename, rgb_t **crow) {
 		fprintf(stderr, "Palette must be 8 bit color.\n");
 		return 0;
 	}else if(color_type != PNG_COLOR_TYPE_RGBA){
-		fprintf(stderr, "Palette must be RGB.\n");
+		fprintf(stderr, "Palette must be RGBA.\n");
 		return 0;
 	}
 
@@ -241,10 +240,10 @@ int readPalette(char *filename, rgb_t **crow) {
 
 	// Put into crow
 	for(int y = 0; y < height; y++) {
-		crow[y] = (rgb_t *) malloc(sizeof(rgb_t) * width);
+		pixels[y] = (rgb_t *) malloc(sizeof(rgb_t) * width);
 
 		for(int x = 0; x < width; x++)
-			crow[y][x] = (rgb_t){
+			pixels[y][x] = (rgb_t){
 				PNGrows[y][x*4],
 				PNGrows[y][x*4 + 1], 
 				PNGrows[y][x*4 + 2]
@@ -254,34 +253,91 @@ int readPalette(char *filename, rgb_t **crow) {
 	return 1;
 }
 
-png_text meta[] = {
-	{PNG_TEXT_COMPRESSION_NONE, "Software", VERSION},
-	{PNG_TEXT_COMPRESSION_NONE, "Channel", "Unknown", 7},
-	{PNG_TEXT_COMPRESSION_NONE, "Description", "NOAA satellite image", 20}
-};
+void prow2crow(float **prow, int nrow, char palette, rgb_t **crow){
+	for(int y = 0; y < nrow; y++){
+		crow[y] = (rgb_t *) malloc(sizeof(rgb_t) * IMG_WIDTH);
 
-int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, char *chid, char *palette){
-	char outName[384];
-	if(opts->filename == NULL || opts->filename[0] == '\0'){
-		sprintf(outName, "%s/%s-%s.png", opts->path, img->name, chid);
-	}else{
-		sprintf(outName, "%s/%s", opts->path, opts -> filename);
+		for(int x = 0; x < IMG_WIDTH; x++){
+			if(palette == NULL)
+				crow[y][x].r = crow[y][x].g = crow[y][x].b = prow[y][x];
+			else
+				crow[y][x] = applyPalette(palette, prow[y][x]);
+		}
+	}
+}
+
+int applyUserPalette(float **prow, int nrow, char *filename, rgb_t **crow){
+	rgb_t *pal_row[256];
+	if(!readPalette(filename, pal_row)){
+		fprintf(stderr, "Could not read palette");
+		return 0;
 	}
 
-	meta[1].text = desc;
-	meta[1].text_length = sizeof(desc);
+	for(int y = 0; y < nrow; y++){
+		for(int x = 0; x < CH_WIDTH; x++){
+			int cha = prow[y][x + CHA_OFFSET];
+			int cbb = prow[y][x + CHB_OFFSET];
+			crow[y][x + CHA_OFFSET] = pal_row[cbb][cha];
+		}
+	}
+	
+	return 1;
+}
+
+int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, char chid, char *palette){
+	char outName[512];
+	if(opts->filename == NULL || opts->filename[0] == '\0'){
+		sprintf(outName, "%s/%s-%c.png", opts->path, img->name, chid);
+	}else{
+		sprintf(outName, "%s/%s", opts->path, opts->filename);
+	}
+
+	png_text meta[] = {
+		{PNG_TEXT_COMPRESSION_NONE, "Software", VERSION},
+		{PNG_TEXT_COMPRESSION_NONE, "Channel", desc, sizeof(desc)},
+		{PNG_TEXT_COMPRESSION_NONE, "Description", "NOAA satellite image", 20}
+	};
+
+	// Parse image type
+	int greyscale = 1;
+	switch (chid){
+		case Palleted:
+			greyscale = 0;
+			break;
+		case Temperature:
+			greyscale = 0;
+			break;
+		case MCIR:
+			greyscale = 0;
+			break;
+		case Raw_Image: break;
+		case Channel_A: break;
+		case Channel_B: break;
+	}
+
+	// Parse effects
+	int crop_telemetry = 0;
+	for(int i = 0; i < strlen(opts->effects); i++){
+		switch (opts->effects[i]) {
+			case Crop_Telemetry:
+				width -= TOTAL_TELE;
+				offset += SYNC_WIDTH + SPC_WIDTH;
+				crop_telemetry = 1;
+				break;
+			case Precipitation_Overlay:
+				greyscale = 0;
+				break;
+			case Flip_Image: break;
+			case Denoise: break;
+			case Histogram_Equalise: break;
+			case Linear_Equalise: break;
+			default:
+				fprintf(stderr, "NOTICE: Unrecognised effect, \"%c\"\n", opts->effects[i]);
+				break;
+		}
+	}
 
 	FILE *pngfile;
-
-	// Reduce the width of the image to componsate for the missing telemetry
-	int fc = (chid[0] == 'c');
-	int greyscale = 0;
-	int skiptele = 0;
-	int imgpalette = (chid[0] == 'p');
-	if(opts->effects != NULL && CONTAINS(opts->effects, 't')){
-		width -= TOTAL_TELE;
-		skiptele = 1;
-	}
 
 	// Create writer
 	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
@@ -297,9 +353,7 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 		return 0;
 	}
 
-	if(palette == NULL && !CONTAINS(opts->effects, 'p') && !fc && opts->map[0] == '\0' && chid[0] != 'm' && !imgpalette){
-		greyscale = 1;
-
+	if(greyscale){
 		// Greyscale image
 		png_set_IHDR(png_ptr, info_ptr, width, img->nrow,
 					 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE,
@@ -323,51 +377,38 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	png_init_io(png_ptr, pngfile);
 	png_write_info(png_ptr, info_ptr);
 
-	// Move prow into crow, crow ~ color rows
+	// Move prow into crow, crow ~ color rows, if required
 	rgb_t *crow[img->nrow];
-	if(!greyscale && !fc){
-		for(int y = 0; y < img->nrow; y++){
-			crow[y] = (rgb_t *) malloc(sizeof(rgb_t) * IMG_WIDTH);
+	if(!greyscale)
+		prow2crow(img->prow, img->nrow, palette, crow);
 
-			for(int x = 0; x < IMG_WIDTH; x++){
-				if(palette == NULL)
-					crow[y][x].r = crow[y][x].g = crow[y][x].b = img->prow[y][x];
-				else
-					crow[y][x] = applyPalette(palette, img->prow[y][x]);
-			}
-		}
-	}
+	// Apply a user provided color palette
+	if(CONTAINS(opts->type, Palleted))
+		applyUserPalette(img->prow, img->nrow, opts->palette, crow);
 
 	// Precipitation
-	// TODO: use temperature calibration
-	if(CONTAINS(opts->effects, 'p')){
+	// TODO: use temperature calibration, and a better palette
+	if(CONTAINS(opts->effects, Precipitation_Overlay)){
 		for(int y = 0; y < img->nrow; y++){
 			for(int x = 0; x < CH_WIDTH; x++){
 				if(img->prow[y][x + CHB_OFFSET] > 191)
-					crow[y][x + CHB_OFFSET] = applyPalette(PrecipPalette, img->prow[y][x + CHB_OFFSET]);
+					crow[y][x + CHB_OFFSET] = crow[y][x + CHA_OFFSET] = applyPalette(PrecipPalette, img->prow[y][x + CHB_OFFSET]);
 			}
 		}
 	}
 
 	// Map stuff
 	if(opts->map != NULL && opts->map[0] != '\0'){
-		if(mapOverlay(opts->map, crow, img->nrow, zenith, (chid[0] == 'm')) == 0){
+		if(!mapOverlay(opts->map, crow, img->nrow, img->zenith, CONTAINS(opts->type, MCIR))){
 			fprintf(stderr, "Skipping MCIR generation.\n");
 			return 0;
 		}
-	}else if(chid[0] == 'm'){
+	}else if(CONTAINS(opts->type, MCIR)){
 		fprintf(stderr, "Skipping MCIR generation; no map provided.\n");
 		return 0;
 	}
 
 	printf("Writing %s", outName);
-
-	rgb_t *pal_row[256];
-	if(imgpalette){
-		if(!readPalette(img->palette, pal_row)){
-			return 0;
-		}
-	}
 
 	// Build image
 	for (int y = 0; y < img->nrow; y++) {
@@ -376,33 +417,12 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 		int skip = 0;
 		for (int x = 0; x < width; x++) {
-			if(skiptele){
-				switch (x) {
-					case 0:
-						skip += SYNC_WIDTH + SPC_WIDTH;
-						break;
-					case CH_WIDTH:
-						skip += TELE_WIDTH + SYNC_WIDTH + SPC_WIDTH;
-						break;
-				}
+			if(crop_telemetry && x == CH_WIDTH){
+				skip += TELE_WIDTH + SYNC_WIDTH + SPC_WIDTH;
 			}
 
 			if(greyscale){
 				mpix[x] = img->prow[y][x + skip + offset];
-			}else if(fc){
-				pix[x] = (png_color){
-					CLIP(img->prow[y][x + CHA_OFFSET], 0, 255),
-					CLIP(img->prow[y][x + CHA_OFFSET], 0, 255),
-					CLIP(img->prow[y][x + CHB_OFFSET], 0, 255)
-				};
-			}else if(imgpalette){
-				int cha = img->prow[y][x + CHA_OFFSET];
-				int cbb = img->prow[y][x + CHB_OFFSET];
-				pix[x] = (png_color){
-					pal_row[cbb][cha].r,
-					pal_row[cbb][cha].g,
-					pal_row[cbb][cha].b
-				};
 			}else{
 				pix[x] = (png_color){
 					crow[y][x + skip + offset].r,
@@ -437,8 +457,11 @@ int initWriter(options_t *opts, image_t *img, int width, int height, char *desc,
 	char outName[384];
 	sprintf(outName, "%s/%s-%s.png", opts->path, img->name, chid);
 
-	meta[1].text = desc;
-	meta[1].text_length = sizeof(desc);
+	png_text meta[] = {
+		{PNG_TEXT_COMPRESSION_NONE, "Software", VERSION},
+		{PNG_TEXT_COMPRESSION_NONE, "Channel", desc, sizeof(desc)},
+		{PNG_TEXT_COMPRESSION_NONE, "Description", "NOAA satellite image", 20}
+	};
 
 	// Create writer
 	rt_png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
