@@ -35,7 +35,7 @@ extern void polyreg(const int m, const int n, const double x[], const double y[]
 
 // Compute regression
 static void rgcomp(double x[16], rgparam_t * rgpr) {
-	//				  { 0.106, 0.215, 0.324, 0.433, 0.542,  0.652, 0.78,   0.87,  0.0 }
+	//				    { 0.106, 0.215, 0.324, 0.433, 0.542,  0.652, 0.78,   0.87,  0.0 }
 	const double y[9] = { 31.07, 63.02, 94.96, 126.9, 158.86, 191.1, 228.62, 255.0, 0.0 };
 
 	polyreg(REGORDER, 9, x, y, rgpr->cf);

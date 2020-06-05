@@ -386,13 +386,12 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	if(CONTAINS(opts->type, Palleted))
 		applyUserPalette(img->prow, img->nrow, opts->palette, crow);
 
-	// Precipitation
-	// TODO: use temperature calibration, and a better palette
+	// Precipitation overlay
 	if(CONTAINS(opts->effects, Precipitation_Overlay)){
 		for(int y = 0; y < img->nrow; y++){
 			for(int x = 0; x < CH_WIDTH; x++){
-				if(img->prow[y][x + CHB_OFFSET] > 191)
-					crow[y][x + CHB_OFFSET] = crow[y][x + CHA_OFFSET] = applyPalette(PrecipPalette, img->prow[y][x + CHB_OFFSET]);
+				if(img->prow[y][x + CHB_OFFSET] >= 198)
+					crow[y][x + CHB_OFFSET] = crow[y][x + CHA_OFFSET] = applyPalette(PrecipPalette, img->prow[y][x + CHB_OFFSET]-198);
 			}
 		}
 	}
