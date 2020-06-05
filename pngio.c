@@ -220,8 +220,8 @@ int readPalette(char *filename, rgb_t **pixels) {
 	}else if(bit_depth != 8){
 		fprintf(stderr, "Palette must be 8 bit color.\n");
 		return 0;
-	}else if(color_type != PNG_COLOR_TYPE_RGBA){
-		fprintf(stderr, "Palette must be RGBA.\n");
+	}else if(color_type != PNG_COLOR_TYPE_RGB){
+		fprintf(stderr, "Palette must be RGB.\n");
 		return 0;
 	}
 
@@ -244,9 +244,9 @@ int readPalette(char *filename, rgb_t **pixels) {
 
 		for(int x = 0; x < width; x++)
 			pixels[y][x] = (rgb_t){
-				PNGrows[y][x*4],
-				PNGrows[y][x*4 + 1], 
-				PNGrows[y][x*4 + 2]
+				PNGrows[y][x*3],
+				PNGrows[y][x*3 + 1], 
+				PNGrows[y][x*3 + 2]
 			};
 	}
 
