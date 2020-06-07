@@ -100,12 +100,12 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 			if(MCIR){
 				if(map.b < 128 && map.g > 128){
 					// Land
-					float green = CLIP((map.g-256)/32.0, 0, 1);
-					float blue = 1 - CLIP((map.b-32)/64.0, 0, 1);
-					crow[y][cha] = (rgb_t){blue*127, 30+green*80, 40};
+					float green = CLIP(map.g/300, 0, 1);
+					float blue = 0.15 - CLIP(map.b/960.0, 0, 1);
+					crow[y][cha] = (rgb_t){blue*1000, green*98, blue*500.0};
 				}else{
 					// Sea
-					crow[y][cha] = (rgb_t){12, 30, 85};
+					crow[y][cha] = (rgb_t){9, 17, 74};
 				}
 			}
 
@@ -125,7 +125,7 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 
 			// Cloud overlay on channel A
 			if(MCIR){
-				float cloud = CLIP((crow[y][chb].r - 115) / 107, 0, 1);
+				float cloud = CLIP((crow[y][chb].r - 105) / 150, 0, 1);
 				crow[y][cha] = RGBcomposite((rgb_t){240, 250, 255}, cloud, crow[y][cha], 1);
 			}
 		}
@@ -409,6 +409,11 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 	printf("Writing %s", outName);
 
+	
+	// Float power macro (for gamma adjustment)
+	#define POWF(a, b) (b == 1.0 ? a : exp(b * log(a)))
+	float a = POWF(255, opts->gamma)/255;
+
 	// Build image
 	for (int y = 0; y < img->nrow; y++) {
 		png_color pix[width]; // Color
@@ -416,17 +421,16 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 		int skip = 0;
 		for (int x = 0; x < width; x++) {
-			if(crop_telemetry && x == CH_WIDTH){
+			if(crop_telemetry && x == CH_WIDTH)
 				skip += TELE_WIDTH + SYNC_WIDTH + SPC_WIDTH;
-			}
 
 			if(greyscale){
-				mpix[x] = img->prow[y][x + skip + offset];
+				mpix[x] = POWF(img->prow[y][x + skip + offset], opts->gamma)/a;
 			}else{
 				pix[x] = (png_color){
-					crow[y][x + skip + offset].r,
-					crow[y][x + skip + offset].g,
-					crow[y][x + skip + offset].b
+					POWF(crow[y][x + skip + offset].r, opts->gamma)/a,
+					POWF(crow[y][x + skip + offset].g, opts->gamma)/a,
+					POWF(crow[y][x + skip + offset].b, opts->gamma)/a
 				};
 			}
 		}

@@ -241,7 +241,7 @@ int calibrate(float **prow, int nrow, int offset, int width) {
 
 }
 
-void distrib(options_t *opts, image_t *img, char *chid) {
+void distrib(options_t *opts, image_t *img, char chid) {
 	int max = 0;
 
 	// Options
@@ -276,7 +276,7 @@ void distrib(options_t *opts, image_t *img, char *chid) {
 		for(int y = 0; y < 256; y++)
 			distrib.prow[y][x] = distrib.prow[y][x] / max * 255.0;
 
-	extern int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, char *chid, char *palette);
+	extern int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, char chid, char *palette);
 	ImageOut(&options, &distrib, 0, 256, "Distribution", chid, NULL);
 }
 

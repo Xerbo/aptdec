@@ -46,6 +46,7 @@ typedef struct {
 	int   realtime; // Realtime decoding
 	char *filename; // Output filename
 	char *palette; // Filename of palette
+	float gamma; // Gamma
 } options_t;
 
 enum imagetypes {

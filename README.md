@@ -70,6 +70,7 @@ Apply a falsecolor palette
 -m <path>        Path to WXtoImg map
 -p <path>        Path to palette
 -r               Realtime decode
+-g               Gamma adjustment (1.0 = off)
 ```
 
 ### Image types

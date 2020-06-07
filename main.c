@@ -36,7 +36,7 @@ extern int getpixelrow(float *pixelv, int nrow, int *zenith, int reset);
 
 // I/O
 extern int readRawImage(char *filename, float **prow, int *nrow);
-extern int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, char *chid, char *palette);
+extern int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, char chid, char *palette);
 extern int initWriter(options_t *opts, image_t *img, int width, int height, char *desc, char *chid);
 extern void pushRow(float *row, int width);
 extern void closeWriter();
@@ -47,7 +47,7 @@ extern void histogramEqualise(float **prow, int nrow, int offset, int width);
 extern void linearEnhance(float **prow, int nrow, int offset, int width);
 extern void temperature(options_t *opts, image_t *img, int offset, int width);
 extern void denoise(float **prow, int nrow, int offset, int width);
-extern void distrib(options_t *opts, image_t *img, char *chid);
+extern void distrib(options_t *opts, image_t *img, char chid);
 extern void flipImage(image_t *img, int width, int offset);
 
 // Palettes
@@ -74,11 +74,11 @@ int main(int argc, char **argv) {
 		usage();
 	}
 
-	options_t opts = { "r", "", 19, "", ".", 0, "" };
+	options_t opts = { "r", "", 19, "", ".", 0, "", "", 1.0 };
 
 	// Parse arguments
 	int opt;
-	while ((opt = getopt(argc, argv, "o:m:d:i:s:e:rp:")) != EOF) {
+	while ((opt = getopt(argc, argv, "o:m:d:i:s:e:p:g:r")) != EOF) {
 		switch (opt) {
 			case 'd':
 				opts.path = optarg;
@@ -107,6 +107,9 @@ int main(int argc, char **argv) {
 				break;
 			case 'p':
 				opts.palette = optarg;
+				break;
+			case 'g':
+				opts.gamma = atof(optarg);
 				break;
 			default:
 				usage();
@@ -296,7 +299,7 @@ static int initsnd(char *filename) {
 	return 1;
 }
 
-// Read samples from the wave file
+// Read samples from the audio file
 int getsample(float *sample, int nb) {
 	if(channels == 1){
 		return sf_read_float(audioFile, sample, nb);
@@ -335,6 +338,7 @@ static void usage(void) {
 	" -m <path>        Map file\n"
     " -p <path>        Path to palette\n"
 	" -r               Realtime decode\n"
+	" -g               Gamma adjustment (1.0 = off)\n"
 	"\nRefer to the README for more infomation\n");
 
 	exit(EINVAL);
