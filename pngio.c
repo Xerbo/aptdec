@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <math.h>
 
 #include "common.h"
 #include "offsets.h"
@@ -317,7 +318,7 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 	// Parse effects
 	int crop_telemetry = 0;
-	for(int i = 0; i < strlen(opts->effects); i++){
+	for(unsigned long int i = 0; i < strlen(opts->effects); i++){
 		switch (opts->effects[i]) {
 			case Crop_Telemetry:
 				width -= TOTAL_TELE;
