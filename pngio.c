@@ -254,12 +254,12 @@ int readPalette(char *filename, rgb_t **pixels) {
 	return 1;
 }
 
-void prow2crow(float **prow, int nrow, char palette, rgb_t **crow){
+void prow2crow(float **prow, int nrow, char *palette, rgb_t **crow){
 	for(int y = 0; y < nrow; y++){
 		crow[y] = (rgb_t *) malloc(sizeof(rgb_t) * IMG_WIDTH);
 
 		for(int x = 0; x < IMG_WIDTH; x++){
-			if(palette == NULL)
+			if(*palette == NULL)
 				crow[y][x].r = crow[y][x].g = crow[y][x].b = prow[y][x];
 			else
 				crow[y][x] = applyPalette(palette, prow[y][x]);
