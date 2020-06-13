@@ -293,6 +293,7 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 		sprintf(outName, "%s/%s", opts->path, opts->filename);
 	}
 
+    #pragma GCC diagnostic ignored "-Wunused-result"
 	png_text meta[] = {
 		{PNG_TEXT_COMPRESSION_NONE, "Software", VERSION},
 		{PNG_TEXT_COMPRESSION_NONE, "Channel", desc, sizeof(desc)},
@@ -384,12 +385,14 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 	// Move prow into crow, crow ~ color rows, if required
 	rgb_t *crow[img->nrow];
-    if(!greyscale)
+    if(!greyscale){
         prow2crow(img->prow, img->nrow, palette, crow);
+    }
 
 	// Apply a user provided color palette
-	if(CONTAINS(opts->type, Palleted))
+	if(CONTAINS(opts->type, Palleted)){
 		applyUserPalette(img->prow, img->nrow, opts->palette, crow);
+    }
 
 	// Precipitation overlay
 	if(CONTAINS(opts->effects, Precipitation_Overlay)){
