@@ -215,7 +215,7 @@ int getpixelrow(float *pixelv, int nrow, int *zenith, int reset) {
 	static int npv;
 	static int synced = 0;
 	static double max = 0.0;
-	static double minDoppler = 100;
+	static double minDoppler = 100, previous = 0;
 
 	if(reset) synced = 0;
 
@@ -241,10 +241,11 @@ int getpixelrow(float *pixelv, int nrow, int *zenith, int reset) {
 	FreqLine = 1.0+((ecorr-lcorr) / corr / PixelLine / 4.0);
 
 	// Find the point in which ecorr and lcorr intercept
-	if(fabs(lcorr - ecorr) < minDoppler && fabs(lcorr - ecorr) > 2){
+	if(fabs(lcorr - ecorr) < minDoppler && fabs(fabs(lcorr - ecorr) - previous) < 10){
 		minDoppler = fabs(lcorr - ecorr);
 		*zenith = nrow;
 	}
+	previous = fabs(lcorr - ecorr);
 
 	// The point in which the pixel offset is recalculated
 	if (corr < 0.75 * max) {

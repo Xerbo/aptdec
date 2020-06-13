@@ -259,7 +259,7 @@ void prow2crow(float **prow, int nrow, char *palette, rgb_t **crow){
 		crow[y] = (rgb_t *) malloc(sizeof(rgb_t) * IMG_WIDTH);
 
 		for(int x = 0; x < IMG_WIDTH; x++){
-			if(*palette == NULL)
+			if(palette == NULL)
 				crow[y][x].r = crow[y][x].g = crow[y][x].b = prow[y][x];
 			else
 				crow[y][x] = applyPalette(palette, prow[y][x]);
@@ -337,6 +337,10 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 				break;
 		}
 	}
+	
+	if(opts->map != NULL && opts->map[0] != '\0'){
+        greyscale = 0;
+    }
 
 	FILE *pngfile;
 
@@ -380,8 +384,8 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 	// Move prow into crow, crow ~ color rows, if required
 	rgb_t *crow[img->nrow];
-	if(!greyscale)
-		prow2crow(img->prow, img->nrow, palette, crow);
+    if(!greyscale)
+        prow2crow(img->prow, img->nrow, palette, crow);
 
 	// Apply a user provided color palette
 	if(CONTAINS(opts->type, Palleted))
