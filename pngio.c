@@ -270,7 +270,7 @@ void prow2crow(float **prow, int nrow, char *palette, rgb_t **crow){
 int applyUserPalette(float **prow, int nrow, char *filename, rgb_t **crow){
 	rgb_t *pal_row[256];
 	if(!readPalette(filename, pal_row)){
-		fprintf(stderr, "Could not read palette");
+		fprintf(stderr, "Could not read palette\n");
 		return 0;
 	}
 
@@ -387,9 +387,9 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	if(!greyscale){
 		prow2crow(img->prow, img->nrow, palette, crow);
 	}
-    
+
 	// Apply a user provided color palette
-	if(CONTAINS(opts->type, Palleted)){
+	if(chid == Palleted){
 		applyUserPalette(img->prow, img->nrow, opts->palette, crow);
 	}
 
