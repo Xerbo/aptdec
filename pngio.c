@@ -277,8 +277,8 @@ int applyUserPalette(float **prow, int nrow, char *filename, rgb_t **crow){
 	for(int y = 0; y < nrow; y++){
 		for(int x = 0; x < CH_WIDTH; x++){
 			int cha = prow[y][x + CHA_OFFSET];
-			int cbb = prow[y][x + CHB_OFFSET];
-			crow[y][x + CHA_OFFSET] = pal_row[cbb][cha];
+			int chb = prow[y][x + CHB_OFFSET];
+			crow[y][x + CHA_OFFSET] = pal_row[chb][cha];
 		}
 	}
 	
@@ -293,7 +293,6 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 		sprintf(outName, "%s/%s", opts->path, opts->filename);
 	}
 
-    #pragma GCC diagnostic ignored "-Wunused-result"
 	png_text meta[] = {
 		{PNG_TEXT_COMPRESSION_NONE, "Software", VERSION},
 		{PNG_TEXT_COMPRESSION_NONE, "Channel", desc, sizeof(desc)},
@@ -340,8 +339,8 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	}
 	
 	if(opts->map != NULL && opts->map[0] != '\0'){
-        greyscale = 0;
-    }
+		greyscale = 0;
+	}
 
 	FILE *pngfile;
 
@@ -384,15 +383,15 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	png_write_info(png_ptr, info_ptr);
 
 	// Move prow into crow, crow ~ color rows, if required
-	rgb_t *crow[img->nrow];
-    if(!greyscale){
-        prow2crow(img->prow, img->nrow, palette, crow);
-    }
-
+	rgb_t *crow[MAX_HEIGHT];
+	if(!greyscale){
+		prow2crow(img->prow, img->nrow, palette, crow);
+	}
+    
 	// Apply a user provided color palette
 	if(CONTAINS(opts->type, Palleted)){
 		applyUserPalette(img->prow, img->nrow, opts->palette, crow);
-    }
+	}
 
 	// Precipitation overlay
 	if(CONTAINS(opts->effects, Precipitation_Overlay)){
@@ -417,7 +416,6 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 	printf("Writing %s", outName);
 
-	
 	// Float power macro (for gamma adjustment)
 	#define POWF(a, b) (b == 1.0 ? a : exp(b * log(a)))
 	float a = POWF(255, opts->gamma)/255;
