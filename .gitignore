@@ -50,3 +50,6 @@ aptdec
 
 # VSCode
 .vscode
+
+# CMake
+build
