@@ -318,6 +318,54 @@ void flipImage(image_t *img, int width, int offset){
 	}
 }
 
+// Calculate crop to reomve noise from the start and end of an image
+void cropNoise(image_t *img){
+	#define NOISE_THRESH 150.0
+
+	// Average value of minute marker
+	float spc_rows[MAX_HEIGHT] = { 0.0 };
+	int startCrop = 0; int endCrop = img->nrow;
+	for(int y = 0; y < img->nrow; y++) {
+		for(int x = 0; x < SPC_WIDTH; x++) {
+			spc_rows[y] += img->prow[y][x + (CHB_OFFSET - SPC_WIDTH)];
+		}
+		spc_rows[y] /= SPC_WIDTH;
+
+		// Skip minute markings
+		if(spc_rows[y] < 10) {
+			spc_rows[y] = spc_rows[y-1];
+		}
+	}
+
+	// 3 row average
+	for(int y = 0; y < img->nrow; y++){
+		spc_rows[y] = (spc_rows[y+1] + spc_rows[y+2] + spc_rows[y+3])/3;
+		//img.prow[y][0] = spc_rows[y];
+	}
+
+	// Find ends
+	for(int y = 0; y < img->nrow-1; y++) {
+		if(spc_rows[y] > NOISE_THRESH){
+			endCrop = y;
+		}
+	}
+	for(int y = img->nrow; y > 0; y--) {
+		if(spc_rows[y] > NOISE_THRESH) {
+			startCrop = y;
+		}
+	}
+
+	//printf("Crop rows: %i -> %i\n", startCrop, endCrop);
+
+	// Remove the noisy rows at start
+	for(int y = 0; y < img->nrow-startCrop; y++) {
+		memmove(img->prow[y], img->prow[y+startCrop], sizeof(float)*2150);
+	}
+
+	// Ignore the noisy rows at the end
+	img->nrow = (endCrop - startCrop);
+}
+
 // --- Temperature Calibration --- //
 #include "satcal.h"
 

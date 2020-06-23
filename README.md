@@ -39,7 +39,7 @@ To manually set the output filename
 
 Decode all WAV files in the current directory and put them in `images`
 ```sh
-./aptdec -d images *.wav
+mkdir images && ./aptdec -d images *.wav
 ```
 
 Apply a denoise filter (see [Post-Processing Effects](#post-processing-effects) for a full list of post-processing effects)
@@ -90,6 +90,7 @@ Apply a falsecolor palette
  - `d`: Denoise
  - `p`: Precipitation overlay
  - `f`: Flip image (for southbound passes)
+ - `c`: Crop noise from ends of image
 
 ## Realtime decoding
 

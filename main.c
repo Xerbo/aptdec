@@ -49,6 +49,7 @@ extern void temperature(options_t *opts, image_t *img, int offset, int width);
 extern void denoise(float **prow, int nrow, int offset, int width);
 extern void distrib(options_t *opts, image_t *img, char chid);
 extern void flipImage(image_t *img, int width, int offset);
+extern void cropNoise(image_t *img);
 
 // Palettes
 extern char GviPalette[256*3];
@@ -144,7 +145,7 @@ static int processAudio(char *filename, options_t *opts){
 	char path[256], extension[32];
 	strcpy(path, filename);
 	strcpy(path, dirname(path));
-	sscanf(basename(filename), "%[^.].%s", img.name, extension);
+	sscanf(basename(filename), "%255[^.].%31s", img.name, extension);
 
 	if(opts->realtime){
 		// Set output filename to current time when in realtime mode
@@ -204,6 +205,11 @@ static int processAudio(char *filename, options_t *opts){
 	img.chB = calibrate(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
 	printf("Channel A: %s (%s)\n", ch.id[img.chA], ch.name[img.chA]);
 	printf("Channel B: %s (%s)\n", ch.id[img.chB], ch.name[img.chB]);
+
+	// Crop noise from start and end of image
+	if(CONTAINS(opts->effects, Crop_Noise)){
+		cropNoise(&img);
+	}
 
 	// Denoise
 	if(CONTAINS(opts->effects, Denoise)){
@@ -318,7 +324,7 @@ static void usage(void) {
 	fprintf(stderr,
 	"Aptdec [options] audio files ...\n"
 	"Options:\n"
-    " -i [r|a|b|t|m|p] Output image\n"
+	" -i [r|a|b|t|m|p] Output image\n"
 	"    r: Raw\n"
 	"    a: Channel A\n"
 	"    b: Channel B\n"
@@ -332,11 +338,12 @@ static void usage(void) {
 	"    p: Precipitation\n"
 	"    f: Flip image\n"
 	"    l: Linear equalise\n"
-    " -o <path>        Output filename\n"
+	"    c: Crop noise\n"
+	" -o <path>        Output filename\n"
 	" -d <path>        Image destination directory.\n"
 	" -s [15-19]       Satellite number\n"
 	" -m <path>        Map file\n"
-    " -p <path>        Path to palette\n"
+	" -p <path>        Path to palette\n"
 	" -r               Realtime decode\n"
 	" -g               Gamma adjustment (1.0 = off)\n"
 	"\nRefer to the README for more infomation\n");

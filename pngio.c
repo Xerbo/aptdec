@@ -350,12 +350,13 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 			case Denoise: break;
 			case Histogram_Equalise: break;
 			case Linear_Equalise: break;
+			case Crop_Noise: break;
 			default:
 				fprintf(stderr, "NOTICE: Unrecognised effect, \"%c\"\n", opts->effects[i]);
 				break;
 		}
 	}
-	
+
 	if(opts->map != NULL && opts->map[0] != '\0'){
 		greyscale = 0;
 	}

@@ -32,7 +32,7 @@ typedef struct {
 typedef struct {
 	float *prow[MAX_HEIGHT]; // Row buffers
 	int nrow; // Number of rows
-	int zenith;
+	int zenith; // Row in image where satellite reaches peak elevation
 	int chA, chB; // ID of each channel
 	char name[256]; // Stripped filename
 	char *palette; // Filename of palette
@@ -64,5 +64,6 @@ enum effects {
 	Denoise='d',
 	Precipitation_Overlay='p',
 	Flip_Image='f',
-	Linear_Equalise='l'
+	Linear_Equalise='l',
+	Crop_Noise='c'
 };
