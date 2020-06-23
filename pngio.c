@@ -40,9 +40,15 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 
 	// Create reader
 	png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	if(!png) return 0;
+	if(!png) {
+		fclose(fp);
+		return 0;
+	}
 	png_infop info = png_create_info_struct(png);
-	if(!info) return 0;
+	if(!info) {
+		fclose(fp);
+		return 0;
+	}
 	png_init_io(png, fp);
 
 	// Read info from header
@@ -144,9 +150,15 @@ int readRawImage(char *filename, float **prow, int *nrow) {
 
 	// Create reader
 	png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	if(!png) return 0;
+	if(!png) {
+		fclose(fp);
+		return 0;
+	}
 	png_infop info = png_create_info_struct(png);
-	if(!info) return 0;
+	if(!info) {
+		fclose(fp);
+		return 0;
+	}
 	png_init_io(png, fp);
 
 	// Read info from header
@@ -202,9 +214,15 @@ int readPalette(char *filename, rgb_t **pixels) {
 
 	// Create reader
 	png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	if(!png) return 0;
+	if(!png) {
+		fclose(fp);
+		return 0;
+	}
 	png_infop info = png_create_info_struct(png);
-	if(!info) return 0;
+	if(!info) {
+		fclose(fp);
+		return 0;
+	}
 	png_init_io(png, fp);
 
 	// Read info from header
