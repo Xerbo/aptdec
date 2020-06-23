@@ -90,16 +90,19 @@ void linearEnhance(float **prow, int nrow, int offset, int width){
 	// Find min/max points
 	int min = -1, max = -1;
 	for(int i = 5; i < 250; i++){
-		if(histogram[i]/width/(nrow/255.0) > 0.25){
+		if(histogram[i]/width/(nrow/255.0) > 0.1){
 			if(min == -1) min = i;
 			max = i;
 		}
 	}
 
 	// Stretch the brightness into the new range
-	for(int y = 0; y < nrow; y++)
-		for(int x = 0; x < width; x++)
+	for(int y = 0; y < nrow; y++){
+		for(int x = 0; x < width; x++){
 			prow[y][x+offset] = (prow[y][x+offset]-min) / (max-min) * 255.0;
+			prow[y][x+offset] = CLIP(prow[y][x+offset], 0.0, 255.0);
+		}
+	}
 }
 
 // Brightness calibrate, including telemetry
