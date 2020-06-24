@@ -294,8 +294,8 @@ int applyUserPalette(float **prow, int nrow, char *filename, rgb_t **crow){
 
 	for(int y = 0; y < nrow; y++){
 		for(int x = 0; x < CH_WIDTH; x++){
-			int cha = prow[y][x + CHA_OFFSET];
-			int chb = prow[y][x + CHB_OFFSET];
+			int cha = CLIP(prow[y][x + CHA_OFFSET], 0, 255);
+			int chb = CLIP(prow[y][x + CHB_OFFSET], 0, 255);
 			crow[y][x + CHA_OFFSET] = pal_row[chb][cha];
 		}
 	}

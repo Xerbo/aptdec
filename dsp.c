@@ -209,7 +209,6 @@ int getpixelv(float *pvbuff, int count) {
 }
 
 // Get an entire row of pixels, aligned with sync markers
-// FIXME: loses sync easily
 int getpixelrow(float *pixelv, int nrow, int *zenith, int reset) {
 	static float pixels[PixelLine + SyncFilterLen];
 	static int npv;
@@ -256,6 +255,7 @@ int getpixelrow(float *pixelv, int nrow, int *zenith, int reset) {
 
 	if (synced < 8) {
 		int mshift;
+        static int lastmshift;
 
 		if (npv < PixelLine + SyncFilterLen) {
 			res = getpixelv(&(pixelv[npv]), PixelLine + SyncFilterLen - npv);
@@ -276,6 +276,13 @@ int getpixelrow(float *pixelv, int nrow, int *zenith, int reset) {
 			}
 		}
 
+		// Stop rows dissapearing into the void
+		int mshiftOrig = mshift;
+		if(abs(lastmshift-mshift) > 3 && nrow != 0){
+			mshift = 0;
+		}
+		lastmshift = mshiftOrig;
+        
 		// If we are already as aligned as we can get, just continue
 		if (mshift == 0) {
 			synced++;
