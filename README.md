@@ -108,6 +108,22 @@ To stop the decode and calibrate the image simply kill the `sox` process.
 
 Palettes are just simple PNG images, 256x256px in size with 24bit RGB color. The X axis represents the value of Channel A and the Y axis the value of Channel B.
 
+## Compiling with cmake
+
+Thanks to the help of [Aang23](https://github.com/Aang23) aptdec is moving towards cmake + cpack for builds.
+
+To use cmake to build instead of GNU automake:
+```
+mkdir build && cd build
+cmake ..
+make
+```
+
+Since cmake is now being used for building, windows support has come. You can build for windows with the `build_windows.sh` script, you will need wine and mingw64 installed:
+```
+./build_windows.sh
+```
+
 ## Further Reading
 
 [User's Guide for Building and Operating
