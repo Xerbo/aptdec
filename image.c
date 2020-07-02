@@ -126,7 +126,7 @@ double teleNoise(double wedges[16]){
 	return noise;
 }
 
-// Get telemetry data for thermal calibration/equalization
+// Get telemetry data for thermal calibration
 int calibrate(float **prow, int nrow, int offset, int width) {
 	double teleline[MAX_HEIGHT] = { 0.0 };
 	double wedge[16];
@@ -156,8 +156,8 @@ int calibrate(float **prow, int nrow, int offset, int width) {
 	for (int n = nrow / 3 - 64; n < 2 * nrow / 3 - 64; n++) {
 		float df;
 
-		// (sum 4px below) / (sum 4px above)
-		df = (teleline[n - 4] + teleline[n - 3] + teleline[n - 2] + teleline[n - 1]) /
+		// (sum 4px below) - (sum 4px above)
+		df = (teleline[n - 4] + teleline[n - 3] + teleline[n - 2] + teleline[n - 1]) -
 			 (teleline[n + 0] + teleline[n + 1] + teleline[n + 2] + teleline[n + 3]);
 
 		// Find the maximum difference
@@ -234,7 +234,7 @@ int calibrate(float **prow, int nrow, int offset, int width) {
 	}
 
 	if(bestFrame == -1){
-		fprintf(stderr, "Something has gone very wrong, please file a bug report.");
+		fprintf(stderr, "Something has gone very wrong, please file a bug report.\n");
 		return 0;
 	}
 
@@ -320,7 +320,7 @@ void flipImage(image_t *img, int width, int offset){
 
 // Calculate crop to reomve noise from the start and end of an image
 void cropNoise(image_t *img){
-	#define NOISE_THRESH 150.0
+	#define NOISE_THRESH 180.0
 
 	// Average value of minute marker
 	float spc_rows[MAX_HEIGHT] = { 0.0 };
@@ -427,7 +427,7 @@ static double tempcal(float Ce, int satnum, tempparam_t * rgpr) {
 
 	// Convert to celsius
 	T -= 273.15;
-	// Rescale to 0-255 for -100°C to +60°C
+	// Rescale to 0-255 for -120°C to +40°C
 	T = (T + 100.0) / 160.0 * 255.0;
 
 	return T;
