@@ -214,7 +214,7 @@ int getpixelrow(float *pixelv, int nrow, int *zenith, int reset) {
 	static int npv;
 	static int synced = 0;
 	static double max = 0.0;
-	static double minDoppler = 100, previous = 0;
+	static double minDoppler = 1000000000, previous = 0;
 
 	if(reset) synced = 0;
 
@@ -282,7 +282,7 @@ int getpixelrow(float *pixelv, int nrow, int *zenith, int reset) {
 			mshift = 0;
 		}
 		lastmshift = mshiftOrig;
-        
+
 		// If we are already as aligned as we can get, just continue
 		if (mshift == 0) {
 			synced++;

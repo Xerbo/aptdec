@@ -107,9 +107,10 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 			if(MCIR){
 				if(map.b < 128 && map.g > 128){
 					// Land
+					float darken = ((255-crow[y][chb].r)-100)/50;
 					float green = CLIP(map.g/300, 0, 1);
 					float blue = 0.15 - CLIP(map.b/960.0, 0, 1);
-					crow[y][cha] = (rgb_t){blue*1000, green*98, blue*500.0};
+					crow[y][cha] = (rgb_t){blue*1000*darken, green*98*darken, blue*500.0*darken};
 				}else{
 					// Sea
 					crow[y][cha] = (rgb_t){9, 17, 74};
@@ -123,6 +124,10 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 			map.r *= factor/257.0; map.g *= factor/257.0; map.b *= factor/257.0;
 			// Color -> alpha: convert black to alpha
 			float alpha = CLIP(composite / 65535.0, 0, 1);
+			// Clip
+			map.r = CLIP(map.r, 0, 255.0);
+			map.g = CLIP(map.g, 0, 255.0);
+			map.b = CLIP(map.b, 0, 255.0);
 
 			// Map overlay on channel A
 			crow[y][cha] = RGBcomposite(map, alpha, crow[y][cha], 1);
@@ -132,8 +137,8 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 
 			// Cloud overlay on channel A
 			if(MCIR){
-				float cloud = CLIP((crow[y][chb].r - 105) / 150, 0, 1);
-				crow[y][cha] = RGBcomposite((rgb_t){240, 250, 255}, cloud, crow[y][cha], 1);
+				float cloud = CLIP((crow[y][chb].r - 113) / 90.0, 0, 1);
+				crow[y][cha] = RGBcomposite((rgb_t){255, 250, 245}, cloud, crow[y][cha], 1);
 			}
 		}
 	}
