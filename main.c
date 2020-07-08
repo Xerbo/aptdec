@@ -161,8 +161,7 @@ static int processAudio(char *filename, options_t *opts){
 		// Read PNG into image buffer
 		printf("Reading %s\n", filename);
 		if(readRawImage(filename, img.prow, &img.nrow) == 0){
-			fprintf(stderr, "Skipping %s\n", img.name);
-			return 0;
+			exit(EPERM);
 		}
 	}else{
 		// Attempt to open the audio file
@@ -285,7 +284,7 @@ static int initsnd(char *filename) {
 	infwav.format = 0;
 	audioFile = sf_open(filename, SFM_READ, &infwav);
 	if (audioFile == NULL) {
-		fprintf(stderr, "Could not open %s for reading\n", filename);
+		fprintf(stderr, "Could not open %s\n", filename);
 		return 0;
 	}
 

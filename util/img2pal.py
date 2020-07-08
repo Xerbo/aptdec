@@ -17,10 +17,10 @@ if len(sys.argv) == 1:
 image = Image.open(sys.argv[1])
 pixels = image.load()
 
-sys.stdout.write("char palette[{}][3] = {{\n    \"".format(image.size[1]))
+sys.stdout.write("char palette[{}*3] = {{\n    \"".format(image.size[1]))
 for y in range(1, image.size[1]+1):
     sys.stdout.write(''.join('\\x{:02x}'.format(a) for a in pixels[0, y-1]))
     if(y % 7 == 0 and y != 0):
-        sys.stdout.write("\",\n    \"")
+        sys.stdout.write("\"\n    \"")
 
 print("\"\n};")
