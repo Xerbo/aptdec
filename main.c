@@ -75,11 +75,11 @@ int main(int argc, char **argv) {
 		usage();
 	}
 
-	options_t opts = { "r", "", 19, "", ".", 0, "", "", 1.0 };
+	options_t opts = { "r", "", 19, "", ".", 0, "", "", 1.0, 0 };
 
 	// Parse arguments
 	int opt;
-	while ((opt = getopt(argc, argv, "o:m:d:i:s:e:p:g:r")) != EOF) {
+	while ((opt = getopt(argc, argv, "o:m:d:i:s:e:p:g:k:r")) != EOF) {
 		switch (opt) {
 			case 'd':
 				opts.path = optarg;
@@ -111,6 +111,9 @@ int main(int argc, char **argv) {
 				break;
 			case 'g':
 				opts.gamma = atof(optarg);
+				break;
+			case 'k':
+				opts.mapOffset = atoi(optarg);
 				break;
 			default:
 				usage();
@@ -216,7 +219,7 @@ static int processAudio(char *filename, options_t *opts){
 		denoise(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
 	}
 
-	// Flip, for southbound passes
+	// Flip, for northbound passes
 	if(CONTAINS(opts->effects, Flip_Image)){
 		flipImage(&img, CH_WIDTH, CHA_OFFSET);
 		flipImage(&img, CH_WIDTH, CHB_OFFSET);
@@ -345,6 +348,7 @@ static void usage(void) {
 	" -p <path>        Path to palette\n"
 	" -r               Realtime decode\n"
 	" -g               Gamma adjustment (1.0 = off)\n"
+	" -k               Map offset (in px, default: 0)"
 	"\nRefer to the README for more infomation\n");
 
 	exit(EINVAL);

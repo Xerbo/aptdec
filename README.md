@@ -71,6 +71,7 @@ Apply a falsecolor palette
 -p <path>        Path to palette
 -r               Realtime decode
 -g               Gamma adjustment (1.0 = off)
+-k               Map offset (in px, default: 0)
 ```
 
 ### Image types
@@ -89,7 +90,7 @@ Apply a falsecolor palette
  - `l`: Linear equalise
  - `d`: Denoise
  - `p`: Precipitation overlay
- - `f`: Flip image (for southbound passes)
+ - `f`: Flip image (for northbound passes)
  - `c`: Crop noise from ends of image
 
 ## Realtime decoding

@@ -306,7 +306,7 @@ void denoise(float **prow, int nrow, int offset, int width){
 }
 #undef TRIG_LEVEL
 
-// Flips a channe, for southbound passes
+// Flips a channel, for northbound passes
 void flipImage(image_t *img, int width, int offset){
 	for(int y = 1; y < img->nrow; y++){
 		for(int x = 1; x < ceil(width / 2.0); x++){

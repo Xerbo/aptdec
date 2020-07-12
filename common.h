@@ -47,6 +47,7 @@ typedef struct {
 	char *filename; // Output filename
 	char *palette; // Filename of palette
 	float gamma; // Gamma
+	int mapOffset;
 } options_t;
 
 enum imagetypes {

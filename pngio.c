@@ -429,7 +429,7 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 	// Map stuff
 	if(opts->map != NULL && opts->map[0] != '\0'){
-		if(!mapOverlay(opts->map, crow, img->nrow, img->zenith, CONTAINS(opts->type, MCIR))){
+		if(!mapOverlay(opts->map, crow, img->nrow, img->zenith+opts->mapOffset, CONTAINS(opts->type, MCIR))){
 			fprintf(stderr, "Skipping MCIR generation.\n");
 			return 0;
 		}
