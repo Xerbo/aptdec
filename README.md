@@ -132,6 +132,8 @@ Environmental Satellite Receiving Stations](https://noaasis.noaa.gov/NOAASIS/pub
 
 [NOAA KLM coefficients](https://web.archive.org/web/20141220021557/https://www.ncdc.noaa.gov/oa/pod-guide/ncdc/docs/klm/tables.htm)
 
+[NOAA Satellite specifications and more information](https://www1.ncdc.noaa.gov/pub/data/satellite/publications/podguides/N-15%20thru%20N-19/pdf/)
+
 ## License
 
 See `LICENSE`
