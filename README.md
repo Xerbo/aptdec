@@ -74,7 +74,7 @@ Apply a falsecolor palette
 -k               Map offset (in px, default: 0)
 ```
 
-### Image types
+### Image output types
 
  - `r`: Raw Image
  - `a`: Channel A
