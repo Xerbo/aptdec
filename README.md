@@ -62,7 +62,7 @@ Apply a falsecolor palette
 ### Arguments
 
 ```
--i [r|a|b|t|m|p] Output type (kinda stackable)
+-i [r|a|b|t|m|p] Output type (stackable*)
 -e [t|h|l|d|p|f] Effects (stackable)
 -o <path>        Output filename
 -d <path>        Destination directory
@@ -73,8 +73,9 @@ Apply a falsecolor palette
 -g               Gamma adjustment (1.0 = off)
 -k               Map offset (in px, default: 0)
 ```
+\* Should work with all combinations, but temperature needs to be done last as it calibrates the buffer
 
-### Image types
+### Image output types
 
  - `r`: Raw Image
  - `a`: Channel A
@@ -131,6 +132,8 @@ Since cmake is now being used for building, windows support has come. You can bu
 Environmental Satellite Receiving Stations](https://noaasis.noaa.gov/NOAASIS/pubs/Users_Guide-Building_Receive_Stations_March_2009.pdf)  
 
 [NOAA KLM coefficients](https://web.archive.org/web/20141220021557/https://www.ncdc.noaa.gov/oa/pod-guide/ncdc/docs/klm/tables.htm)
+
+[NOAA Satellite specifications and more information](https://www1.ncdc.noaa.gov/pub/data/satellite/publications/podguides/N-15%20thru%20N-19/pdf/)
 
 ## License
 
