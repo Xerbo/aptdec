@@ -2,22 +2,22 @@ CC = gcc
 BIN = /usr/bin
 INCLUDES = -I.
 CFLAGS = -O3 -g -Wall -Wextra -Wno-missing-field-initializers $(INCLUDES)
-OBJS = main.o image.o dsp.o filter.o reg.o pngio.o median.o color.o
+OBJS = src/main.o src/image.o src/dsp.o src/filter.o src/reg.o src/pngio.o src/median.o src/color.o
 
 aptdec:	$(OBJS)
 	$(CC) -o $@ $(OBJS) -lm -lsndfile -lpng
 
-reg.o:    reg.c
-color.o:  color.c
-main.o:   main.c
-media.o:  median.c
-dsp.o:    dsp.c
-filter.o: filter.c
-image.o:  image.c
-pngio.o:  pngio.c
+reg.o:    src/reg.c
+color.o:  src/color.c
+main.o:   src/main.c
+media.o:  src/median.c
+dsp.o:    src/dsp.c
+filter.o: src/filter.c
+image.o:  src/image.c
+pngio.o:  src/pngio.c
 
 clean:
-	rm -f *.o aptdec
+	rm -f src/*.o aptdec
 
 install:
 	install -m 755 aptdec $(BIN)

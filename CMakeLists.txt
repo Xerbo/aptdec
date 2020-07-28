@@ -3,7 +3,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 project (aptdec)
 
-add_executable(aptdec main.c color.c dsp.c filter.c image.c median.c pngio.c reg.c)
+file(GLOB_RECURSE C_SOURCE_FILES src/*.c)
+add_executable(aptdec ${C_SOURCE_FILES})
 
 # Math
 target_link_libraries(aptdec PRIVATE m)
