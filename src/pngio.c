@@ -213,10 +213,16 @@ int readRawImage(char *filename, float **prow, int *nrow) {
 int readPalette(char *filename, rgb_t **pixels) {
 	FILE *fp = fopen(filename, "r");
 	if(!fp) {
-		fprintf(stderr, "Cannot open %s\n", filename);
-		return 0;
+		char buffer[1024];
+		// PALETTE_DIR is set through CMake
+		sprintf(buffer, PALETTE_DIR"/%s", filename);
+		fp = fopen(buffer, "r");
+			if(!fp){
+			fprintf(stderr, "Cannot open %s\n", filename);
+			return 0;
+		}
 	}
-
+	
 	// Create reader
 	png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 	if(!png) {
