@@ -1,7 +1,8 @@
 CC = gcc
 BIN = /usr/bin
 INCLUDES = -I.
-CFLAGS = -O3 -g -Wall -Wextra -Wno-missing-field-initializers $(INCLUDES)
+PALETTE_DIR=\"$(PWD)/palettes\"
+CFLAGS = -O3 -Wall -Wextra -Wno-missing-field-initializers -DPALETTE_DIR=$(PALETTE_DIR) $(INCLUDES)
 OBJS = src/main.o src/image.o src/dsp.o src/filter.o src/reg.o src/pngio.o src/median.o src/color.o
 
 aptdec:	$(OBJS)
