@@ -23,7 +23,6 @@
 #include <math.h>
 
 #include "filter.h"
-#include "filtercoeff.h"
 
 // In case your C compiler is so old that Pi hadn't been invented yet
 #ifndef M_PI
@@ -31,8 +30,8 @@
 #endif
 
 // Block sizes
-#define BLKAMP 1024
-#define BLKIN 1024
+#define BLKAMP 32768
+#define BLKIN 32768
 
 #define Fc 2400.0
 #define DFc 50.0
