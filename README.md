@@ -100,7 +100,7 @@ Aptdec even supports decoding in realtime. The following decodes the audio comin
 
 ```
 mkfifo /tmp/aptaudio
-aptdec /tmp/aptaudio
+aptdec -r /tmp/aptaudio
 sox -t pulseaudio alsa_output.pci-0000_00_1b.0.analog-stereo.monitor -c 1 -t wav /tmp/aptaudio
 ```
 
