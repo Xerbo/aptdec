@@ -244,45 +244,6 @@ int calibrate(float **prow, int nrow, int offset, int width) {
 
 }
 
-void distrib(options_t *opts, image_t *img, char chid) {
-	int max = 0;
-
-	// Options
-	options_t options;
-	options.path = opts->path;
-	options.effects = "";
-	options.map = "";
-
-	// Image options
-	image_t distrib;
-	strcpy(distrib.name, img->name);
-	distrib.nrow = 256;
-
-	// Assign memory
-	for(int i = 0; i < 256; i++)
-		distrib.prow[i] = (float *) malloc(sizeof(float) * 256);
-
-	for(int n = 0; n < img->nrow; n++) {
-		float *pixelv = img->prow[n];
-
-		for(int i = 0; i < CH_WIDTH; i++) {
-			int y = CLIP((int)pixelv[i + CHA_OFFSET], 0, 255);
-			int x = CLIP((int)pixelv[i + CHB_OFFSET], 0, 255);
-			distrib.prow[y][x]++;
-			if(distrib.prow[y][x] > max)
-				max = distrib.prow[y][x];
-		}
-	}
-
-	// Scale to 0-255
-	for(int x = 0; x < 256; x++)
-		for(int y = 0; y < 256; y++)
-			distrib.prow[y][x] = distrib.prow[y][x] / max * 255.0;
-
-	extern int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, char chid, char *palette);
-	ImageOut(&options, &distrib, 0, 256, "Distribution", chid, NULL);
-}
-
 extern float quick_select(float arr[], int n);
 
 // Biased median denoise, pretyt ugly

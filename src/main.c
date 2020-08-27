@@ -47,7 +47,6 @@ extern void histogramEqualise(float **prow, int nrow, int offset, int width);
 extern void linearEnhance(float **prow, int nrow, int offset, int width);
 extern void temperature(options_t *opts, image_t *img, int offset, int width);
 extern void denoise(float **prow, int nrow, int offset, int width);
-extern void distrib(options_t *opts, image_t *img, char chid);
 extern void flipImage(image_t *img, int width, int offset);
 extern void cropNoise(image_t *img);
 
@@ -279,10 +278,6 @@ static int processAudio(char *filename, options_t *opts){
 		sprintf(desc, "%s (%s)", ch.id[img.chB], ch.name[img.chB]);
 		ImageOut(opts, &img, CHB_OFFSET, CH_WIDTH, desc, Channel_B, NULL);
 	}
-
-	// Value distribution image
-	if (CONTAINS(opts->type, Distribution))
-		distrib(opts, &img, Distribution);
 
 	return 1;
 }
