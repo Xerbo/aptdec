@@ -62,7 +62,7 @@ Apply a falsecolor palette
 ### Arguments
 
 ```
--i [r|a|b|t|m|p] Output type (stackable*)
+-i [r|a|b|t|m|p] Output type (stackable)
 -e [t|h|l|d|p|f] Effects (stackable)
 -o <path>        Output filename
 -d <path>        Destination directory
@@ -73,7 +73,6 @@ Apply a falsecolor palette
 -g               Gamma adjustment (1.0 = off)
 -k               Map offset (in px, default: 0)
 ```
-\* Should work with all combinations, but temperature needs to be done last as it calibrates the buffer
 
 ### Image output types
 

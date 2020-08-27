@@ -227,8 +227,16 @@ static int processAudio(char *filename, options_t *opts){
 
 	// Temperature
 	if (CONTAINS(opts->type, Temperature) && img.chB >= 4) {
-		temperature(opts, &img, CHB_OFFSET, CH_WIDTH);
-		ImageOut(opts, &img, CHB_OFFSET, CH_WIDTH, "Temperature", Temperature, (char *)TempPalette);
+		// Create another buffer as to not modify the orignal
+		image_t tmpimg = img;
+		for(int i = 0; i < img.nrow; i++){
+			tmpimg.prow[i] = (float *) malloc(sizeof(float) * 2150);
+			memcpy(tmpimg.prow[i], img.prow[i], sizeof(float) * 2150);
+		}
+
+		// Perform temperature calibration
+		temperature(opts, &tmpimg, CHB_OFFSET, CH_WIDTH);
+		ImageOut(opts, &tmpimg, CHB_OFFSET, CH_WIDTH, "Temperature", Temperature, (char *)TempPalette);
 	}
 
 	// MCIR
