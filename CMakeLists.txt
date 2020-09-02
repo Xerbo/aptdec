@@ -9,8 +9,15 @@ add_executable(aptdec ${C_SOURCE_FILES})
 
 add_compile_definitions(PALETTE_DIR="${CMAKE_SOURCE_DIR}/palettes")
 
-# math
+# Math
 target_link_libraries(aptdec PRIVATE m)
+
+# Throw errors on warnings on release builds
+if(CMAKE_BUILD_TYPE MATCHES "Release")
+    target_compile_options(aptdec PRIVATE -Wall -Wextra -pedantic -Werror)
+else()
+    target_compile_options(aptdec PRIVATE -Wall -Wextra -pedantic)
+endif()
 
 # libpng
 target_link_libraries(aptdec PRIVATE PNG::PNG)
@@ -39,7 +46,8 @@ IF(NOT WIN32)
     install(TARGETS aptdec DESTINATION "bin/")
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/palettes/" DESTINATION "lib/aptdec/palettes")
 else()
-    set(CPACK_GENERATOR "ZIP;NSIS")
+    #set(CPACK_GENERATOR "ZIP;NSIS")
+    set(CPACK_GENERATOR "ZIP")
     set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
 
     install(TARGETS aptdec DESTINATION "bin/")
