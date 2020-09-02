@@ -12,9 +12,10 @@
 
 #include <math.h>
 
+#include "reg.h"
+
 #define DMAX 5	/* Maximum degree of polynomial */
 #define NMAX 10	/* Maximum number of points */
-
 static void FactPiv(int N, double A[DMAX][DMAX], double B[], double Cf[]);
 
 void polyreg(const int M, const int N, const double X[], const double Y[], double C[]) {

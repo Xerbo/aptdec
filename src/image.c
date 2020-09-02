@@ -23,15 +23,14 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include "common.h"
 #include "offsets.h"
+#include "reg.h"
+#include "image.h"
 
 #define REGORDER 3
 typedef struct {
 	double cf[REGORDER + 1];
 } rgparam_t;
-
-extern void polyreg(const int m, const int n, const double x[], const double y[], double c[]);
 
 // Compute regression
 static void rgcomp(double x[16], rgparam_t * rgpr) {

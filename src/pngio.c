@@ -24,12 +24,10 @@
 #include <stdint.h>
 #include <math.h>
 
-#include "common.h"
-#include "offsets.h"
+#include "pngio.h"
 
-extern char PrecipPalette[256*3];
-extern rgb_t applyPalette(char *palette, int val);
-extern rgb_t RGBcomposite(rgb_t top, float top_a, rgb_t bottom, float bottom_a);
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
 
 int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 	FILE *fp = fopen(filename, "rb");
@@ -323,7 +321,7 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	}
 
 	png_text meta[] = {
-		{PNG_TEXT_COMPRESSION_NONE, "Software", VERSION},
+		{PNG_TEXT_COMPRESSION_NONE, "Software", VERSION, sizeof(VERSION)},
 		{PNG_TEXT_COMPRESSION_NONE, "Channel", desc, sizeof(desc)},
 		{PNG_TEXT_COMPRESSION_NONE, "Description", "NOAA satellite image", 20}
 	};
@@ -497,7 +495,7 @@ int initWriter(options_t *opts, image_t *img, int width, int height, char *desc,
 	sprintf(outName, "%s/%s-%s.png", opts->path, img->name, chid);
 
 	png_text meta[] = {
-		{PNG_TEXT_COMPRESSION_NONE, "Software", VERSION},
+		{PNG_TEXT_COMPRESSION_NONE, "Software", VERSION, sizeof(VERSION)},
 		{PNG_TEXT_COMPRESSION_NONE, "Channel", desc, sizeof(desc)},
 		{PNG_TEXT_COMPRESSION_NONE, "Description", "NOAA satellite image", 20}
 	};

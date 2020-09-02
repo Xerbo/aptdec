@@ -27,32 +27,15 @@
 #include <errno.h>
 #include <time.h>
 
-#include "common.h"
 #include "offsets.h"
 
 // DSP
 extern int init_dsp(double F);
 extern int getpixelrow(float *pixelv, int nrow, int *zenith, int reset);
 
-// I/O
-extern int readRawImage(char *filename, float **prow, int *nrow);
-extern int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, char chid, char *palette);
-extern int initWriter(options_t *opts, image_t *img, int width, int height, char *desc, char *chid);
-extern void pushRow(float *row, int width);
-extern void closeWriter();
-
-// Image functions
-extern int calibrate(float **prow, int nrow, int offset, int width);
-extern void histogramEqualise(float **prow, int nrow, int offset, int width);
-extern void linearEnhance(float **prow, int nrow, int offset, int width);
-extern void temperature(options_t *opts, image_t *img, int offset, int width);
-extern void denoise(float **prow, int nrow, int offset, int width);
-extern void flipImage(image_t *img, int width, int offset);
-extern void cropNoise(image_t *img);
-
-// Palettes
-extern char GviPalette[256*3];
-extern char TempPalette[256*3];
+#include "pngio.h"
+#include "image.h"
+#include "color.h"
 
 // Audio file
 static SNDFILE *audioFile;

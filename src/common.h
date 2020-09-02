@@ -26,6 +26,8 @@
 #define CONTAINS(str, char) (strchr(str, (int) char) != NULL)
 
 // Typedefs
+#ifndef STRUCTS_DEFINED
+#define STRUCTS_DEFINED
 typedef struct {
 	float r, g, b;
 } rgb_t;
@@ -68,3 +70,4 @@ enum effects {
 	Linear_Equalise='l',
 	Crop_Noise='c'
 };
+#endif
