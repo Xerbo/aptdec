@@ -1,11 +1,11 @@
-name: x86 Release
+name: x86 Debug
 
 on:
   push:
     branches:
       - master
 env:
-  BUILD_TYPE: Release
+  BUILD_TYPE: Debug
 
 jobs:
   build:
