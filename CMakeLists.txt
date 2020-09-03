@@ -1,8 +1,6 @@
 cmake_minimum_required (VERSION 3.0.0)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
-set(PROJECT_VERSION "1.7.0")
-
 project(aptdec)
 file(GLOB_RECURSE C_SOURCE_FILES src/*.c)
 add_executable(aptdec ${C_SOURCE_FILES})
@@ -31,11 +29,15 @@ endif()
 find_package(LibSndFile REQUIRED)
 target_link_libraries(aptdec PRIVATE ${LIBSNDFILE_LIBRARY})
 
+# TODO: get this from git
+set(PROJECT_VERSION "1.7.0")
+
 # CPack
-set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_PACKAGE_NAME "aptdec")
 set(CPACK_PACKAGE_CONTACT "Xerbo (xerbo@protonmail.com)")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "NOAA APT satellite imagery decoder")
+SET(CPACK_PACKAGE_DESCRIPTION "Aptdec is a FOSS program that decodes images transmitted by NOAA weather satellites. These satellites transmit constantly (among other things) medium resolution (4km/px) images of the earth over a analog mode called APT.")
 set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 
