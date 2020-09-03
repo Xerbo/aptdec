@@ -2,6 +2,8 @@
 
 Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019-2020
 
+![Release Build](https://github.com/Xerbo/aptdec/workflows/Release%20Build/badge.svg?branch=master)
+
 ## Introduction
 
 Aptdec is a FOSS program that decodes images transmitted by NOAA weather satellites. These satellites transmit constantly (among other things) medium resolution (4km/px) images of the earth over a analog mode called APT.
