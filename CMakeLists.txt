@@ -14,7 +14,7 @@ target_link_libraries(aptdec PRIVATE m)
 
 # Throw errors on warnings on release builds
 if(CMAKE_BUILD_TYPE MATCHES "Release")
-    target_compile_options(aptdec PRIVATE -Wall -Wextra -pedantic -Werror)
+    target_compile_options(aptdec PRIVATE -Wall -Wextra -pedantic -Wno-missing-field-initializers -Werror)
 else()
     target_compile_options(aptdec PRIVATE -Wall -Wextra -pedantic)
 endif()

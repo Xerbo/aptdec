@@ -26,9 +26,6 @@
 
 #include "pngio.h"
 
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-#pragma clang diagnostic ignored "-Wmissing-field-initializers"
-
 int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 	FILE *fp = fopen(filename, "rb");
 	if(!fp) {
