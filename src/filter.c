@@ -19,8 +19,6 @@
 
 #include <math.h>
 
-#include "filter.h"
-
 // Finite impulse response
 float fir(float *buff, const float *coeff, const int len) {
 	double r;

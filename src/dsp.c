@@ -23,7 +23,6 @@
 #include <math.h>
 
 #include "filter.h"
-#include "filtercoeff.h" 
 
 // In case your C compiler is so old that Pi hadn't been invented yet
 #ifndef M_PI
