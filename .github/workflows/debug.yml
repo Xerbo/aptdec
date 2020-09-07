@@ -3,7 +3,7 @@ name: x86 Debug
 on:
   push:
     branches:
-      - master
+      - devel
 env:
   BUILD_TYPE: Debug
 
@@ -50,5 +50,5 @@ jobs:
     - name: Upload compilied binary
       uses: actions/upload-artifact@v2
       with:
-          name: Release build
+          name: Debug build
           path: ${{runner.workspace}}/build/aptdec
