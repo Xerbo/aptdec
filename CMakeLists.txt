@@ -5,7 +5,7 @@ project(aptdec)
 file(GLOB_RECURSE C_SOURCE_FILES src/*.c)
 add_executable(aptdec ${C_SOURCE_FILES})
 
-add_compile_definitions(PALETTE_DIR="${CMAKE_SOURCE_DIR}/palettes")
+add_compile_definitions(PALETTE_DIR="../palettes")
 
 # Math
 target_link_libraries(aptdec PRIVATE m)
@@ -53,7 +53,7 @@ else()
     set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
 
     install(TARGETS aptdec DESTINATION "bin/")
-    install(FILES libpng16.dll libsndfile-1.dll libzlib.dll DESTINATION "bin/")
+    install(FILES libpng16.dll sndfile.dll libzlib.dll DESTINATION "bin/")
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/palettes/" DESTINATION "palettes/")
 endif()
 

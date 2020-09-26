@@ -48,11 +48,11 @@
 *.wav
 aptdec
 
-# VSCode
-.vscode
-
-# CMake
-build
-
-libpng*/
-zlib*/
+.vscode/
+build/
+libpng/
+zlib/
+winbuild/
+winpath/
+libsndfile-1.0.29-win64.zip
+libsndfile-1.0.29-win64/

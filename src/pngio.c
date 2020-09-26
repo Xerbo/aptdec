@@ -142,7 +142,8 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 }
 
 int readRawImage(char *filename, float **prow, int *nrow) {
-	FILE *fp = fopen(filename, "r");
+	FILE *fp = fopen(filename, "rb");
+    printf("%s", filename);
 	if(!fp) {
 		fprintf(stderr, "Cannot open %s\n", filename);
 		return 0;
@@ -206,12 +207,12 @@ int readRawImage(char *filename, float **prow, int *nrow) {
 }
 
 int readPalette(char *filename, rgb_t **pixels) {
-	FILE *fp = fopen(filename, "r");
+	FILE *fp = fopen(filename, "rb");
 	if(!fp) {
 		char buffer[1024];
 		// PALETTE_DIR is set through CMake
 		sprintf(buffer, PALETTE_DIR"/%s", filename);
-		fp = fopen(buffer, "r");
+		fp = fopen(buffer, "rb");
 			if(!fp){
 			fprintf(stderr, "Cannot open %s\n", filename);
 			return 0;

@@ -37,6 +37,7 @@ cp "libsndfile-1.0.29-win64/include/sndfile.h" $TEMP_PATH/include/sndfile.h
 
 # Copy DLL's into root for CPack
 cp $TEMP_PATH/bin/*.dll ../
+mv ../libsndfile-1.dll ../sndfile.dll
 
 # Build aptdec
 mkdir -p winbuild && cd winbuild

@@ -123,9 +123,9 @@ cmake ..
 make
 ```
 
-Since cmake is now being used for building, windows support has come. You can build for windows with the `build_windows.sh` script, you will need wine and mingw64 installed:
+Since CMake is now being used for building, windows support has come. You can build for windows with the `build_windows.sh` script, you will need the following:
 ```
-./build_windows.sh
+sudo apt install wget cmake make mingw-w64 git unzip
 ```
 
 ## Further Reading
