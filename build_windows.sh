@@ -32,12 +32,11 @@ if [ ! -d "libsndfile-1.0.29-win64" ]; then
     wget https://github.com/erikd/libsndfile/releases/download/v1.0.29/libsndfile-1.0.29-win64.zip
     unzip libsndfile-1.0.29-win64.zip
 fi
-cp "libsndfile-1.0.29-win64/bin/sndfile.dll"   $TEMP_PATH/bin/libsndfile-1.dll
+cp "libsndfile-1.0.29-win64/bin/sndfile.dll"   $TEMP_PATH/bin/sndfile.dll
 cp "libsndfile-1.0.29-win64/include/sndfile.h" $TEMP_PATH/include/sndfile.h
 
 # Copy DLL's into root for CPack
 cp $TEMP_PATH/bin/*.dll ../
-mv ../libsndfile-1.dll ../sndfile.dll
 
 # Build aptdec
 mkdir -p winbuild && cd winbuild

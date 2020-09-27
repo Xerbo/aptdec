@@ -1,0 +1,30 @@
+name: x86 Win Debug
+
+on:
+  push:
+    branches:
+      - devel
+env:
+  BUILD_TYPE: Debug
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Install dependencies
+      # The user does not run as root
+      run: sudo apt install wget cmake make mingw-w64 git unzip libsndfile-dev
+
+    - name: Run build script
+      shell: bash
+      working-directory: ${{runner.workspace}}
+      run: cd $GITHUB_WORKSPACE && ./build_windows.sh
+
+    - name: Upload compilied binary
+      uses: actions/upload-artifact@v2
+      with:
+          name: Debug build
+          path: ${{runner.workspace}}/winbuild/aptdec-1.7.0.zip
