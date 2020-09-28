@@ -34,6 +34,8 @@ if [ ! -d "libsndfile-1.0.29-win64" ]; then
 fi
 cp "libsndfile-1.0.29-win64/bin/sndfile.dll"   $TEMP_PATH/bin/sndfile.dll
 cp "libsndfile-1.0.29-win64/include/sndfile.h" $TEMP_PATH/include/sndfile.h
+cp "libsndfile-1.0.29-win64/lib/sndfile.lib"   $TEMP_PATH/lib/sndfile.lib
+
 
 # Copy DLL's into root for CPack
 cp $TEMP_PATH/bin/*.dll ../
