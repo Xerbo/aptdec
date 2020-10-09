@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.0.0)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 project(aptdec)
-file(GLOB_RECURSE C_SOURCE_FILES src/*.c)
+file(GLOB_RECURSE C_SOURCE_FILES src/*.c src/libs/*.c)
 add_executable(aptdec ${C_SOURCE_FILES})
 
 add_compile_definitions(PALETTE_DIR="../palettes")

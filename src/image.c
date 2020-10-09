@@ -24,7 +24,7 @@
 #include <stdlib.h>
 
 #include "offsets.h"
-#include "reg.h"
+#include "libs/reg.h"
 #include "image.h"
 
 #define REGORDER 3

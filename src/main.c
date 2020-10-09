@@ -20,12 +20,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <getopt.h>
 #include <libgen.h>
 #include <math.h>
 #include <sndfile.h>
 #include <errno.h>
 #include <time.h>
+#include "libs/argparse.h"
 
 #include "offsets.h"
 
@@ -46,68 +46,61 @@ int channels = 1;
 static int initsnd(char *filename);
 int getsample(float *sample, int nb);
 static int processAudio(char *filename, options_t *opts);
-static void usage(void);
 
 int main(int argc, char **argv) {
-	fprintf(stderr, VERSION"\n");
+	//fprintf(stderr, VERSION"\n");
 
 	// Check if there are actually any input files
-	if(argc == optind || argc == 1){
+	/*if(argc == optind || argc == 1){
 		fprintf(stderr, "No input files provided.\n");
 		usage();
-	}
+	}*/
 
 	options_t opts = { "r", "", 19, "", ".", 0, "", "", 1.0, 0 };
 
-	// Parse arguments
-	int opt;
-	while ((opt = getopt(argc, argv, "o:m:d:i:s:e:p:g:k:r")) != EOF) {
-		switch (opt) {
-			case 'd':
-				opts.path = optarg;
-				break;
-			case 'm':
-				opts.map = optarg;
-				break;
-			case 'i':
-				opts.type = optarg;
-				break;
-			case 's':
-				opts.satnum = atoi(optarg);
-				if(opts.satnum < 15 || opts.satnum > 19){
-					fprintf(stderr, "Invalid satellite number, it must be the range 15-19\n");
-					exit(EPERM);
-				}
-				break;
-			case 'e':
-				opts.effects = optarg;
-				break;
-			case 'r':
-				opts.realtime = 1;
-				break;
-			case 'o':
-				opts.filename = optarg;
-				break;
-			case 'p':
-				opts.palette = optarg;
-				break;
-			case 'g':
-				opts.gamma = atof(optarg);
-				break;
-			case 'k':
-				opts.mapOffset = atoi(optarg);
-				break;
-			default:
-				usage();
-		}
+	static const char *const usages[] = {
+		"aptdec [options] [[--] sources]",
+		"aptdec [sources]",
+		NULL,
+	};
+
+	struct argparse_option options[] = {
+        OPT_HELP(),
+        OPT_GROUP("Image options"),
+        OPT_STRING('i', "image", &opts.type, "set output image type (see the README for a list)", NULL, 0, 0),
+        OPT_STRING('e', "effect", &opts.effects, "add an effect (see the README for a list)", NULL, 0, 0),
+		OPT_FLOAT('g', "gamma", &opts.gamma, "gamma adjustment (1.0 = off)", NULL, 0, 0),
+
+		OPT_GROUP("Satellite options"),
+		OPT_INTEGER('s', "satellite", &opts.satnum, "satellite ID, must be between 15 and 19", NULL, 0, 0),
+
+		OPT_GROUP("Paths"),
+		OPT_STRING('p', "palette", &opts.palette, "path to a palette", NULL, 0, 0),
+		OPT_STRING('m', "map", &opts.map, "path to a WXtoImg map", NULL, 0, 0),
+		OPT_STRING('o', "filename", &opts.filename, "filename of the output image", NULL, 0, 0),
+		OPT_STRING('d', "output", &opts.path, "output directory (must exist first)", NULL, 0, 0),
+
+		OPT_GROUP("Misc"),
+		OPT_BOOLEAN('r', "realtime", &opts.realtime, "decode in realtime", NULL, 0, 0),
+		OPT_INTEGER('k', "map-offset", &opts.mapOffset, "Map offset (in px, default 0)", NULL, 0, 0),
+		OPT_END(),
+    };
+
+    struct argparse argparse;
+    argparse_init(&argparse, options, usages, 0);
+    argparse_describe(&argparse, "\nA lightweight FOSS NOAA APT satellite imagery decoder.", "\nSee `README.md` for a full description of command line arguments and `LICENSE` for licensing conditions.");
+    argc = argparse_parse(&argparse, argc, argv);
+
+	if(argc == 0){
+		argparse_usage(&argparse);
 	}
 
-	// Process the files
-	for (; optind < argc; optind++) {
-		processAudio(argv[optind], &opts);
-	}
+	// Actually decode the files
+    for (int i = 0; i < argc; i++) {
+        processAudio(argv[i], &opts);
+    }
 
-	exit(0);
+	return 0;
 }
 
 static int processAudio(char *filename, options_t *opts){
@@ -306,36 +299,4 @@ int getsample(float *sample, int nb) {
 		for(int i = 0; i < nb; i++) sample[i] = buf[i * channels];
 		return samples / channels;
 	}
-}
-
-static void usage(void) {
-	fprintf(stderr,
-	"Aptdec [options] audio files ...\n"
-	"Options:\n"
-	" -i [r|a|b|t|m|p] Output image\n"
-	"    r: Raw\n"
-	"    a: Channel A\n"
-	"    b: Channel B\n"
-	"    t: Temperature\n"
-	"    m: MCIR\n"
-	"    p: Paletted image\n"
-	" -e [t|h|d|p|f|l] Effects\n"
-	"    t: Crop telemetry\n"
-	"    h: Histogram equalise\n"
-	"    d: Denoise\n"
-	"    p: Precipitation\n"
-	"    f: Flip image\n"
-	"    l: Linear equalise\n"
-	"    c: Crop noise\n"
-	" -o <path>        Output filename\n"
-	" -d <path>        Image destination directory.\n"
-	" -s [15-19]       Satellite number\n"
-	" -m <path>        Map file\n"
-	" -p <path>        Path to palette\n"
-	" -r               Realtime decode\n"
-	" -g               Gamma adjustment (1.0 = off)\n"
-	" -k               Map offset (in px, default: 0)"
-	"\nRefer to the README for more infomation\n");
-
-	exit(EINVAL);
 }
