@@ -27,4 +27,4 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
           name: Debug build
-          path: ${{runner.workspace}}/winbuild/aptdec-1.7.0.zip
+          path: ${{runner.workspace}}/aptdec/winbuild/aptdec-1.7.0.zip

@@ -42,6 +42,6 @@ cp $TEMP_PATH/bin/*.dll ../
 
 # Build aptdec
 mkdir -p winbuild && cd winbuild
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-mingw32.cmake -DCMAKE_INSTALL_PREFIX=$TEMP_PATH ..
+cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-mingw32.cmake -DCMAKE_INSTALL_PREFIX=$TEMP_PATH ..
 make -j 4
 make package

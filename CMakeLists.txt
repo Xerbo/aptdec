@@ -53,7 +53,8 @@ else()
     set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
 
     install(TARGETS aptdec DESTINATION "bin/")
-    install(FILES libpng16.dll sndfile.dll libzlib.dll DESTINATION "bin/")
+    file(GLOB_RECURSE DLLS *.dll)
+    install(FILES ${DLLS} DESTINATION "bin/")
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/palettes/" DESTINATION "palettes/")
 endif()
 
