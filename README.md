@@ -25,7 +25,7 @@ The input audio format can be anything supported by `libsndfile` (although only 
 ## Quick start
 
 ```sh
-sudo apt install git gcc libsndfile-dev libpng-dev
+sudo apt install cmake git gcc libsndfile-dev libpng-dev
 git clone https://github.com/Xerbo/aptdec.git && cd aptdec
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release
