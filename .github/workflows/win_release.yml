@@ -1,9 +1,9 @@
-name: x86 Win Debug
+name: x86 Win Release
 
 on:
   push:
     branches:
-      - devel
+      - master
 env:
   BUILD_TYPE: Debug
 

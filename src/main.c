@@ -47,7 +47,7 @@ static int initsnd(char *filename);
 int getsample(float *sample, int nb);
 static int processAudio(char *filename, options_t *opts);
 
-int main(int argc, char **argv) {
+int main(int argc, const char **argv) {
 	//fprintf(stderr, VERSION"\n");
 
 	// Check if there are actually any input files
@@ -97,7 +97,10 @@ int main(int argc, char **argv) {
 
 	// Actually decode the files
     for (int i = 0; i < argc; i++) {
-        processAudio(argv[i], &opts);
+		// Convert from a `const char *` to a normal `char *`
+		char *filename = NULL;
+		memcpy(filename, argv[i], strlen(argv[i]));
+        processAudio(filename, &opts);
     }
 
 	return 0;

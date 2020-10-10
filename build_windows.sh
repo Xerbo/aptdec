@@ -40,8 +40,13 @@ cp "libsndfile-1.0.29-win64/lib/sndfile.lib"   $TEMP_PATH/lib/sndfile.lib
 # Copy DLL's into root for CPack
 cp $TEMP_PATH/bin/*.dll ../
 
+buildtype="Debug"
+if [[ "$1" == "Release" ]]; then
+    buildtype="Release"
+fi
+
 # Build aptdec
 mkdir -p winbuild && cd winbuild
-cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-mingw32.cmake -DCMAKE_INSTALL_PREFIX=$TEMP_PATH ..
+cmake -DCMAKE_BUILD_TYPE=$buildtype -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-mingw32.cmake -DCMAKE_INSTALL_PREFIX=$TEMP_PATH ..
 make -j 4
 make package

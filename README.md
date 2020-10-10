@@ -4,6 +4,8 @@ Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 20
 
 ![x86 Release](https://github.com/Xerbo/aptdec/workflows/x86%20Release/badge.svg?branch=master)
 ![x86 Debug](https://github.com/Xerbo/aptdec/workflows/x86%20Debug/badge.svg?branch=devel)
+![x86 Win Release](https://github.com/Xerbo/aptdec/workflows/x86%20Win%20Release/badge.svg?branch=master)
+![x86 Win Debug](https://github.com/Xerbo/aptdec/workflows/x86%20Win%20Debug/badge.svg?branch=devel)
 
 ## Introduction
 
