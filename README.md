@@ -27,8 +27,12 @@ The input audio format can be anything supported by `libsndfile` (although only 
 ```sh
 sudo apt install git gcc libsndfile-dev libpng-dev
 git clone https://github.com/Xerbo/aptdec.git && cd aptdec
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release
 make
 ```
+
+Using the Makefile with GNU automake is now deprecated and will be removed soon.
 
 ## Examples
 
