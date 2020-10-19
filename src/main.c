@@ -48,14 +48,6 @@ int getsample(float *sample, int nb);
 static int processAudio(char *filename, options_t *opts);
 
 int main(int argc, const char **argv) {
-	//fprintf(stderr, VERSION"\n");
-
-	// Check if there are actually any input files
-	/*if(argc == optind || argc == 1){
-		fprintf(stderr, "No input files provided.\n");
-		usage();
-	}*/
-
 	options_t opts = { "r", "", 19, "", ".", 0, "", "", 1.0, 0 };
 
 	static const char *const usages[] = {
@@ -65,10 +57,10 @@ int main(int argc, const char **argv) {
 	};
 
 	struct argparse_option options[] = {
-        OPT_HELP(),
-        OPT_GROUP("Image options"),
-        OPT_STRING('i', "image", &opts.type, "set output image type (see the README for a list)", NULL, 0, 0),
-        OPT_STRING('e', "effect", &opts.effects, "add an effect (see the README for a list)", NULL, 0, 0),
+		OPT_HELP(),
+		OPT_GROUP("Image options"),
+		OPT_STRING('i', "image", &opts.type, "set output image type (see the README for a list)", NULL, 0, 0),
+		OPT_STRING('e', "effect", &opts.effects, "add an effect (see the README for a list)", NULL, 0, 0),
 		OPT_FLOAT('g', "gamma", &opts.gamma, "gamma adjustment (1.0 = off)", NULL, 0, 0),
 
 		OPT_GROUP("Satellite options"),
@@ -84,24 +76,22 @@ int main(int argc, const char **argv) {
 		OPT_BOOLEAN('r', "realtime", &opts.realtime, "decode in realtime", NULL, 0, 0),
 		OPT_INTEGER('k', "map-offset", &opts.mapOffset, "Map offset (in px, default 0)", NULL, 0, 0),
 		OPT_END(),
-    };
+	};
 
-    struct argparse argparse;
-    argparse_init(&argparse, options, usages, 0);
-    argparse_describe(&argparse, "\nA lightweight FOSS NOAA APT satellite imagery decoder.", "\nSee `README.md` for a full description of command line arguments and `LICENSE` for licensing conditions.");
-    argc = argparse_parse(&argparse, argc, argv);
+	struct argparse argparse;
+	argparse_init(&argparse, options, usages, 0);
+	argparse_describe(&argparse, "\nA lightweight FOSS NOAA APT satellite imagery decoder.", "\nSee `README.md` for a full description of command line arguments and `LICENSE` for licensing conditions.");
+	argc = argparse_parse(&argparse, argc, argv);
 
 	if(argc == 0){
 		argparse_usage(&argparse);
 	}
 
 	// Actually decode the files
-    for (int i = 0; i < argc; i++) {
-		// Convert from a `const char *` to a normal `char *`
-		char *filename = NULL;
-		memcpy(filename, argv[i], strlen(argv[i]));
-        processAudio(filename, &opts);
-    }
+	for (int i = 0; i < argc; i++) {
+		char *filename = strdup(argv[i]);
+		processAudio(filename, &opts);
+	}
 
 	return 0;
 }
