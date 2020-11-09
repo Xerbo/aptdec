@@ -279,7 +279,7 @@ void flipImage(image_t *img, int width, int offset){
 }
 
 // Calculate crop to reomve noise from the start and end of an image
-void cropNoise(image_t *img){
+int cropNoise(image_t *img){
 	#define NOISE_THRESH 180.0
 
 	// Average value of minute marker
@@ -324,6 +324,8 @@ void cropNoise(image_t *img){
 
 	// Ignore the noisy rows at the end
 	img->nrow = (endCrop - startCrop);
+
+	return startCrop;
 }
 
 // --- Temperature Calibration --- //

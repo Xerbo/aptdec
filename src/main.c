@@ -178,7 +178,7 @@ static int processAudio(char *filename, options_t *opts){
 
 	// Crop noise from start and end of image
 	if(CONTAINS(opts->effects, Crop_Noise)){
-		cropNoise(&img);
+		img.zenith -= cropNoise(&img);
 	}
 
 	// Denoise

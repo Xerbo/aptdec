@@ -238,9 +238,9 @@ int getpixelrow(float *pixelv, int nrow, int *zenith, int reset) {
 	lcorr = fir(&pixelv[2], Sync, SyncFilterLen - 2);
 	FreqLine = 1.0+((ecorr-lcorr) / corr / PixelLine / 4.0);
 
-	// Find the point in which ecorr and lcorr intercept
-	if(fabs(lcorr - ecorr) < minDoppler && fabs(fabs(lcorr - ecorr) - previous) < 10){
-		minDoppler = fabs(lcorr - ecorr);
+	double val = fabs(lcorr - ecorr)*0.25 + previous*0.75;
+	if(val < minDoppler && nrow > 10){
+		minDoppler = val;
 		*zenith = nrow;
 	}
 	previous = fabs(lcorr - ecorr);
