@@ -33,4 +33,4 @@ mkdir winbuild
 cd winbuild
 cmake -G Ninja -DCMAKE_C_COMPILER="cl.exe" -DMSVC_TOOLSET_VERSION=190 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../winpath ..
 ninja install
-cd ../..
+cd ..
