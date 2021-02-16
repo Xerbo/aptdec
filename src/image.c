@@ -318,7 +318,7 @@ int apt_cropNoise(apt_image_t *img){
 
 	// Remove the noisy rows at start
 	for(int y = 0; y < img->nrow-startCrop; y++) {
-		memmove(img->prow[y], img->prow[y+startCrop], sizeof(float)*2150);
+		memmove(img->prow[y], img->prow[y+startCrop], sizeof(float)*APT_PROW_WIDTH);
 	}
 
 	// Ignore the noisy rows at the end

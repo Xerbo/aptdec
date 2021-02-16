@@ -161,7 +161,7 @@ static int processAudio(char *filename, options_t *opts){
 		// TODO: multithreading, would require some sort of input buffer
 		for (img.nrow = 0; img.nrow < APT_MAX_HEIGHT; img.nrow++) {
 			// Allocate memory for this row
-			img.prow[img.nrow] = (float *) malloc(sizeof(float) * 2150);
+			img.prow[img.nrow] = (float *) malloc(sizeof(float) * APT_PROW_WIDTH);
 
 			// Write into memory and break the loop when there are no more samples to read
 			if (apt_getpixelrow(img.prow[img.nrow], img.nrow, &img.zenith, (img.nrow == 0), getsamples, NULL) == 0)
@@ -216,8 +216,8 @@ static int processAudio(char *filename, options_t *opts){
 		// Create another buffer as to not modify the orignal
 		apt_image_t tmpimg = img;
 		for(int i = 0; i < img.nrow; i++){
-			tmpimg.prow[i] = (float *) malloc(sizeof(float) * 2150);
-			memcpy(tmpimg.prow[i], img.prow[i], sizeof(float) * 2150);
+			tmpimg.prow[i] = (float *) malloc(sizeof(float) * APT_PROW_WIDTH);
+			memcpy(tmpimg.prow[i], img.prow[i], sizeof(float) * APT_PROW_WIDTH);
 		}
 
 		// Perform temperature calibration
