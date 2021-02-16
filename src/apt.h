@@ -42,8 +42,9 @@ extern "C" {
 // Maximum height of an APT image in number of scanlines
 #define APT_MAX_HEIGHT 3000
 
-// apt_getpixelrow callback function to get audio samples
-typedef int (*apt_getsample_t)(float *samples, int count);
+// apt_getpixelrow callback function to get audio samples.
+// context is the same as passed to apt_getpixelrow.
+typedef int (*apt_getsample_t)(void *context, float *samples, int count);
 
 typedef struct {
 	float *prow[APT_MAX_HEIGHT]; // Row buffers
@@ -59,7 +60,7 @@ typedef struct {
 } apt_rgb_t;
 
 int APT_API apt_init(double sample_rate);
-int APT_API apt_getpixelrow(float *pixelv, int nrow, int *zenith, int reset, apt_getsample_t getsample);
+int APT_API apt_getpixelrow(float *pixelv, int nrow, int *zenith, int reset, apt_getsample_t getsample, void *context);
 
 void APT_API apt_histogramEqualise(float **prow, int nrow, int offset, int width);
 void APT_API apt_linearEnhance(float **prow, int nrow, int offset, int width);

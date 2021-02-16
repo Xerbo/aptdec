@@ -131,7 +131,7 @@ static double pll(double I, double Q) {
 }
 
 // Convert samples into pixels
-static int getamp(double *ampbuff, int count, apt_getsample_t getsample) {
+static int getamp(double *ampbuff, int count, apt_getsample_t getsample, void *context) {
 	static float inbuff[BLKIN];
 	static int idxin = 0;
 	static int nin = 0;
@@ -147,7 +147,7 @@ static int getamp(double *ampbuff, int count, apt_getsample_t getsample) {
 			idxin = 0;
 
 			// Read some samples
-			res = getsample(&(inbuff[nin]), BLKIN - nin);
+			res = getsample(context, &(inbuff[nin]), BLKIN - nin);
 			nin += res;
 
 			// Make sure there is enough samples to continue
@@ -168,7 +168,7 @@ static int getamp(double *ampbuff, int count, apt_getsample_t getsample) {
 }
 
 // Sub-pixel offsetting + FIR compensation
-int getpixelv(float *pvbuff, int count, apt_getsample_t getsample) {
+int getpixelv(float *pvbuff, int count, apt_getsample_t getsample, void *context) {
 	// Amplitude buffer
 	static double ampbuff[BLKAMP];
 	static int nam = 0;
@@ -187,7 +187,7 @@ int getpixelv(float *pvbuff, int count, apt_getsample_t getsample) {
 			int res;
 			memmove(ampbuff, &(ampbuff[idxam]), nam * sizeof(double));
 			idxam = 0;
-			res = getamp(&(ampbuff[nam]), BLKAMP - nam, getsample);
+			res = getamp(&(ampbuff[nam]), BLKAMP - nam, getsample, context);
 			nam += res;
 			if (nam < m)
 				return n;
@@ -207,7 +207,7 @@ int getpixelv(float *pvbuff, int count, apt_getsample_t getsample) {
 }
 
 // Get an entire row of pixels, aligned with sync markers
-int apt_getpixelrow(float *pixelv, int nrow, int *zenith, int reset, apt_getsample_t getsample) {
+int apt_getpixelrow(float *pixelv, int nrow, int *zenith, int reset, apt_getsample_t getsample, void *context) {
 	static float pixels[PixelLine + SyncFilterLen];
 	static int npv;
 	static int synced = 0;
@@ -225,7 +225,7 @@ int apt_getpixelrow(float *pixelv, int nrow, int *zenith, int reset, apt_getsamp
 
 	// Get the sync line
 	if (npv < SyncFilterLen + 2) {
-		res = getpixelv(&(pixelv[npv]), SyncFilterLen + 2 - npv, getsample);
+		res = getpixelv(&(pixelv[npv]), SyncFilterLen + 2 - npv, getsample, context);
 		npv += res;
 		if (npv < SyncFilterLen + 2)
 			return 0;
@@ -256,7 +256,7 @@ int apt_getpixelrow(float *pixelv, int nrow, int *zenith, int reset, apt_getsamp
         static int lastmshift;
 
 		if (npv < PixelLine + SyncFilterLen) {
-			res = getpixelv(&(pixelv[npv]), PixelLine + SyncFilterLen - npv, getsample);
+			res = getpixelv(&(pixelv[npv]), PixelLine + SyncFilterLen - npv, getsample, context);
 			npv += res;
 			if (npv < PixelLine + SyncFilterLen)
 				return 0;
@@ -294,7 +294,7 @@ int apt_getpixelrow(float *pixelv, int nrow, int *zenith, int reset, apt_getsamp
 
 	// Get the rest of this row
 	if (npv < PixelLine) {
-		res = getpixelv(&(pixelv[npv]), PixelLine - npv, getsample);
+		res = getpixelv(&(pixelv[npv]), PixelLine - npv, getsample, context);
 		npv += res;
 		if (npv < PixelLine)
 			return 0;

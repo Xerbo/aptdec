@@ -46,7 +46,7 @@ int channels = 1;
 
 // Function declarations
 static int initsnd(char *filename);
-int getsample(float *sample, int nb);
+int getsample(void *context, float *sample, int nb);
 static int processAudio(char *filename, options_t *opts);
 
 #ifdef _MSC_VER
@@ -165,7 +165,7 @@ static int processAudio(char *filename, options_t *opts){
 			img.prow[img.nrow] = (float *) malloc(sizeof(float) * 2150);
 
 			// Write into memory and break the loop when there are no more samples to read
-			if (apt_getpixelrow(img.prow[img.nrow], img.nrow, &img.zenith, (img.nrow == 0), getsample) == 0)
+			if (apt_getpixelrow(img.prow[img.nrow], img.nrow, &img.zenith, (img.nrow == 0), getsample, NULL) == 0)
 				break;
 
 			if(opts->realtime) pushRow(img.prow[img.nrow], IMG_WIDTH);
@@ -299,7 +299,7 @@ static int initsnd(char *filename) {
 }
 
 // Read samples from the audio file
-int getsample(float *sample, int nb) {
+int getsample(void *context, float *sample, int nb) {
 	if(channels == 1){
 		return (int)sf_read_float(audioFile, sample, nb);
 	}else{
