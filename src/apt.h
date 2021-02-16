@@ -61,7 +61,7 @@ int APT_API apt_cropNoise(apt_image_t *img);
 apt_rgb_t APT_API apt_applyPalette(char *palette, int val);
 apt_rgb_t APT_API apt_RGBcomposite(apt_rgb_t top, float top_a, apt_rgb_t bottom, float bottom_a);
 
-char APT_API apt_TempPalette[256*3];
-char APT_API apt_PrecipPalette[58*3];
+extern char APT_API apt_TempPalette[256*3];
+extern char APT_API apt_PrecipPalette[58*3];
 
 #endif
