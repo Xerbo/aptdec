@@ -21,6 +21,10 @@
 #ifndef APT_H
 #define APT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined (__GNUC__) && (__GNUC__ >= 4)
 #define APT_API __attribute__((visibility("default")))
 #elif defined (_MSC_VER)
@@ -69,5 +73,9 @@ apt_rgb_t APT_API apt_RGBcomposite(apt_rgb_t top, float top_a, apt_rgb_t bottom,
 
 extern char APT_API apt_TempPalette[256*3];
 extern char APT_API apt_PrecipPalette[58*3];
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
