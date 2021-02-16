@@ -46,7 +46,7 @@ int channels = 1;
 
 // Function declarations
 static int initsnd(char *filename);
-int getsample(void *context, float *sample, int nb);
+int getsamples(void *context, float *samples, int nb);
 static int processAudio(char *filename, options_t *opts);
 
 #ifdef _MSC_VER
@@ -165,7 +165,7 @@ static int processAudio(char *filename, options_t *opts){
 			img.prow[img.nrow] = (float *) malloc(sizeof(float) * 2150);
 
 			// Write into memory and break the loop when there are no more samples to read
-			if (apt_getpixelrow(img.prow[img.nrow], img.nrow, &img.zenith, (img.nrow == 0), getsample, NULL) == 0)
+			if (apt_getpixelrow(img.prow[img.nrow], img.nrow, &img.zenith, (img.nrow == 0), getsamples, NULL) == 0)
 				break;
 
 			if(opts->realtime) pushRow(img.prow[img.nrow], IMG_WIDTH);
@@ -299,17 +299,17 @@ static int initsnd(char *filename) {
 }
 
 // Read samples from the audio file
-int getsample(void *context, float *sample, int nb) {
+int getsamples(void *context, float *samples, int nb) {
 	if(channels == 1){
-		return (int)sf_read_float(audioFile, sample, nb);
+		return (int)sf_read_float(audioFile, samples, nb);
 	}else{
 		/* Multi channel audio is encoded such as:
 		 *  Ch1,Ch2,Ch1,Ch2,Ch1,Ch2
 		 */
 		float *buf = malloc(sizeof(float) * nb * channels); // Something like BLKIN*2 could also be used
-		int samples = (int)sf_read_float(audioFile, buf, nb * channels);
-		for(int i = 0; i < nb; i++) sample[i] = buf[i * channels];
+		int samplesRead = (int)sf_read_float(audioFile, buf, nb * channels);
+		for(int i = 0; i < nb; i++) samples[i] = buf[i * channels];
 		free(buf);
-		return samples / channels;
+		return samplesRead / channels;
 	}
 }
