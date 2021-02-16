@@ -13,6 +13,9 @@ set(LIB_C_SOURCE_FILES src/color.c src/dsp.c src/filter.c src/image.c src/libs/r
 set(EXE_C_SOURCE_FILES src/main.c src/pngio.c src/libs/argparse.c)
 set(LIB_C_HEADER_FILES src/apt.h)
 
+# Link with static library for aptdec executable, so we don't need to set the path
+add_library(libaptdecstatic STATIC ${LIB_C_SOURCE_FILES})
+# Create shared library for 3rd party apps
 add_library(libaptdec SHARED ${LIB_C_SOURCE_FILES})
 
 add_compile_definitions(PALETTE_DIR="../palettes")
@@ -23,9 +26,9 @@ if (PNG_FOUND AND LIBSNDFILE_FOUND)
     include_directories(${LIBSNDFILE_INCLUDE_DIR})
     target_link_libraries(aptdec PRIVATE PNG::PNG)
     target_link_libraries(aptdec PRIVATE ${LIBSNDFILE_LIBRARY})
-    target_link_libraries(aptdec PRIVATE libaptdec)
+    target_link_libraries(aptdec PRIVATE libaptdecstatic)
     if (MSVC)
-        target_compile_options(aptdec PRIVATE /D_CRT_SECURE_NO_WARNINGS=1)
+        target_compile_options(aptdec PRIVATE /D_CRT_SECURE_NO_WARNINGS=1 /DAPT_API_STATIC)
     else()
         # Math
         target_link_libraries(aptdec PRIVATE m)
@@ -42,10 +45,11 @@ else()
 endif()
 
 if (MSVC)
-    target_compile_options(libaptdec PRIVATE /D_CRT_SECURE_NO_WARNINGS=1)
+    target_compile_options(libaptdec PRIVATE /D_CRT_SECURE_NO_WARNINGS=1 /DAPT_API_EXPORT)
 else()
     # Math
     target_link_libraries(libaptdec PRIVATE m)
+    target_link_libraries(libaptdecstatic PRIVATE m)
 
     if(CMAKE_BUILD_TYPE MATCHES "Release")
         target_compile_options(libaptdec PRIVATE -Wall -Wextra -pedantic -Wno-missing-field-initializers -Werror)

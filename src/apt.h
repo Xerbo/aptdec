@@ -24,7 +24,13 @@
 #if defined (__GNUC__) && (__GNUC__ >= 4)
 #define APT_API __attribute__((visibility("default")))
 #elif defined (_MSC_VER)
+#ifdef APT_API_EXPORT
 #define APT_API __declspec(dllexport)
+#elif APT_API_STATIC
+#define APT_API
+#else if
+#define APT_API __declspec(dllimport)
+#endif
 #else
 #define APT_API
 #endif
