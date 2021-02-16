@@ -31,7 +31,6 @@
 #include <time.h>
 #include "libs/argparse.h"
 
-#include "offsets.h"
 #include "common.h"
 #include "apt.h"
 
@@ -144,7 +143,7 @@ static int processAudio(char *filename, options_t *opts){
 		strncpy(img.name, ctime(&t), 24);
 
 		// Init a row writer
-		initWriter(opts, &img, IMG_WIDTH, APT_MAX_HEIGHT, "Unprocessed realtime image", "r");
+		initWriter(opts, &img, APT_IMG_WIDTH, APT_MAX_HEIGHT, "Unprocessed realtime image", "r");
 	}		
 
 	if(strcmp(extension, "png") == 0){
@@ -168,7 +167,7 @@ static int processAudio(char *filename, options_t *opts){
 			if (apt_getpixelrow(img.prow[img.nrow], img.nrow, &img.zenith, (img.nrow == 0), getsamples, NULL) == 0)
 				break;
 
-			if(opts->realtime) pushRow(img.prow[img.nrow], IMG_WIDTH);
+			if(opts->realtime) pushRow(img.prow[img.nrow], APT_IMG_WIDTH);
 
 			fprintf(stderr, "Row: %d\r", img.nrow);
 			fflush(stderr);
@@ -190,8 +189,8 @@ static int processAudio(char *filename, options_t *opts){
 	}
 
 	// Calibrate
-	img.chA = apt_calibrate(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
-	img.chB = apt_calibrate(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
+	img.chA = apt_calibrate(img.prow, img.nrow, APT_CHA_OFFSET, APT_CH_WIDTH);
+	img.chB = apt_calibrate(img.prow, img.nrow, APT_CHB_OFFSET, APT_CH_WIDTH);
 	printf("Channel A: %s (%s)\n", ch.id[img.chA], ch.name[img.chA]);
 	printf("Channel B: %s (%s)\n", ch.id[img.chB], ch.name[img.chB]);
 
@@ -202,14 +201,14 @@ static int processAudio(char *filename, options_t *opts){
 
 	// Denoise
 	if(CONTAINS(opts->effects, Denoise)){
-		apt_denoise(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
-		apt_denoise(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
+		apt_denoise(img.prow, img.nrow, APT_CHA_OFFSET, APT_CH_WIDTH);
+		apt_denoise(img.prow, img.nrow, APT_CHB_OFFSET, APT_CH_WIDTH);
 	}
 
 	// Flip, for northbound passes
 	if(CONTAINS(opts->effects, Flip_Image)){
-		apt_flipImage(&img, CH_WIDTH, CHA_OFFSET);
-		apt_flipImage(&img, CH_WIDTH, CHB_OFFSET);
+		apt_flipImage(&img, APT_CH_WIDTH, APT_CHA_OFFSET);
+		apt_flipImage(&img, APT_CH_WIDTH, APT_CHB_OFFSET);
 	}
 
 	// Temperature
@@ -222,49 +221,49 @@ static int processAudio(char *filename, options_t *opts){
 		}
 
 		// Perform temperature calibration
-		temperature(opts, &tmpimg, CHB_OFFSET, CH_WIDTH);
-		ImageOut(opts, &tmpimg, CHB_OFFSET, CH_WIDTH, "Temperature", Temperature, (char *)apt_TempPalette);
+		temperature(opts, &tmpimg, APT_CHB_OFFSET, APT_CH_WIDTH);
+		ImageOut(opts, &tmpimg, APT_CHB_OFFSET, APT_CH_WIDTH, "Temperature", Temperature, (char *)apt_TempPalette);
 	}
 
 	// MCIR
 	if (CONTAINS(opts->type, MCIR))
-		ImageOut(opts, &img, CHA_OFFSET, CH_WIDTH, "MCIR", MCIR, NULL);
+		ImageOut(opts, &img, APT_CHA_OFFSET, APT_CH_WIDTH, "MCIR", MCIR, NULL);
 
 	// Linear equalise
 	if(CONTAINS(opts->effects, Linear_Equalise)){
-		apt_linearEnhance(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
-		apt_linearEnhance(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
+		apt_linearEnhance(img.prow, img.nrow, APT_CHA_OFFSET, APT_CH_WIDTH);
+		apt_linearEnhance(img.prow, img.nrow, APT_CHB_OFFSET, APT_CH_WIDTH);
 	}
 
 	// Histogram equalise
 	if(CONTAINS(opts->effects, Histogram_Equalise)){
-		apt_histogramEqualise(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
-		apt_histogramEqualise(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
+		apt_histogramEqualise(img.prow, img.nrow, APT_CHA_OFFSET, APT_CH_WIDTH);
+		apt_histogramEqualise(img.prow, img.nrow, APT_CHB_OFFSET, APT_CH_WIDTH);
 	}
 
 	// Raw image
 	if (CONTAINS(opts->type, Raw_Image)) {
 		sprintf(desc, "%s (%s) & %s (%s)", ch.id[img.chA], ch.name[img.chA], ch.id[img.chB], ch.name[img.chB]);
-		ImageOut(opts, &img, 0, IMG_WIDTH, desc, Raw_Image, NULL);
+		ImageOut(opts, &img, 0, APT_IMG_WIDTH, desc, Raw_Image, NULL);
 	}
 
 	// Palette image
 	if (CONTAINS(opts->type, Palleted)) {
 		img.palette = opts->palette;
 		strcpy(desc, "Palette composite");
-		ImageOut(opts, &img, CHA_OFFSET, 909, desc, Palleted, NULL);
+		ImageOut(opts, &img, APT_CHA_OFFSET, 909, desc, Palleted, NULL);
 	}
 
 	// Channel A
 	if (CONTAINS(opts->type, Channel_A)) {
 		sprintf(desc, "%s (%s)", ch.id[img.chA], ch.name[img.chA]);
-		ImageOut(opts, &img, CHA_OFFSET, CH_WIDTH, desc, Channel_A, NULL);
+		ImageOut(opts, &img, APT_CHA_OFFSET, APT_CH_WIDTH, desc, Channel_A, NULL);
 	}
 
 	// Channel B
 	if (CONTAINS(opts->type, Channel_B)) {
 		sprintf(desc, "%s (%s)", ch.id[img.chB], ch.name[img.chB]);
-		ImageOut(opts, &img, CHB_OFFSET, CH_WIDTH, desc, Channel_B, NULL);
+		ImageOut(opts, &img, APT_CHB_OFFSET, APT_CH_WIDTH, desc, Channel_B, NULL);
 	}
 
 	return 1;

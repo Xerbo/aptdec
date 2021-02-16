@@ -95,7 +95,7 @@ int mapOverlay(char *filename, apt_rgb_t **crow, int nrow, int zenith, int MCIR)
 			};
 
 			// Pixel offsets
-			int chb = x + CHB_OFFSET - 49;
+			int chb = x + APT_CHB_OFFSET - 49;
 			int cha = x + 36;
 
 			// Fill in map
@@ -170,8 +170,8 @@ int readRawImage(char *filename, float **prow, int *nrow) {
 	png_byte bit_depth  = png_get_bit_depth(png, info);
 
 	// Check the image
-	if(width != IMG_WIDTH){
-		fprintf(stderr, "Raw image must be %ipx wide.\n", IMG_WIDTH);
+	if(width != APT_IMG_WIDTH){
+		fprintf(stderr, "Raw image must be %ipx wide.\n", APT_IMG_WIDTH);
 		return 0;
 	}else if(bit_depth != 8){
 		fprintf(stderr, "Raw image must have 8 bit color.\n");
@@ -281,9 +281,9 @@ int readPalette(char *filename, apt_rgb_t **pixels) {
 
 void prow2crow(float **prow, int nrow, char *palette, apt_rgb_t **crow){
 	for(int y = 0; y < nrow; y++){
-		crow[y] = (apt_rgb_t *) malloc(sizeof(apt_rgb_t) * IMG_WIDTH);
+		crow[y] = (apt_rgb_t *) malloc(sizeof(apt_rgb_t) * APT_IMG_WIDTH);
 
-		for(int x = 0; x < IMG_WIDTH; x++){
+		for(int x = 0; x < APT_IMG_WIDTH; x++){
 			if(palette == NULL)
 				crow[y][x].r = crow[y][x].g = crow[y][x].b = prow[y][x];
 			else
@@ -300,10 +300,10 @@ int applyUserPalette(float **prow, int nrow, char *filename, apt_rgb_t **crow){
 	}
 
 	for(int y = 0; y < nrow; y++){
-		for(int x = 0; x < CH_WIDTH; x++){
-			int cha = CLIP(prow[y][x + CHA_OFFSET], 0, 255);
-			int chb = CLIP(prow[y][x + CHB_OFFSET], 0, 255);
-			crow[y][x + CHA_OFFSET] = pal_row[chb][cha];
+		for(int x = 0; x < APT_CH_WIDTH; x++){
+			int cha = CLIP(prow[y][x + APT_CHA_OFFSET], 0, 255);
+			int chb = CLIP(prow[y][x + APT_CHB_OFFSET], 0, 255);
+			crow[y][x + APT_CHA_OFFSET] = pal_row[chb][cha];
 		}
 	}
 	
@@ -346,8 +346,8 @@ int ImageOut(options_t *opts, apt_image_t *img, int offset, int width, char *des
 	for(unsigned long int i = 0; i < strlen(opts->effects); i++){
 		switch (opts->effects[i]) {
 			case Crop_Telemetry:
-				width -= TOTAL_TELE;
-				offset += SYNC_WIDTH + SPC_WIDTH;
+				width -= APT_TOTAL_TELE;
+				offset += APT_SYNC_WIDTH + APT_SPC_WIDTH;
 				crop_telemetry = 1;
 				break;
 			case Precipitation_Overlay:
@@ -422,9 +422,9 @@ int ImageOut(options_t *opts, apt_image_t *img, int offset, int width, char *des
 	// Precipitation overlay
 	if(CONTAINS(opts->effects, Precipitation_Overlay)){
 		for(int y = 0; y < img->nrow; y++){
-			for(int x = 0; x < CH_WIDTH; x++){
-				if(img->prow[y][x + CHB_OFFSET] >= 198)
-					crow[y][x + CHB_OFFSET] = crow[y][x + CHA_OFFSET] = apt_applyPalette(apt_PrecipPalette, img->prow[y][x + CHB_OFFSET]-198);
+			for(int x = 0; x < APT_CH_WIDTH; x++){
+				if(img->prow[y][x + APT_CHB_OFFSET] >= 198)
+					crow[y][x + APT_CHB_OFFSET] = crow[y][x + APT_CHA_OFFSET] = apt_applyPalette(apt_PrecipPalette, img->prow[y][x + APT_CHB_OFFSET]-198);
 			}
 		}
 	}
@@ -448,13 +448,13 @@ int ImageOut(options_t *opts, apt_image_t *img, int offset, int width, char *des
 
 	// Build image
 	for (int y = 0; y < img->nrow; y++) {
-		png_color pix[IMG_WIDTH]; // Color
-		png_byte mpix[IMG_WIDTH]; // Mono
+		png_color pix[APT_IMG_WIDTH]; // Color
+		png_byte mpix[APT_IMG_WIDTH]; // Mono
 
 		int skip = 0;
 		for (int x = 0; x < width; x++) {
-			if(crop_telemetry && x == CH_WIDTH)
-				skip += TELE_WIDTH + SYNC_WIDTH + SPC_WIDTH;
+			if(crop_telemetry && x == APT_CH_WIDTH)
+				skip += APT_TELE_WIDTH + APT_SYNC_WIDTH + APT_SPC_WIDTH;
 
 			if(greyscale){
 				mpix[x] = POWF(img->prow[y][x + skip + offset], opts->gamma)/a;
@@ -538,7 +538,7 @@ int initWriter(options_t *opts, apt_image_t *img, int width, int height, char *d
 }
 
 void pushRow(float *row, int width){
-	png_byte pix[IMG_WIDTH];
+	png_byte pix[APT_IMG_WIDTH];
 	for(int i = 0; i < width; i++)
 		pix[i] = row[i];
 

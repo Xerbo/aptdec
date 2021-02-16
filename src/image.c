@@ -23,7 +23,6 @@
 #include <stdlib.h>
 
 #include "apt.h"
-#include "offsets.h"
 #include "libs/reg.h"
 #include "image.h"
 
@@ -106,10 +105,10 @@ void apt_linearEnhance(float **prow, int nrow, int offset, int width){
 
 // Brightness calibrate, including telemetry
 void calibrateImage(float **prow, int nrow, int offset, int width, rgparam_t regr){
-	offset -= SYNC_WIDTH+SPC_WIDTH;
+	offset -= APT_SYNC_WIDTH+APT_SPC_WIDTH;
 
 	for (int y = 0; y < nrow; y++) {
-		for (int x = 0; x < width+SYNC_WIDTH+SPC_WIDTH+TELE_WIDTH; x++) {
+		for (int x = 0; x < width+APT_SYNC_WIDTH+APT_SPC_WIDTH+APT_TELE_WIDTH; x++) {
 			float pv = (float)rgcal(prow[y][x + offset], &regr);
 			prow[y][x + offset] = CLIP(pv, 0, 255);
 		}
@@ -129,7 +128,7 @@ double teleNoise(double wedges[16]){
 int apt_calibrate(float **prow, int nrow, int offset, int width) {
 	double teleline[APT_MAX_HEIGHT] = { 0.0 };
 	double wedge[16];
-	rgparam_t regr[APT_MAX_HEIGHT/FRAME_LEN + 1];
+	rgparam_t regr[APT_MAX_HEIGHT/APT_FRAME_LEN + 1];
 	int telestart, mtelestart = 0;
 	int channel = -1;
 
@@ -166,10 +165,10 @@ int apt_calibrate(float **prow, int nrow, int offset, int width) {
 		}
 	}
 
-	telestart = (mtelestart + 64) % FRAME_LEN;
+	telestart = (mtelestart + 64) % APT_FRAME_LEN;
 
 	// Make sure that theres at least one full frame in the image
-	if (nrow < telestart + FRAME_LEN) {
+	if (nrow < telestart + APT_FRAME_LEN) {
 		fprintf(stderr, "Telemetry decoding error, not enough rows\n");
 		return 0;
 	}
@@ -177,7 +176,7 @@ int apt_calibrate(float **prow, int nrow, int offset, int width) {
 	// Find the least noisy frame
 	double minNoise = -1;
 	int bestFrame = -1;
-	 for (int n = telestart, k = 0; n < nrow - FRAME_LEN; n += FRAME_LEN, k++) {
+	 for (int n = telestart, k = 0; n < nrow - APT_FRAME_LEN; n += APT_FRAME_LEN, k++) {
 		int j;
 
 		for (j = 0; j < 16; j++) {
@@ -217,10 +216,10 @@ int apt_calibrate(float **prow, int nrow, int offset, int width) {
 			// Find the brightness of the minute marker, I don't really know what for
 			Cs = 0.0;
 			int i, j = n;
-			for (i = 0, j = n; j < n + FRAME_LEN; j++) {
+			for (i = 0, j = n; j < n + APT_FRAME_LEN; j++) {
 				float csline = 0.0;
 				for (int l = 3; l < 43; l++)
-					csline += prow[n][l + offset - SPC_WIDTH];
+					csline += prow[n][l + offset - APT_SPC_WIDTH];
 				csline /= 40.0;
 
 				if (csline > 50.0) {
@@ -286,10 +285,10 @@ int apt_cropNoise(apt_image_t *img){
 	float spc_rows[APT_MAX_HEIGHT] = { 0.0 };
 	int startCrop = 0; int endCrop = img->nrow;
 	for(int y = 0; y < img->nrow; y++) {
-		for(int x = 0; x < SPC_WIDTH; x++) {
-			spc_rows[y] += img->prow[y][x + (CHB_OFFSET - SPC_WIDTH)];
+		for(int x = 0; x < APT_SPC_WIDTH; x++) {
+			spc_rows[y] += img->prow[y][x + (APT_CHB_OFFSET - APT_SPC_WIDTH)];
 		}
-		spc_rows[y] /= SPC_WIDTH;
+		spc_rows[y] /= APT_SPC_WIDTH;
 
 		// Skip minute markings
 		if(spc_rows[y] < 10) {

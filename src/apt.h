@@ -41,6 +41,19 @@ extern "C" {
 
 // Maximum height of an APT image in number of scanlines
 #define APT_MAX_HEIGHT 3000
+#define APT_SYNC_WIDTH 39
+#define APT_SPC_WIDTH  47
+#define APT_TELE_WIDTH 45
+// Width in pixels of a single channel image
+#define APT_CH_WIDTH   909
+#define APT_FRAME_LEN  128
+#define APT_CH_OFFSET  (APT_SYNC_WIDTH+APT_SPC_WIDTH+APT_CH_WIDTH+APT_TELE_WIDTH)
+#define APT_IMG_WIDTH  2080
+// Offset in pixels to channel A
+#define APT_CHA_OFFSET (APT_SYNC_WIDTH+APT_SPC_WIDTH)
+// Offset in pixels to channel B
+#define APT_CHB_OFFSET (APT_SYNC_WIDTH+APT_SPC_WIDTH+APT_CH_WIDTH+APT_TELE_WIDTH+APT_SYNC_WIDTH+APT_SPC_WIDTH)
+#define APT_TOTAL_TELE (APT_SYNC_WIDTH+APT_SPC_WIDTH+APT_TELE_WIDTH+APT_SYNC_WIDTH+APT_SPC_WIDTH+APT_TELE_WIDTH)
 
 // apt_getpixelrow callback function to get audio samples.
 // context is the same as passed to apt_getpixelrow.

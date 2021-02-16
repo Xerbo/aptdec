@@ -1,6 +1,5 @@
 #include "apt.h"
 #include "common.h"
-#include "offsets.h"
 
 int mapOverlay(char *filename, apt_rgb_t **crow, int nrow, int zenith, int MCIR);
 int readRawImage(char *filename, float **prow, int *nrow);
