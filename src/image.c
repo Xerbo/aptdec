@@ -19,10 +19,10 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <sndfile.h>
 #include <math.h>
 #include <stdlib.h>
 
+#include "apt.h"
 #include "offsets.h"
 #include "libs/reg.h"
 #include "image.h"
@@ -55,7 +55,7 @@ static double rgcal(float x, rgparam_t *rgpr) {
 static double tele[16];
 static double Cs;
 
-void histogramEqualise(float **prow, int nrow, int offset, int width){
+void apt_histogramEqualise(float **prow, int nrow, int offset, int width){
 	// Plot histogram
 	int histogram[256] = { 0 };
 	for(int y = 0; y < nrow; y++)
@@ -73,13 +73,13 @@ void histogramEqualise(float **prow, int nrow, int offset, int width){
 	int area = nrow * width;
 	for(int y = 0; y < nrow; y++){
 		for(int x = 0; x < width; x++){
-			int k = prow[y][x+offset];
-			prow[y][x+offset] = (256.0/area) * cf[k];
+			int k = (int)prow[y][x+offset];
+			prow[y][x+offset] = (256.0f/area) * cf[k];
 		}
 	}
 }
 
-void linearEnhance(float **prow, int nrow, int offset, int width){
+void apt_linearEnhance(float **prow, int nrow, int offset, int width){
 	// Plot histogram
 	int histogram[256] = { 0 };
 	for(int y = 0; y < nrow; y++)
@@ -98,8 +98,8 @@ void linearEnhance(float **prow, int nrow, int offset, int width){
 	// Stretch the brightness into the new range
 	for(int y = 0; y < nrow; y++){
 		for(int x = 0; x < width; x++){
-			prow[y][x+offset] = (prow[y][x+offset]-min) / (max-min) * 255.0;
-			prow[y][x+offset] = CLIP(prow[y][x+offset], 0.0, 255.0);
+			prow[y][x+offset] = (prow[y][x+offset]-min) / (max-min) * 255.0f;
+			prow[y][x+offset] = CLIP(prow[y][x+offset], 0.0f, 255.0f);
 		}
 	}
 }
@@ -110,7 +110,7 @@ void calibrateImage(float **prow, int nrow, int offset, int width, rgparam_t reg
 
 	for (int y = 0; y < nrow; y++) {
 		for (int x = 0; x < width+SYNC_WIDTH+SPC_WIDTH+TELE_WIDTH; x++) {
-			float pv = rgcal(prow[y][x + offset], &regr);
+			float pv = (float)rgcal(prow[y][x + offset], &regr);
 			prow[y][x + offset] = CLIP(pv, 0, 255);
 		}
 	}
@@ -126,10 +126,10 @@ double teleNoise(double wedges[16]){
 }
 
 // Get telemetry data for thermal calibration
-int calibrate(float **prow, int nrow, int offset, int width) {
-	double teleline[MAX_HEIGHT] = { 0.0 };
+int apt_calibrate(float **prow, int nrow, int offset, int width) {
+	double teleline[APT_MAX_HEIGHT] = { 0.0 };
 	double wedge[16];
-	rgparam_t regr[MAX_HEIGHT/FRAME_LEN + 1];
+	rgparam_t regr[APT_MAX_HEIGHT/FRAME_LEN + 1];
 	int telestart, mtelestart = 0;
 	int channel = -1;
 
@@ -156,8 +156,8 @@ int calibrate(float **prow, int nrow, int offset, int width) {
 		float df;
 
 		// (sum 4px below) - (sum 4px above)
-		df = (teleline[n - 4] + teleline[n - 3] + teleline[n - 2] + teleline[n - 1]) -
-			 (teleline[n + 0] + teleline[n + 1] + teleline[n + 2] + teleline[n + 3]);
+		df = (float)((teleline[n - 4] + teleline[n - 3] + teleline[n - 2] + teleline[n - 1]) -
+			     (teleline[n + 0] + teleline[n + 1] + teleline[n + 2] + teleline[n + 3]));
 
 		// Find the maximum difference
 		if (df > max) {
@@ -197,7 +197,7 @@ int calibrate(float **prow, int nrow, int offset, int width) {
 			// Compute & apply regression on the wedges
 			rgcomp(wedge, &regr[k]);
 			for (int j = 0; j < 16; j++)
-				tele[j] = rgcal(wedge[j], &regr[k]);
+				tele[j] = (float)rgcal((float)wedge[j], &regr[k]);
 
 			/* Compare the channel ID wedge to the reference
 			 * wedges, the wedge with the closest match will
@@ -205,7 +205,7 @@ int calibrate(float **prow, int nrow, int offset, int width) {
 			 */
 			float min = -1;
 			for (int j = 0; j < 6; j++) {
-				float df = tele[15] - tele[j];
+				float df = (float)(tele[15] - tele[j]);
 				df *= df;
 
 				if (df < min || min == -1) {
@@ -228,7 +228,7 @@ int calibrate(float **prow, int nrow, int offset, int width) {
 					i++;
 				}
 			}
-			Cs = rgcal(Cs / i, &regr[k]);
+			Cs = rgcal((float)(Cs / i), &regr[k]);
 		}
 	}
 
@@ -247,7 +247,7 @@ extern float quick_select(float arr[], int n);
 
 // Biased median denoise, pretyt ugly
 #define TRIG_LEVEL 40
-void denoise(float **prow, int nrow, int offset, int width){
+void apt_denoise(float **prow, int nrow, int offset, int width){
 	for(int y = 2; y < nrow-2; y++){
 		for(int x = offset+1; x < offset+width-1; x++){
 			if(prow[y][x+1] - prow[y][x] > TRIG_LEVEL ||
@@ -267,7 +267,7 @@ void denoise(float **prow, int nrow, int offset, int width){
 #undef TRIG_LEVEL
 
 // Flips a channel, for northbound passes
-void flipImage(image_t *img, int width, int offset){
+void apt_flipImage(apt_image_t *img, int width, int offset){
 	for(int y = 1; y < img->nrow; y++){
 		for(int x = 1; x < ceil(width / 2.0); x++){
 			// Flip top-left & bottom-right
@@ -279,11 +279,11 @@ void flipImage(image_t *img, int width, int offset){
 }
 
 // Calculate crop to reomve noise from the start and end of an image
-int cropNoise(image_t *img){
+int apt_cropNoise(apt_image_t *img){
 	#define NOISE_THRESH 180.0
 
 	// Average value of minute marker
-	float spc_rows[MAX_HEIGHT] = { 0.0 };
+	float spc_rows[APT_MAX_HEIGHT] = { 0.0 };
 	int startCrop = 0; int endCrop = img->nrow;
 	for(int y = 0; y < img->nrow; y++) {
 		for(int x = 0; x < SPC_WIDTH; x++) {
@@ -396,7 +396,7 @@ static double tempcal(float Ce, int satnum, tempparam_t * rgpr) {
 }
 
 // Temperature calibration wrapper
-void temperature(options_t *opts, image_t *img, int offset, int width){
+void temperature(options_t *opts, apt_image_t *img, int offset, int width){
 	tempparam_t temp;
 
 	printf("Temperature... ");
@@ -406,7 +406,7 @@ void temperature(options_t *opts, image_t *img, int offset, int width){
 
 	for (int y = 0; y < img->nrow; y++) {
 		for (int x = 0; x < width; x++) {
-			img->prow[y][x + offset] = tempcal(img->prow[y][x + offset], opts->satnum - 15, &temp);
+			img->prow[y][x + offset] = (float)tempcal(img->prow[y][x + offset], opts->satnum - 15, &temp);
 		}
 	}
 	printf("Done\n");

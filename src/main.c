@@ -20,7 +20,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifndef _MSC_VER
 #include <libgen.h>
+#else
+#include <windows.h>
+#endif
 #include <math.h>
 #include <sndfile.h>
 #include <errno.h>
@@ -28,10 +32,8 @@
 #include "libs/argparse.h"
 
 #include "offsets.h"
-
-// DSP
-extern int init_dsp(double F);
-extern int getpixelrow(float *pixelv, int nrow, int *zenith, int reset);
+#include "common.h"
+#include "apt.h"
 
 #include "pngio.h"
 #include "image.h"
@@ -46,6 +48,23 @@ int channels = 1;
 static int initsnd(char *filename);
 int getsample(float *sample, int nb);
 static int processAudio(char *filename, options_t *opts);
+
+#ifdef _MSC_VER
+// Functions not supported by MSVC
+static char *dirname(char *path)
+{
+	static char dir[MAX_PATH];
+	_splitpath(path, NULL, dir, NULL, NULL);
+        return dir;
+}
+
+static char *basename(char *path)
+{
+	static char base[MAX_PATH];
+	_splitpath(path, NULL, NULL, base, NULL);
+        return base;
+}
+#endif
 
 int main(int argc, const char **argv) {
 	options_t opts = { "r", "", 19, "", ".", 0, "", "", 1.0, 0 };
@@ -98,7 +117,7 @@ int main(int argc, const char **argv) {
 
 static int processAudio(char *filename, options_t *opts){
 	// Image info struct
-	image_t img;
+	apt_image_t img;
 
 	// Mapping between wedge value and channel ID
 	static struct {
@@ -125,7 +144,7 @@ static int processAudio(char *filename, options_t *opts){
 		strncpy(img.name, ctime(&t), 24);
 
 		// Init a row writer
-		initWriter(opts, &img, IMG_WIDTH, MAX_HEIGHT, "Unprocessed realtime image", "r");
+		initWriter(opts, &img, IMG_WIDTH, APT_MAX_HEIGHT, "Unprocessed realtime image", "r");
 	}		
 
 	if(strcmp(extension, "png") == 0){
@@ -141,12 +160,12 @@ static int processAudio(char *filename, options_t *opts){
 
 		// Build image
 		// TODO: multithreading, would require some sort of input buffer
-		for (img.nrow = 0; img.nrow < MAX_HEIGHT; img.nrow++) {
+		for (img.nrow = 0; img.nrow < APT_MAX_HEIGHT; img.nrow++) {
 			// Allocate memory for this row
 			img.prow[img.nrow] = (float *) malloc(sizeof(float) * 2150);
 
 			// Write into memory and break the loop when there are no more samples to read
-			if (getpixelrow(img.prow[img.nrow], img.nrow, &img.zenith, (img.nrow == 0)) == 0)
+			if (apt_getpixelrow(img.prow[img.nrow], img.nrow, &img.zenith, (img.nrow == 0), getsample) == 0)
 				break;
 
 			if(opts->realtime) pushRow(img.prow[img.nrow], IMG_WIDTH);
@@ -171,32 +190,32 @@ static int processAudio(char *filename, options_t *opts){
 	}
 
 	// Calibrate
-	img.chA = calibrate(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
-	img.chB = calibrate(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
+	img.chA = apt_calibrate(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
+	img.chB = apt_calibrate(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
 	printf("Channel A: %s (%s)\n", ch.id[img.chA], ch.name[img.chA]);
 	printf("Channel B: %s (%s)\n", ch.id[img.chB], ch.name[img.chB]);
 
 	// Crop noise from start and end of image
 	if(CONTAINS(opts->effects, Crop_Noise)){
-		img.zenith -= cropNoise(&img);
+		img.zenith -= apt_cropNoise(&img);
 	}
 
 	// Denoise
 	if(CONTAINS(opts->effects, Denoise)){
-		denoise(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
-		denoise(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
+		apt_denoise(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
+		apt_denoise(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
 	}
 
 	// Flip, for northbound passes
 	if(CONTAINS(opts->effects, Flip_Image)){
-		flipImage(&img, CH_WIDTH, CHA_OFFSET);
-		flipImage(&img, CH_WIDTH, CHB_OFFSET);
+		apt_flipImage(&img, CH_WIDTH, CHA_OFFSET);
+		apt_flipImage(&img, CH_WIDTH, CHB_OFFSET);
 	}
 
 	// Temperature
 	if (CONTAINS(opts->type, Temperature) && img.chB >= 4) {
 		// Create another buffer as to not modify the orignal
-		image_t tmpimg = img;
+		apt_image_t tmpimg = img;
 		for(int i = 0; i < img.nrow; i++){
 			tmpimg.prow[i] = (float *) malloc(sizeof(float) * 2150);
 			memcpy(tmpimg.prow[i], img.prow[i], sizeof(float) * 2150);
@@ -204,7 +223,7 @@ static int processAudio(char *filename, options_t *opts){
 
 		// Perform temperature calibration
 		temperature(opts, &tmpimg, CHB_OFFSET, CH_WIDTH);
-		ImageOut(opts, &tmpimg, CHB_OFFSET, CH_WIDTH, "Temperature", Temperature, (char *)TempPalette);
+		ImageOut(opts, &tmpimg, CHB_OFFSET, CH_WIDTH, "Temperature", Temperature, (char *)apt_TempPalette);
 	}
 
 	// MCIR
@@ -213,14 +232,14 @@ static int processAudio(char *filename, options_t *opts){
 
 	// Linear equalise
 	if(CONTAINS(opts->effects, Linear_Equalise)){
-		linearEnhance(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
-		linearEnhance(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
+		apt_linearEnhance(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
+		apt_linearEnhance(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
 	}
 
 	// Histogram equalise
 	if(CONTAINS(opts->effects, Histogram_Equalise)){
-		histogramEqualise(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
-		histogramEqualise(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
+		apt_histogramEqualise(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
+		apt_histogramEqualise(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
 	}
 
 	// Raw image
@@ -263,7 +282,7 @@ static int initsnd(char *filename) {
 		return 0;
 	}
 
-	res = init_dsp(infwav.samplerate);
+	res = apt_init(infwav.samplerate);
 	printf("Input file: %s\n", filename);
 	if(res < 0) {
 		fprintf(stderr, "Input sample rate too low: %d\n", infwav.samplerate);
@@ -282,14 +301,15 @@ static int initsnd(char *filename) {
 // Read samples from the audio file
 int getsample(float *sample, int nb) {
 	if(channels == 1){
-		return sf_read_float(audioFile, sample, nb);
+		return (int)sf_read_float(audioFile, sample, nb);
 	}else{
 		/* Multi channel audio is encoded such as:
 		 *  Ch1,Ch2,Ch1,Ch2,Ch1,Ch2
 		 */
-		float buf[nb * channels]; // Something like BLKIN*2 could also be used
-		int samples = sf_read_float(audioFile, buf, nb * channels);
+		float *buf = malloc(sizeof(float) * nb * channels); // Something like BLKIN*2 could also be used
+		int samples = (int)sf_read_float(audioFile, buf, nb * channels);
 		for(int i = 0; i < nb; i++) sample[i] = buf[i * channels];
+		free(buf);
 		return samples / channels;
 	}
 }

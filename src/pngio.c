@@ -26,7 +26,7 @@
 
 #include "pngio.h"
 
-int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
+int mapOverlay(char *filename, apt_rgb_t **crow, int nrow, int zenith, int MCIR) {
 	FILE *fp = fopen(filename, "rb");
 	if(!fp) {
 		fprintf(stderr, "Cannot open %s\n", filename);
@@ -88,7 +88,7 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 		for(int x = 49; x < width - 82; x++){
 			// Maps are 16 bit / channel
 			png_bytep px = &mapRows[CLIP(y + mapOffset, 0, height-1)][x * 6];
-			rgb_t map = {
+			apt_rgb_t map = {
 				(px[0] << 8) | px[1],
 				(px[2] << 8) | px[3],
 				(px[4] << 8) | px[5]
@@ -105,10 +105,10 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 					float darken = ((255-crow[y][chb].r)-100)/50;
 					float green = CLIP(map.g/300, 0, 1);
 					float blue = 0.15 - CLIP(map.b/960.0, 0, 1);
-					crow[y][cha] = (rgb_t){blue*1000*darken, green*98*darken, blue*500.0*darken};
+					crow[y][cha] = (apt_rgb_t){blue*1000*darken, green*98*darken, blue*500.0*darken};
 				}else{
 					// Sea
-					crow[y][cha] = (rgb_t){9, 17, 74};
+					crow[y][cha] = (apt_rgb_t){9, 17, 74};
 				}
 			}
 
@@ -125,15 +125,15 @@ int mapOverlay(char *filename, rgb_t **crow, int nrow, int zenith, int MCIR) {
 			map.b = CLIP(map.b, 0, 255.0);
 
 			// Map overlay on channel A
-			crow[y][cha] = RGBcomposite(map, alpha, crow[y][cha], 1);
+			crow[y][cha] = apt_RGBcomposite(map, alpha, crow[y][cha], 1);
 			// Map overlay on channel B
 			if(!MCIR)
-				crow[y][chb] = RGBcomposite(map, alpha, crow[y][chb], 1);
+				crow[y][chb] = apt_RGBcomposite(map, alpha, crow[y][chb], 1);
 
 			// Cloud overlay on channel A
 			if(MCIR){
 				float cloud = CLIP((crow[y][chb].r - 113) / 90.0, 0, 1);
-				crow[y][cha] = RGBcomposite((rgb_t){255, 250, 245}, cloud, crow[y][cha], 1);
+				crow[y][cha] = apt_RGBcomposite((apt_rgb_t){255, 250, 245}, cloud, crow[y][cha], 1);
 			}
 		}
 	}
@@ -206,7 +206,7 @@ int readRawImage(char *filename, float **prow, int *nrow) {
 	return 1;
 }
 
-int readPalette(char *filename, rgb_t **pixels) {
+int readPalette(char *filename, apt_rgb_t **pixels) {
 	FILE *fp = fopen(filename, "rb");
 	if(!fp) {
 		char buffer[1024];
@@ -266,10 +266,10 @@ int readPalette(char *filename, rgb_t **pixels) {
 
 	// Put into crow
 	for(int y = 0; y < height; y++) {
-		pixels[y] = (rgb_t *) malloc(sizeof(rgb_t) * width);
+		pixels[y] = (apt_rgb_t *) malloc(sizeof(apt_rgb_t) * width);
 
 		for(int x = 0; x < width; x++)
-			pixels[y][x] = (rgb_t){
+			pixels[y][x] = (apt_rgb_t){
 				PNGrows[y][x*3],
 				PNGrows[y][x*3 + 1], 
 				PNGrows[y][x*3 + 2]
@@ -279,21 +279,21 @@ int readPalette(char *filename, rgb_t **pixels) {
 	return 1;
 }
 
-void prow2crow(float **prow, int nrow, char *palette, rgb_t **crow){
+void prow2crow(float **prow, int nrow, char *palette, apt_rgb_t **crow){
 	for(int y = 0; y < nrow; y++){
-		crow[y] = (rgb_t *) malloc(sizeof(rgb_t) * IMG_WIDTH);
+		crow[y] = (apt_rgb_t *) malloc(sizeof(apt_rgb_t) * IMG_WIDTH);
 
 		for(int x = 0; x < IMG_WIDTH; x++){
 			if(palette == NULL)
 				crow[y][x].r = crow[y][x].g = crow[y][x].b = prow[y][x];
 			else
-				crow[y][x] = applyPalette(palette, prow[y][x]);
+				crow[y][x] = apt_applyPalette(palette, prow[y][x]);
 		}
 	}
 }
 
-int applyUserPalette(float **prow, int nrow, char *filename, rgb_t **crow){
-	rgb_t *pal_row[256];
+int applyUserPalette(float **prow, int nrow, char *filename, apt_rgb_t **crow){
+	apt_rgb_t *pal_row[256];
 	if(!readPalette(filename, pal_row)){
 		fprintf(stderr, "Could not read palette\n");
 		return 0;
@@ -310,7 +310,7 @@ int applyUserPalette(float **prow, int nrow, char *filename, rgb_t **crow){
 	return 1;
 }
 
-int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, char chid, char *palette){
+int ImageOut(options_t *opts, apt_image_t *img, int offset, int width, char *desc, char chid, char *palette){
 	char outName[512];
 	if(opts->filename == NULL || opts->filename[0] == '\0'){
 		sprintf(outName, "%s/%s-%c.png", opts->path, img->name, chid);
@@ -409,7 +409,7 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 	png_write_info(png_ptr, info_ptr);
 
 	// Move prow into crow, crow ~ color rows, if required
-	rgb_t *crow[MAX_HEIGHT];
+	apt_rgb_t *crow[APT_MAX_HEIGHT];
 	if(!greyscale){
 		prow2crow(img->prow, img->nrow, palette, crow);
 	}
@@ -424,7 +424,7 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 		for(int y = 0; y < img->nrow; y++){
 			for(int x = 0; x < CH_WIDTH; x++){
 				if(img->prow[y][x + CHB_OFFSET] >= 198)
-					crow[y][x + CHB_OFFSET] = crow[y][x + CHA_OFFSET] = applyPalette(PrecipPalette, img->prow[y][x + CHB_OFFSET]-198);
+					crow[y][x + CHB_OFFSET] = crow[y][x + CHA_OFFSET] = apt_applyPalette(apt_PrecipPalette, img->prow[y][x + CHB_OFFSET]-198);
 			}
 		}
 	}
@@ -448,8 +448,8 @@ int ImageOut(options_t *opts, image_t *img, int offset, int width, char *desc, c
 
 	// Build image
 	for (int y = 0; y < img->nrow; y++) {
-		png_color pix[width]; // Color
-		png_byte mpix[width]; // Mono
+		png_color pix[IMG_WIDTH]; // Color
+		png_byte mpix[IMG_WIDTH]; // Mono
 
 		int skip = 0;
 		for (int x = 0; x < width; x++) {
@@ -488,7 +488,7 @@ png_structp rt_png_ptr;
 png_infop rt_info_ptr;
 FILE *rt_pngfile;
 
-int initWriter(options_t *opts, image_t *img, int width, int height, char *desc, char *chid){
+int initWriter(options_t *opts, apt_image_t *img, int width, int height, char *desc, char *chid){
 	char outName[384];
 	sprintf(outName, "%s/%s-%s.png", opts->path, img->name, chid);
 
@@ -538,7 +538,7 @@ int initWriter(options_t *opts, image_t *img, int width, int height, char *desc,
 }
 
 void pushRow(float *row, int width){
-	png_byte pix[width];
+	png_byte pix[IMG_WIDTH];
 	for(int i = 0; i < width; i++)
 		pix[i] = row[i];
 

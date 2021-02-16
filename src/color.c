@@ -17,18 +17,19 @@
  *
  */
 
+#include "apt.h"
 #include "color.h"
 
-rgb_t applyPalette(char *palette, int val){
-	return (rgb_t){
+apt_rgb_t apt_applyPalette(char *palette, int val){
+	return (apt_rgb_t){
 		palette[(int)CLIP(val, 0, 255)*3 + 0],
 		palette[(int)CLIP(val, 0, 255)*3 + 1],
 		palette[(int)CLIP(val, 0, 255)*3 + 2]
 	};
 }
 
-rgb_t RGBcomposite(rgb_t top, float top_a, rgb_t bottom, float bottom_a){
-	return (rgb_t){
+apt_rgb_t apt_RGBcomposite(apt_rgb_t top, float top_a, apt_rgb_t bottom, float bottom_a){
+	return (apt_rgb_t){
 		MCOMPOSITE(top.r, top_a, bottom.r, bottom_a),
 		MCOMPOSITE(top.g, top_a, bottom.g, bottom_a),
 		MCOMPOSITE(top.b, top_a, bottom.b, bottom_a)

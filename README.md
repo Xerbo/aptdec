@@ -129,10 +129,17 @@ cmake ..
 make
 ```
 
-Since CMake is now being used for building, windows support has come. You can build for windows with the `build_windows.sh` script, you will need the following:
+You can cross build for Windows from Linux with the `build_windows.sh` script, you will need the following:
 ```
 sudo apt install wget cmake make mingw-w64 git unzip
 ```
+
+To build natively on Windows using MSVC, you will also need: git, ninja and cmake. Then run:
+```
+.\build_windows.bat
+```
+
+If you just wish to build libaptdec on Windows, libpng and libsndfile aren't needed.
 
 ## Further Reading
 
