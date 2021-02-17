@@ -39,7 +39,7 @@ extern "C" {
 #define APT_API
 #endif
 
-// Maximum height of an APT image in number of scanlines
+// Maximum height of an APT image in number of rows
 #define APT_MAX_HEIGHT 3000
 // Width in pixels of sync
 #define APT_SYNC_WIDTH 39
@@ -59,6 +59,18 @@ extern "C" {
 #define APT_CHB_OFFSET (APT_SYNC_WIDTH+APT_SPC_WIDTH+APT_CH_WIDTH+APT_TELE_WIDTH+APT_SYNC_WIDTH+APT_SPC_WIDTH)
 #define APT_TOTAL_TELE (APT_SYNC_WIDTH+APT_SPC_WIDTH+APT_TELE_WIDTH+APT_SYNC_WIDTH+APT_SPC_WIDTH+APT_TELE_WIDTH)
 
+// Number of rows required for apt_calibrate
+#define APT_CALIBRATION_ROWS 192
+// Channel ID returned by apt_calibrate
+// NOAA-15: https://nssdc.gsfc.nasa.gov/nmc/experiment/display.action?id=1998-030A-01
+//  Channel 1:  visible (0.58-0.68 um)
+//  Channel 2:  near-IR (0.725-1.0 um)
+//  Channel 3A: near-IR (1.58-1.64 um)
+//  Channel 3B: mid-infrared (3.55-3.93 um)
+//  Channel 4:  thermal-infrared (10.3-11.3 um)
+//  Channel 5:  thermal-infrared (11.5-12.5 um)
+typedef enum apt_channel {APT_CHANNEL_UNKNOWN, APT_CHANNEL_1, APT_CHANNEL_2, APT_CHANNEL_3A, APT_CHANNEL_4, APT_CHANNEL_5, APT_CHANNEL_3B} apt_channel_t;
+
 // Width in elements of apt_image_t.prow arrays
 #define APT_PROW_WIDTH 2150
 
@@ -70,7 +82,7 @@ typedef struct {
 	float *prow[APT_MAX_HEIGHT]; // Row buffers
 	int nrow; // Number of rows
 	int zenith; // Row in image where satellite reaches peak elevation
-	int chA, chB; // ID of each channel
+	apt_channel_t chA, chB; // ID of each channel
 	char name[256]; // Stripped filename
 	char *palette; // Filename of palette
 } apt_image_t;
@@ -84,7 +96,7 @@ int APT_API apt_getpixelrow(float *pixelv, int nrow, int *zenith, int reset, apt
 
 void APT_API apt_histogramEqualise(float **prow, int nrow, int offset, int width);
 void APT_API apt_linearEnhance(float **prow, int nrow, int offset, int width);
-int APT_API apt_calibrate(float **prow, int nrow, int offset, int width) ;
+apt_channel_t APT_API apt_calibrate(float **prow, int nrow, int offset, int width) ;
 void APT_API apt_denoise(float **prow, int nrow, int offset, int width);
 void APT_API apt_flipImage(apt_image_t *img, int width, int offset);
 int APT_API apt_cropNoise(apt_image_t *img);

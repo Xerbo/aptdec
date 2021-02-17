@@ -125,7 +125,7 @@ double teleNoise(double wedges[16]){
 }
 
 // Get telemetry data for thermal calibration
-int apt_calibrate(float **prow, int nrow, int offset, int width) {
+apt_channel_t apt_calibrate(float **prow, int nrow, int offset, int width) {
 	double teleline[APT_MAX_HEIGHT] = { 0.0 };
 	double wedge[16];
 	rgparam_t regr[APT_MAX_HEIGHT/APT_FRAME_LEN + 1];
@@ -133,9 +133,9 @@ int apt_calibrate(float **prow, int nrow, int offset, int width) {
 	int channel = -1;
 
 	// The minimum rows required to decode a full frame
-	if (nrow < 192) {
+	if (nrow < APT_CALIBRATION_ROWS) {
 		fprintf(stderr, "Telemetry decoding error, not enough rows\n");
-		return 0;
+		return APT_CHANNEL_UNKNOWN;
 	}
 
 	// Calculate average of a row of telemetry
@@ -170,7 +170,7 @@ int apt_calibrate(float **prow, int nrow, int offset, int width) {
 	// Make sure that theres at least one full frame in the image
 	if (nrow < telestart + APT_FRAME_LEN) {
 		fprintf(stderr, "Telemetry decoding error, not enough rows\n");
-		return 0;
+		return APT_CHANNEL_UNKNOWN;
 	}
 
 	// Find the least noisy frame
@@ -233,12 +233,12 @@ int apt_calibrate(float **prow, int nrow, int offset, int width) {
 
 	if(bestFrame == -1){
 		fprintf(stderr, "Something has gone very wrong, please file a bug report.\n");
-		return 0;
+		return APT_CHANNEL_UNKNOWN;
 	}
 
 	calibrateImage(prow, nrow, offset, width, regr[bestFrame]);
 
-	return channel + 1;
+	return (apt_channel_t)(channel + 1);
 
 }
 

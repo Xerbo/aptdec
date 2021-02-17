@@ -124,7 +124,7 @@ static int processAudio(char *filename, options_t *opts){
 		char *name[7];
 	} ch = {
 		{ "?", 		 "1", 	   "2", 			"3A", 			"4", 				"5", 				"3B"		   },
-		{ "unknown", "visble", "near-infrared", "mid-infrared", "thermal-infrared", "thermal-infrared", "mid-infrared" }
+		{ "unknown", "visble", "near-infrared", "near-infrared", "thermal-infrared", "thermal-infrared", "mid-infrared" }
 	};
 
 	// Buffer for image channel
