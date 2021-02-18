@@ -299,6 +299,7 @@ static int initsnd(char *filename) {
 
 // Read samples from the audio file
 int getsamples(void *context, float *samples, int nb) {
+    (void) context;
 	if(channels == 1){
 		return (int)sf_read_float(audioFile, samples, nb);
 	}else{
