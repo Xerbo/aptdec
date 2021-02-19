@@ -20,18 +20,19 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifndef _MSC_VER
 #include <libgen.h>
+#else
+#include <windows.h>
+#endif
 #include <math.h>
 #include <sndfile.h>
 #include <errno.h>
 #include <time.h>
 #include "libs/argparse.h"
 
-#include "offsets.h"
-
-// DSP
-extern int init_dsp(double F);
-extern int getpixelrow(float *pixelv, int nrow, int *zenith, int reset);
+#include "common.h"
+#include "apt.h"
 
 #include "pngio.h"
 #include "image.h"
@@ -44,8 +45,25 @@ int channels = 1;
 
 // Function declarations
 static int initsnd(char *filename);
-int getsample(float *sample, int nb);
+int getsamples(void *context, float *samples, int nb);
 static int processAudio(char *filename, options_t *opts);
+
+#ifdef _MSC_VER
+// Functions not supported by MSVC
+static char *dirname(char *path)
+{
+	static char dir[MAX_PATH];
+	_splitpath(path, NULL, dir, NULL, NULL);
+        return dir;
+}
+
+static char *basename(char *path)
+{
+	static char base[MAX_PATH];
+	_splitpath(path, NULL, NULL, base, NULL);
+        return base;
+}
+#endif
 
 int main(int argc, const char **argv) {
 	options_t opts = { "r", "", 19, "", ".", 0, "", "", 1.0, 0 };
@@ -98,7 +116,7 @@ int main(int argc, const char **argv) {
 
 static int processAudio(char *filename, options_t *opts){
 	// Image info struct
-	image_t img;
+	apt_image_t img;
 
 	// Mapping between wedge value and channel ID
 	static struct {
@@ -106,7 +124,7 @@ static int processAudio(char *filename, options_t *opts){
 		char *name[7];
 	} ch = {
 		{ "?", 		 "1", 	   "2", 			"3A", 			"4", 				"5", 				"3B"		   },
-		{ "unknown", "visble", "near-infrared", "mid-infrared", "thermal-infrared", "thermal-infrared", "mid-infrared" }
+		{ "unknown", "visble", "near-infrared", "near-infrared", "thermal-infrared", "thermal-infrared", "mid-infrared" }
 	};
 
 	// Buffer for image channel
@@ -125,7 +143,7 @@ static int processAudio(char *filename, options_t *opts){
 		strncpy(img.name, ctime(&t), 24);
 
 		// Init a row writer
-		initWriter(opts, &img, IMG_WIDTH, MAX_HEIGHT, "Unprocessed realtime image", "r");
+		initWriter(opts, &img, APT_IMG_WIDTH, APT_MAX_HEIGHT, "Unprocessed realtime image", "r");
 	}		
 
 	if(strcmp(extension, "png") == 0){
@@ -141,15 +159,15 @@ static int processAudio(char *filename, options_t *opts){
 
 		// Build image
 		// TODO: multithreading, would require some sort of input buffer
-		for (img.nrow = 0; img.nrow < MAX_HEIGHT; img.nrow++) {
+		for (img.nrow = 0; img.nrow < APT_MAX_HEIGHT; img.nrow++) {
 			// Allocate memory for this row
-			img.prow[img.nrow] = (float *) malloc(sizeof(float) * 2150);
+			img.prow[img.nrow] = (float *) malloc(sizeof(float) * APT_PROW_WIDTH);
 
 			// Write into memory and break the loop when there are no more samples to read
-			if (getpixelrow(img.prow[img.nrow], img.nrow, &img.zenith, (img.nrow == 0)) == 0)
+			if (apt_getpixelrow(img.prow[img.nrow], img.nrow, &img.zenith, (img.nrow == 0), getsamples, NULL) == 0)
 				break;
 
-			if(opts->realtime) pushRow(img.prow[img.nrow], IMG_WIDTH);
+			if(opts->realtime) pushRow(img.prow[img.nrow], APT_IMG_WIDTH);
 
 			fprintf(stderr, "Row: %d\r", img.nrow);
 			fflush(stderr);
@@ -171,81 +189,81 @@ static int processAudio(char *filename, options_t *opts){
 	}
 
 	// Calibrate
-	img.chA = calibrate(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
-	img.chB = calibrate(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
+	img.chA = apt_calibrate(img.prow, img.nrow, APT_CHA_OFFSET, APT_CH_WIDTH);
+	img.chB = apt_calibrate(img.prow, img.nrow, APT_CHB_OFFSET, APT_CH_WIDTH);
 	printf("Channel A: %s (%s)\n", ch.id[img.chA], ch.name[img.chA]);
 	printf("Channel B: %s (%s)\n", ch.id[img.chB], ch.name[img.chB]);
 
 	// Crop noise from start and end of image
 	if(CONTAINS(opts->effects, Crop_Noise)){
-		img.zenith -= cropNoise(&img);
+		img.zenith -= apt_cropNoise(&img);
 	}
 
 	// Denoise
 	if(CONTAINS(opts->effects, Denoise)){
-		denoise(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
-		denoise(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
+		apt_denoise(img.prow, img.nrow, APT_CHA_OFFSET, APT_CH_WIDTH);
+		apt_denoise(img.prow, img.nrow, APT_CHB_OFFSET, APT_CH_WIDTH);
 	}
 
 	// Flip, for northbound passes
 	if(CONTAINS(opts->effects, Flip_Image)){
-		flipImage(&img, CH_WIDTH, CHA_OFFSET);
-		flipImage(&img, CH_WIDTH, CHB_OFFSET);
+		apt_flipImage(&img, APT_CH_WIDTH, APT_CHA_OFFSET);
+		apt_flipImage(&img, APT_CH_WIDTH, APT_CHB_OFFSET);
 	}
 
 	// Temperature
 	if (CONTAINS(opts->type, Temperature) && img.chB >= 4) {
 		// Create another buffer as to not modify the orignal
-		image_t tmpimg = img;
+		apt_image_t tmpimg = img;
 		for(int i = 0; i < img.nrow; i++){
-			tmpimg.prow[i] = (float *) malloc(sizeof(float) * 2150);
-			memcpy(tmpimg.prow[i], img.prow[i], sizeof(float) * 2150);
+			tmpimg.prow[i] = (float *) malloc(sizeof(float) * APT_PROW_WIDTH);
+			memcpy(tmpimg.prow[i], img.prow[i], sizeof(float) * APT_PROW_WIDTH);
 		}
 
 		// Perform temperature calibration
-		temperature(opts, &tmpimg, CHB_OFFSET, CH_WIDTH);
-		ImageOut(opts, &tmpimg, CHB_OFFSET, CH_WIDTH, "Temperature", Temperature, (char *)TempPalette);
+		temperature(opts, &tmpimg, APT_CHB_OFFSET, APT_CH_WIDTH);
+		ImageOut(opts, &tmpimg, APT_CHB_OFFSET, APT_CH_WIDTH, "Temperature", Temperature, (char *)apt_TempPalette);
 	}
 
 	// MCIR
 	if (CONTAINS(opts->type, MCIR))
-		ImageOut(opts, &img, CHA_OFFSET, CH_WIDTH, "MCIR", MCIR, NULL);
+		ImageOut(opts, &img, APT_CHA_OFFSET, APT_CH_WIDTH, "MCIR", MCIR, NULL);
 
 	// Linear equalise
 	if(CONTAINS(opts->effects, Linear_Equalise)){
-		linearEnhance(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
-		linearEnhance(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
+		apt_linearEnhance(img.prow, img.nrow, APT_CHA_OFFSET, APT_CH_WIDTH);
+		apt_linearEnhance(img.prow, img.nrow, APT_CHB_OFFSET, APT_CH_WIDTH);
 	}
 
 	// Histogram equalise
 	if(CONTAINS(opts->effects, Histogram_Equalise)){
-		histogramEqualise(img.prow, img.nrow, CHA_OFFSET, CH_WIDTH);
-		histogramEqualise(img.prow, img.nrow, CHB_OFFSET, CH_WIDTH);
+		apt_histogramEqualise(img.prow, img.nrow, APT_CHA_OFFSET, APT_CH_WIDTH);
+		apt_histogramEqualise(img.prow, img.nrow, APT_CHB_OFFSET, APT_CH_WIDTH);
 	}
 
 	// Raw image
 	if (CONTAINS(opts->type, Raw_Image)) {
 		sprintf(desc, "%s (%s) & %s (%s)", ch.id[img.chA], ch.name[img.chA], ch.id[img.chB], ch.name[img.chB]);
-		ImageOut(opts, &img, 0, IMG_WIDTH, desc, Raw_Image, NULL);
+		ImageOut(opts, &img, 0, APT_IMG_WIDTH, desc, Raw_Image, NULL);
 	}
 
 	// Palette image
 	if (CONTAINS(opts->type, Palleted)) {
 		img.palette = opts->palette;
 		strcpy(desc, "Palette composite");
-		ImageOut(opts, &img, CHA_OFFSET, 909, desc, Palleted, NULL);
+		ImageOut(opts, &img, APT_CHA_OFFSET, 909, desc, Palleted, NULL);
 	}
 
 	// Channel A
 	if (CONTAINS(opts->type, Channel_A)) {
 		sprintf(desc, "%s (%s)", ch.id[img.chA], ch.name[img.chA]);
-		ImageOut(opts, &img, CHA_OFFSET, CH_WIDTH, desc, Channel_A, NULL);
+		ImageOut(opts, &img, APT_CHA_OFFSET, APT_CH_WIDTH, desc, Channel_A, NULL);
 	}
 
 	// Channel B
 	if (CONTAINS(opts->type, Channel_B)) {
 		sprintf(desc, "%s (%s)", ch.id[img.chB], ch.name[img.chB]);
-		ImageOut(opts, &img, CHB_OFFSET, CH_WIDTH, desc, Channel_B, NULL);
+		ImageOut(opts, &img, APT_CHB_OFFSET, APT_CH_WIDTH, desc, Channel_B, NULL);
 	}
 
 	return 1;
@@ -263,7 +281,7 @@ static int initsnd(char *filename) {
 		return 0;
 	}
 
-	res = init_dsp(infwav.samplerate);
+	res = apt_init(infwav.samplerate);
 	printf("Input file: %s\n", filename);
 	if(res < 0) {
 		fprintf(stderr, "Input sample rate too low: %d\n", infwav.samplerate);
@@ -280,16 +298,18 @@ static int initsnd(char *filename) {
 }
 
 // Read samples from the audio file
-int getsample(float *sample, int nb) {
+int getsamples(void *context, float *samples, int nb) {
+    (void) context;
 	if(channels == 1){
-		return sf_read_float(audioFile, sample, nb);
+		return (int)sf_read_float(audioFile, samples, nb);
 	}else{
 		/* Multi channel audio is encoded such as:
 		 *  Ch1,Ch2,Ch1,Ch2,Ch1,Ch2
 		 */
-		float buf[nb * channels]; // Something like BLKIN*2 could also be used
-		int samples = sf_read_float(audioFile, buf, nb * channels);
-		for(int i = 0; i < nb; i++) sample[i] = buf[i * channels];
-		return samples / channels;
+		float *buf = malloc(sizeof(float) * nb * channels); // Something like BLKIN*2 could also be used
+		int samplesRead = (int)sf_read_float(audioFile, buf, nb * channels);
+		for(int i = 0; i < nb; i++) samples[i] = buf[i * channels];
+		free(buf);
+		return samplesRead / channels;
 	}
 }

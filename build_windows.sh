@@ -1,3 +1,6 @@
+#!/bin/bash
+# Cross compile for Windows from Linux
+
 TEMP_PATH="$(pwd)/winpath"
 set -e
 

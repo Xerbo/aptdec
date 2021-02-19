@@ -22,6 +22,7 @@
 #include <string.h>
 #include <math.h>
 
+#include "apt.h"
 #include "filter.h"
 
 // In case your C compiler is so old that Pi hadn't been invented yet
@@ -40,8 +41,6 @@
 #define RSMULT 15
 #define Fi (Fp * RSMULT)
 
-extern int getsample(float *inbuff, int count);
-
 static double Fe;
 
 static double offset = 0.0;
@@ -51,7 +50,7 @@ static double FreqOsc;
 static double K1, K2;
 
 // Check the sample rate and calculate some constants
-int init_dsp(double F) {
+int apt_init(double F) {
 	if(F > Fi) return 1;
 	if(F < Fp) return -1;
 	Fe = F;
@@ -132,7 +131,7 @@ static double pll(double I, double Q) {
 }
 
 // Convert samples into pixels
-static int getamp(double *ampbuff, int count) {
+static int getamp(double *ampbuff, int count, apt_getsamples_t getsamples, void *context) {
 	static float inbuff[BLKIN];
 	static int idxin = 0;
 	static int nin = 0;
@@ -148,7 +147,7 @@ static int getamp(double *ampbuff, int count) {
 			idxin = 0;
 
 			// Read some samples
-			res = getsample(&(inbuff[nin]), BLKIN - nin);
+			res = getsamples(context, &(inbuff[nin]), BLKIN - nin);
 			nin += res;
 
 			// Make sure there is enough samples to continue
@@ -169,7 +168,7 @@ static int getamp(double *ampbuff, int count) {
 }
 
 // Sub-pixel offsetting + FIR compensation
-int getpixelv(float *pvbuff, int count) {
+int getpixelv(float *pvbuff, int count, apt_getsamples_t getsamples, void *context) {
 	// Amplitude buffer
 	static double ampbuff[BLKAMP];
 	static int nam = 0;
@@ -179,7 +178,7 @@ int getpixelv(float *pvbuff, int count) {
 
 	// Gaussian resampling factor
 	mult = (double) Fi / Fe * FreqLine;
-	int m = RSFilterLen / mult + 1;
+	int m = (int)(RSFilterLen / mult + 1);
 
 	for (int n = 0; n < count; n++) {
 		int shift;
@@ -188,14 +187,14 @@ int getpixelv(float *pvbuff, int count) {
 			int res;
 			memmove(ampbuff, &(ampbuff[idxam]), nam * sizeof(double));
 			idxam = 0;
-			res = getamp(&(ampbuff[nam]), BLKAMP - nam);
+			res = getamp(&(ampbuff[nam]), BLKAMP - nam, getsamples, context);
 			nam += res;
 			if (nam < m)
 				return n;
 		}
 
 		// Gaussian FIR compensation filter
-		pvbuff[n] = rsfir(&(ampbuff[idxam]), rsfilter, RSFilterLen, offset, mult) * mult * 256.0;
+		pvbuff[n] = (float)(rsfir(&(ampbuff[idxam]), rsfilter, RSFilterLen, offset, mult) * mult * 256.0);
 
 		shift = ((int) floor((RSMULT - offset) / mult)) + 1;
 		offset = shift * mult + offset - RSMULT;
@@ -208,7 +207,7 @@ int getpixelv(float *pvbuff, int count) {
 }
 
 // Get an entire row of pixels, aligned with sync markers
-int getpixelrow(float *pixelv, int nrow, int *zenith, int reset) {
+int apt_getpixelrow(float *pixelv, int nrow, int *zenith, int reset, apt_getsamples_t getsamples, void *context) {
 	static float pixels[PixelLine + SyncFilterLen];
 	static int npv;
 	static int synced = 0;
@@ -226,7 +225,7 @@ int getpixelrow(float *pixelv, int nrow, int *zenith, int reset) {
 
 	// Get the sync line
 	if (npv < SyncFilterLen + 2) {
-		res = getpixelv(&(pixelv[npv]), SyncFilterLen + 2 - npv);
+		res = getpixelv(&(pixelv[npv]), SyncFilterLen + 2 - npv, getsamples, context);
 		npv += res;
 		if (npv < SyncFilterLen + 2)
 			return 0;
@@ -257,7 +256,7 @@ int getpixelrow(float *pixelv, int nrow, int *zenith, int reset) {
         static int lastmshift;
 
 		if (npv < PixelLine + SyncFilterLen) {
-			res = getpixelv(&(pixelv[npv]), PixelLine + SyncFilterLen - npv);
+			res = getpixelv(&(pixelv[npv]), PixelLine + SyncFilterLen - npv, getsamples, context);
 			npv += res;
 			if (npv < PixelLine + SyncFilterLen)
 				return 0;
@@ -295,7 +294,7 @@ int getpixelrow(float *pixelv, int nrow, int *zenith, int reset) {
 
 	// Get the rest of this row
 	if (npv < PixelLine) {
-		res = getpixelv(&(pixelv[npv]), PixelLine - npv);
+		res = getpixelv(&(pixelv[npv]), PixelLine - npv, getsamples, context);
 		npv += res;
 		if (npv < PixelLine)
 			return 0;

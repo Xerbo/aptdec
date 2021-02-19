@@ -19,7 +19,6 @@
 
 // Constants
 #define VERSION "Aptdec; (c) 2004-2009 Thierry Leconte F4DWV, Xerbo (xerbo@protonmail.com) 2019-2020"
-#define MAX_HEIGHT 3000
 
 // Useful macros
 #define CLIP(v, lo, hi) (v > hi ? hi : (v > lo ? v : lo))
@@ -28,17 +27,6 @@
 // Typedefs
 #ifndef STRUCTS_DEFINED
 #define STRUCTS_DEFINED
-typedef struct {
-	float r, g, b;
-} rgb_t;
-typedef struct {
-	float *prow[MAX_HEIGHT]; // Row buffers
-	int nrow; // Number of rows
-	int zenith; // Row in image where satellite reaches peak elevation
-	int chA, chB; // ID of each channel
-	char name[256]; // Stripped filename
-	char *palette; // Filename of palette
-} image_t;
 typedef struct {
 	char *type; // Output image type
 	char *effects; // Effects on the image
@@ -70,4 +58,5 @@ enum effects {
 	Linear_Equalise='l',
 	Crop_Noise='c'
 };
+
 #endif
