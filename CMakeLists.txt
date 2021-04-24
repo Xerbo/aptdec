@@ -22,7 +22,7 @@ add_library(aptstatic STATIC ${LIB_C_SOURCE_FILES})
 add_library(apt SHARED ${LIB_C_SOURCE_FILES})
 set_target_properties(apt PROPERTIES PUBLIC_HEADER ${LIB_C_HEADER_FILES})
 
-add_compile_definitions(PALETTE_DIR="${CMAKE_INSTALL_PREFIX}/palettes")
+add_compile_definitions(PALETTE_DIR="${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/palettes")
 
 if (PNG_FOUND AND LIBSNDFILE_FOUND)
     add_executable(aptdec ${EXE_C_SOURCE_FILES})
@@ -91,7 +91,7 @@ endif()
 
 if (TARGET aptdec)
     install(TARGETS aptdec)
-    install(DIRECTORY "${PROJECT_SOURCE_DIR}/palettes/" DESTINATION "palettes/")
+    install(DIRECTORY "${PROJECT_SOURCE_DIR}/palettes" DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME})
 endif()
 
 install(TARGETS apt PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/apt)
