@@ -45,7 +45,7 @@ if (PNG_FOUND AND LIBSNDFILE_FOUND)
         endif()
     endif()
 else()
-    MESSAGE(STATUS "WARNING: Only building apt library, as not all of the required libraries were found for aptdec.")
+    MESSAGE(WARNING "Only building apt library, as not all of the required libraries were found for aptdec.")
 endif()
 
 if (MSVC)
