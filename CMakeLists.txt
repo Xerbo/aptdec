@@ -3,6 +3,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 project(aptdec)
 
+include(GNUInstallDirs)
+
 # libpng
 find_package(PNG)
 
@@ -18,7 +20,7 @@ add_library(aptstatic STATIC ${LIB_C_SOURCE_FILES})
 # Create shared library for 3rd party apps
 add_library(apt SHARED ${LIB_C_SOURCE_FILES})
 
-add_compile_definitions(PALETTE_DIR="../palettes")
+add_compile_definitions(PALETTE_DIR="${CMAKE_INSTALL_PREFIX}/palettes")
 
 if (PNG_FOUND AND LIBSNDFILE_FOUND)
     add_executable(aptdec ${EXE_C_SOURCE_FILES})
@@ -76,24 +78,24 @@ IF(NOT WIN32)
     set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}.${CMAKE_SYSTEM_PROCESSOR}")
 
     if (TARGET aptdec)
-        install(TARGETS aptdec DESTINATION "bin/")
+        install(TARGETS aptdec)
         install(DIRECTORY "${PROJECT_SOURCE_DIR}/palettes/" DESTINATION "palettes/")
     endif()
 
-    install(TARGETS apt LIBRARY DESTINATION lib)
-    install(FILES ${LIB_C_HEADER_FILES} DESTINATION include/apt )
+    install(TARGETS apt)
+    install(FILES ${LIB_C_HEADER_FILES} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/apt)
 else()
     #set(CPACK_GENERATOR "ZIP;NSIS")
     set(CPACK_GENERATOR "ZIP")
     set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
 
     if (TARGET aptdec)
-        install(TARGETS aptdec DESTINATION "bin/")
+        install(TARGETS aptdec)
         file(GLOB_RECURSE DLLS *.dll)
-        install(FILES ${DLLS} DESTINATION "bin/")
+        install(FILES ${DLLS} DESTINATION ${CMAKE_INSTALL_BINDIR})
     endif()
-    install(TARGETS apt DESTINATION "bin/")
-    install(FILES ${LIB_C_HEADER_FILES} DESTINATION include/apt )
+    install(TARGETS apt)
+    install(FILES ${LIB_C_HEADER_FILES} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/apt)
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/palettes/" DESTINATION "palettes/")
 endif()
 
