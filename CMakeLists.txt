@@ -17,8 +17,10 @@ set(LIB_C_HEADER_FILES src/apt.h)
 
 # Link with static library for aptdec executable, so we don't need to set the path
 add_library(aptstatic STATIC ${LIB_C_SOURCE_FILES})
+
 # Create shared library for 3rd party apps
 add_library(apt SHARED ${LIB_C_SOURCE_FILES})
+set_target_properties(apt PROPERTIES PUBLIC_HEADER ${LIB_C_HEADER_FILES})
 
 add_compile_definitions(PALETTE_DIR="${CMAKE_INSTALL_PREFIX}/palettes")
 
@@ -92,7 +94,6 @@ if (TARGET aptdec)
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/palettes/" DESTINATION "palettes/")
 endif()
 
-install(TARGETS apt)
-install(FILES ${LIB_C_HEADER_FILES} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/apt)
+install(TARGETS apt PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/apt)
 
 include(CPack)
