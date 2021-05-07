@@ -3,6 +3,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 project(aptdec)
 
+include(GNUInstallDirs)
+
 # libpng
 find_package(PNG)
 
@@ -15,10 +17,12 @@ set(LIB_C_HEADER_FILES src/apt.h)
 
 # Link with static library for aptdec executable, so we don't need to set the path
 add_library(aptstatic STATIC ${LIB_C_SOURCE_FILES})
+
 # Create shared library for 3rd party apps
 add_library(apt SHARED ${LIB_C_SOURCE_FILES})
+set_target_properties(apt PROPERTIES PUBLIC_HEADER ${LIB_C_HEADER_FILES})
 
-add_compile_definitions(PALETTE_DIR="../palettes")
+add_compile_definitions(PALETTE_DIR="${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/palettes")
 
 if (PNG_FOUND AND LIBSNDFILE_FOUND)
     add_executable(aptdec ${EXE_C_SOURCE_FILES})
@@ -41,7 +45,7 @@ if (PNG_FOUND AND LIBSNDFILE_FOUND)
         endif()
     endif()
 else()
-    MESSAGE(STATUS "WARNING: Only building apt library, as not all of the required libraries were found for aptdec.")
+    MESSAGE(WARNING "Only building apt library, as not all of the required libraries were found for aptdec.")
 endif()
 
 if (MSVC)
@@ -74,27 +78,22 @@ set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 IF(NOT WIN32)
     set(CPACK_GENERATOR "DEB;TGZ")
     set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}.${CMAKE_SYSTEM_PROCESSOR}")
-
-    if (TARGET aptdec)
-        install(TARGETS aptdec DESTINATION "bin/")
-        install(DIRECTORY "${PROJECT_SOURCE_DIR}/palettes/" DESTINATION "palettes/")
-    endif()
-
-    install(TARGETS apt LIBRARY DESTINATION lib)
-    install(FILES ${LIB_C_HEADER_FILES} DESTINATION include/apt )
 else()
     #set(CPACK_GENERATOR "ZIP;NSIS")
     set(CPACK_GENERATOR "ZIP")
     set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
 
     if (TARGET aptdec)
-        install(TARGETS aptdec DESTINATION "bin/")
         file(GLOB_RECURSE DLLS *.dll)
-        install(FILES ${DLLS} DESTINATION "bin/")
+        install(FILES ${DLLS} DESTINATION ${CMAKE_INSTALL_BINDIR})
     endif()
-    install(TARGETS apt DESTINATION "bin/")
-    install(FILES ${LIB_C_HEADER_FILES} DESTINATION include/apt )
-    install(DIRECTORY "${PROJECT_SOURCE_DIR}/palettes/" DESTINATION "palettes/")
 endif()
+
+if (TARGET aptdec)
+    install(TARGETS aptdec)
+    install(DIRECTORY "${PROJECT_SOURCE_DIR}/palettes" DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME})
+endif()
+
+install(TARGETS apt PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/apt)
 
 include(CPack)
