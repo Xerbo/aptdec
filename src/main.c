@@ -221,7 +221,7 @@ static int processAudio(char *filename, options_t *opts){
 		}
 
 		// Perform temperature calibration
-		temperature(opts, &tmpimg, APT_CHB_OFFSET, APT_CH_WIDTH);
+		apt_temperature(opts->satnum, &tmpimg, APT_CHB_OFFSET, APT_CH_WIDTH);
 		ImageOut(opts, &tmpimg, APT_CHB_OFFSET, APT_CH_WIDTH, "Temperature", Temperature, (char *)apt_TempPalette);
 	}
 
@@ -251,7 +251,7 @@ static int processAudio(char *filename, options_t *opts){
 	if (CONTAINS(opts->type, Palleted)) {
 		img.palette = opts->palette;
 		strcpy(desc, "Palette composite");
-		ImageOut(opts, &img, APT_CHA_OFFSET, 909, desc, Palleted, NULL);
+		ImageOut(opts, &img, APT_CHA_OFFSET, APT_CH_WIDTH, desc, Palleted, NULL);
 	}
 
 	// Channel A

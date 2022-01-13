@@ -395,18 +395,14 @@ static double tempcal(float Ce, int satnum, tempparam_t * rgpr) {
 }
 
 // Temperature calibration wrapper
-void temperature(options_t *opts, apt_image_t *img, int offset, int width){
+void apt_temperature(int satnum, apt_image_t *img, int offset, int width){
 	tempparam_t temp;
 
-	printf("Temperature... ");
-	fflush(stdout);
-
-	tempcomp(tele, img->chB, opts->satnum - 15, &temp);
+	tempcomp(tele, img->chB, satnum - 15, &temp);
 
 	for (int y = 0; y < img->nrow; y++) {
 		for (int x = 0; x < width; x++) {
-			img->prow[y][x + offset] = (float)tempcal(img->prow[y][x + offset], opts->satnum - 15, &temp);
+			img->prow[y][x + offset] = (float)tempcal(img->prow[y][x + offset], satnum - 15, &temp);
 		}
 	}
-	printf("Done\n");
 }
