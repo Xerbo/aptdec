@@ -388,7 +388,7 @@ static double tempcal(float Ce, int satnum, tempparam_t * rgpr) {
 
 	// Convert to celsius
 	T -= 273.15;
-	// Rescale to 0-255 for -120°C to +40°C
+	// Rescale to 0-255 for -100°C to +60°C
 	T = (T + 100.0) / 160.0 * 255.0;
 
 	return T;
