@@ -20,7 +20,7 @@ ninja install
 cd ../..
 
 REM Build libsndfile - Could build Vorbis, FLAC and Opus first for extra support
-git clone https://github.com/libsndfile/libsndfile.git
+git clone https://github.com/libsndfile/libsndfile
 cd libsndfile
 mkdir build
 cd build

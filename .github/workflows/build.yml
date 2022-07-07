@@ -1,14 +1,20 @@
-name: x86 Debug
+name: Build
 
 on:
   push:
-    branches:
-      - devel
+    branches: [ master ]
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    branches: [ master ]
+    paths-ignore:
+      - '**.md'
+
 env:
-  BUILD_TYPE: Debug
+  BUILD_TYPE: Release
 
 jobs:
-  build:
+  build_linux:
     runs-on: ubuntu-latest
 
     steps:
@@ -39,16 +45,29 @@ jobs:
       # Execute the build.  You can specify a specific target with "--target <NAME>"
       run: cmake --build . --config $BUILD_TYPE
 
-# Tests are still WIP
-#   - name: Test
-#     working-directory: ${{runner.workspace}}/build
-#     shell: bash
-#     # Execute tests defined by the CMake configuration.  
-#     # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-#     run: ctest -C $BUILD_TYPE
+    - name: Upload compilied binary
+      uses: actions/upload-artifact@v2
+      with:
+          name: Release build
+          path: ${{runner.workspace}}/build/aptdec
+
+  build_windows:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Install dependencies
+      # The user does not run as root
+      run: sudo apt install wget cmake make mingw-w64 git unzip libsndfile-dev
+
+    - name: Run build script
+      shell: bash
+      working-directory: ${{runner.workspace}}
+      run: cd $GITHUB_WORKSPACE && ./build_windows.sh $BUILD_TYPE
 
     - name: Upload compilied binary
       uses: actions/upload-artifact@v2
       with:
-          name: Debug build
-          path: ${{runner.workspace}}/build/aptdec
+          name: Release build
+          path: ${{runner.workspace}}/aptdec/winbuild/aptdec-1.7.0.zip
