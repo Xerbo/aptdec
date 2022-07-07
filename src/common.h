@@ -1,6 +1,6 @@
 /* 
  *  This file is part of Aptdec.
- *  Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019-2020
+ *  Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019-20222
  *
  *  Aptdec is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
  */
 
 // Constants
-#define VERSION "Aptdec; (c) 2004-2009 Thierry Leconte F4DWV, Xerbo (xerbo@protonmail.com) 2019-2020"
+#define VERSION "Aptdec; (c) 2004-2009 Thierry Leconte F4DWV, Xerbo (xerbo@protonmail.com) 2019-20222"
 
 // Useful macros
 #define CLIP(v, lo, hi) (v > hi ? hi : (v > lo ? v : lo))
