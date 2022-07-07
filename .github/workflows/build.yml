@@ -48,7 +48,7 @@ jobs:
     - name: Upload compilied binary
       uses: actions/upload-artifact@v2
       with:
-          name: Release build
+          name: aptdec_lin64
           path: ${{runner.workspace}}/build/aptdec
 
   build_windows:
@@ -69,5 +69,5 @@ jobs:
     - name: Upload compilied binary
       uses: actions/upload-artifact@v2
       with:
-          name: Release build
-          path: ${{runner.workspace}}/aptdec/winbuild/aptdec-1.7.0.zip
+          name: aptdec-win64.zip
+          path: ${{runner.workspace}}/aptdec/winbuild/aptdec-win64.zip
