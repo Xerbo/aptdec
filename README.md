@@ -23,7 +23,7 @@ The input audio format can be anything supported by `libsndfile` (although only 
 
 ```sh
 sudo apt install cmake git gcc libsndfile-dev libpng-dev
-git clone https://github.com/Xerbo/aptdec.git && cd aptdec
+git clone --recursive https://github.com/Xerbo/aptdec.git && cd aptdec
 cmake -B build
 cmake --build build
 # Resulting binary is build/aptdec
