@@ -1,65 +1,56 @@
-/* 
- *  This file is part of Aptdec.
- *  Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019-2022
+/*
+ * aptdec - A lightweight FOSS (NOAA) APT decoder
+ * Copyright (C) 2004-2009 Thierry Leconte (F4DWV) 2019-2022 Xerbo (xerbo@protonmail.com)
  *
- *  Aptdec is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 2 of the License, or
- *  (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include <math.h>
+#include "filter.h"
+#include "util.h"
 
-// Finite impulse response
-float fir(float *buff, const float *coeff, const int len) {
-	double r;
-
-	r = 0.0;
-	for (int i = 0; i < len; i++) {
-		r += buff[i] * coeff[i];
+float convolve(const float *in, const float *taps, size_t len) {
+	float sum = 0.0;
+	for (size_t i = 0; i < len; i++) {
+		sum += in[i] * taps[i];
 	}
-	return (float)r;
+
+	return sum;
 }
 
-/* IQ finite impulse response
- * Turn samples into a single IQ sample
- */
-void iqfir(float *buff, const float *coeff, const int len, double *I, double *Q) {
-	double i = 0.0, q = 0.0;
+float complex hilbert_transform(const float *in, const float *taps, size_t len) {
+	float i = 0.0;
+	float q = 0.0;
 
-	for (int k = 0; k < len; k++) {
-		q += buff[2*k] * coeff[k];
-		i += buff[2*k];
+	for (size_t k = 0; k < len; k++) {
+		q += in[2*k] * taps[k];
+		i += in[2*k];
 	}
 
-	i = buff[len-1] - (i / len);
-	*I = i, *Q = q;
+	i = in[len-1] - (i / len);
+	return i + q*I;
 }
 
-/* Gaussian finite impulse responce compensation
- * https://www.recordingblogs.com/wiki/gaussian-window
- */
-float rsfir(double *buff, const float *coeff, const int len, const double offset, const double delta) {
-	double out;
+float interpolating_convolve(const float *in, const float *taps, size_t len, float offset, float delta) {
+	float out = 0.0;
+	float n = offset;
 
-	out = 0.0;
-	double n = offset;
-	for (int i = 0; i < (len-1)/delta-1; n += delta, i++) {
-		int k;
-		double alpha;
+	for (size_t i = 0; i < (len-1)/delta-1; n += delta, i++) {
+		int k = (int)floor(n);
+		float alpha = n - k;
 
-		k = (int)floor(n);
-		alpha = n - k;
-		out += buff[i] * (coeff[k] * (1.0 - alpha) + coeff[k + 1] * alpha);
+		out += in[i] * (taps[k] * (1.0f-alpha) + taps[k + 1] * alpha);
 	}
-	return (float)out;
+	return out;
 }

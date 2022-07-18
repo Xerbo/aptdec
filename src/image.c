@@ -33,8 +33,8 @@ static linear_t compute_regression(float *wedges) {
 	return linear_regression(wedges, teleramp, 9);
 }
 
-static double tele[16];
-static double Cs;
+static float tele[16];
+static float Cs;
 
 void apt_histogramEqualise(float **prow, int nrow, int offset, int width){
 	// Plot histogram
@@ -97,9 +97,9 @@ void calibrateImage(float **prow, int nrow, int offset, int width, linear_t regr
 	}
 }
 
-double teleNoise(float *wedges){
-	double pattern[9] = { 31.07, 63.02, 94.96, 126.9, 158.86, 191.1, 228.62, 255.0, 0.0 };
-	double noise = 0;
+float teleNoise(float *wedges){
+	float pattern[9] = { 31.07, 63.02, 94.96, 126.9, 158.86, 191.1, 228.62, 255.0, 0.0 };
+	float noise = 0;
 	for(int i = 0; i < 9; i++)
 		noise += fabs(wedges[i] - pattern[i]);
 
@@ -108,7 +108,7 @@ double teleNoise(float *wedges){
 
 // Get telemetry data for thermal calibration
 apt_channel_t apt_calibrate(float **prow, int nrow, int offset, int width) {
-	double teleline[APT_MAX_HEIGHT] = { 0.0 };
+	float teleline[APT_MAX_HEIGHT] = { 0.0 };
 	float wedge[16];
 	linear_t regr[APT_MAX_HEIGHT/APT_FRAME_LEN + 1];
 	int telestart, mtelestart = 0;
@@ -156,7 +156,7 @@ apt_channel_t apt_calibrate(float **prow, int nrow, int offset, int width) {
 	}
 
 	// Find the least noisy frame
-	double minNoise = -1;
+	float minNoise = -1;
 	int bestFrame = -1;
 	 for (int n = telestart, k = 0; n < nrow - APT_FRAME_LEN; n += APT_FRAME_LEN, k++) {
 		int j;
@@ -170,7 +170,7 @@ apt_channel_t apt_calibrate(float **prow, int nrow, int offset, int width) {
 			wedge[j] /= 6;
 		}
 
-		double noise = teleNoise(wedge);
+		float noise = teleNoise(wedge);
 		if(noise < minNoise || minNoise == -1){
 			minNoise = noise;
 			bestFrame = k;
@@ -313,16 +313,16 @@ int apt_cropNoise(apt_image_t *img){
 #include "satcal.h"
 
 typedef struct {
-	double Nbb;
-	double Cs;
-	double Cb;
+	float Nbb;
+	float Cs;
+	float Cb;
 	int ch;
 } tempparam_t;
 
 // IR channel temperature compensation
-static void tempcomp(double t[16], int ch, int satnum, tempparam_t *tpr) {
-	double Tbb, T[4];
-	double C;
+static void tempcomp(float t[16], int ch, int satnum, tempparam_t *tpr) {
+	float Tbb, T[4];
+	float C;
 
 	tpr->ch = ch - 4;
 
@@ -352,9 +352,9 @@ static void tempcomp(double t[16], int ch, int satnum, tempparam_t *tpr) {
 }
 
 // IR channel temperature calibration
-static double tempcal(float Ce, int satnum, tempparam_t * rgpr) {
-	double Nl, Nc, Ns, Ne;
-	double T, vc;
+static float tempcal(float Ce, int satnum, tempparam_t * rgpr) {
+	float Nl, Nc, Ns, Ne;
+	float T, vc;
 
 	Ns = satcal[satnum].cor[rgpr->ch].Ns;
 	Nl = Ns + (rgpr->Nbb - Ns) * (rgpr->Cs - Ce * 4.0) / (rgpr->Cs - rgpr->Cb);
