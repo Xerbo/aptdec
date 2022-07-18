@@ -1,11 +1,8 @@
-![Aptdec logo](textlogo.png)
+![Aptdec Logo](textlogo.png)
 
 Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019-2022
 
-![x86 Release](https://github.com/Xerbo/aptdec/workflows/x86%20Release/badge.svg?branch=master)
-![x86 Debug](https://github.com/Xerbo/aptdec/workflows/x86%20Debug/badge.svg?branch=devel)
-![x86 Win Release](https://github.com/Xerbo/aptdec/workflows/x86%20Win%20Release/badge.svg?branch=master)
-![x86 Win Debug](https://github.com/Xerbo/aptdec/workflows/x86%20Win%20Debug/badge.svg?branch=devel)
+[![Build](https://github.com/Xerbo/aptdec/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/Xerbo/aptdec/actions/workflows/build.yml)
 
 ## Introduction
 
@@ -27,12 +24,10 @@ The input audio format can be anything supported by `libsndfile` (although only 
 ```sh
 sudo apt install cmake git gcc libsndfile-dev libpng-dev
 git clone https://github.com/Xerbo/aptdec.git && cd aptdec
-mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make
+cmake -B build
+cmake --build build
+# Resulting binary is build/aptdec
 ```
-
-Using the Makefile with GNU automake is now deprecated and will be removed soon.
 
 ## Examples
 
@@ -118,16 +113,7 @@ To stop the decode and calibrate the image simply kill the `sox` process.
 
 Palettes are just simple PNG images, 256x256px in size with 24bit RGB color. The X axis represents the value of Channel A and the Y axis the value of Channel B.
 
-## Compiling with cmake
-
-Thanks to the help of [Aang23](https://github.com/Aang23) aptdec is moving towards cmake + cpack for builds.
-
-To use cmake to build instead of GNU automake:
-```
-mkdir build && cd build
-cmake ..
-make
-```
+## Building for Windows
 
 You can cross build for Windows from Linux with the `build_windows.sh` script, you will need the following:
 ```
