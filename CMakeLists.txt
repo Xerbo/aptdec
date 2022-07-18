@@ -39,7 +39,7 @@ if (PNG_FOUND AND LIBSNDFILE_FOUND)
 
         # Throw errors on warnings on release builds
         if(CMAKE_BUILD_TYPE MATCHES "Release")
-            target_compile_options(aptdec PRIVATE -Wall -Wextra -pedantic -Wno-missing-field-initializers -Werror)
+            target_compile_options(aptdec PRIVATE -Wall -Wextra -pedantic -Wno-missing-field-initializers)
         else()
             target_compile_options(aptdec PRIVATE -Wall -Wextra -pedantic)
         endif()
@@ -57,7 +57,7 @@ else()
     target_link_libraries(aptstatic PRIVATE m)
 
     if(CMAKE_BUILD_TYPE MATCHES "Release")
-        target_compile_options(apt PRIVATE -Wall -Wextra -pedantic -Wno-missing-field-initializers -Werror)
+        target_compile_options(apt PRIVATE -Wall -Wextra -pedantic -Wno-missing-field-initializers)
     else()
         target_compile_options(apt PRIVATE -Wall -Wextra -pedantic)
     endif()
