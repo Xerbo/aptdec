@@ -1,6 +1,6 @@
 ![Aptdec logo](textlogo.png)
 
-Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019-20222
+Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019-2022
 
 ![x86 Release](https://github.com/Xerbo/aptdec/workflows/x86%20Release/badge.svg?branch=master)
 ![x86 Debug](https://github.com/Xerbo/aptdec/workflows/x86%20Debug/badge.svg?branch=devel)

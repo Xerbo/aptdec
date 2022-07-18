@@ -1,6 +1,6 @@
 /* 
  *  This file is part of Aptdec.
- *  Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019-20222
+ *  Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 2019-2022
  *
  *  Aptdec is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
