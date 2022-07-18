@@ -23,32 +23,14 @@
 #include <stdlib.h>
 
 #include "apt.h"
-#include "libs/reg.h"
+#include "algebra.h"
 #include "image.h"
 
-#define REGORDER 3
-typedef struct {
-	double cf[REGORDER + 1];
-} rgparam_t;
-
-// Compute regression
-static void rgcomp(double x[16], rgparam_t * rgpr) {
+static linear_t compute_regression(float *wedges) {
 	//				    { 0.106, 0.215, 0.324, 0.433, 0.542,  0.652, 0.78,   0.87,  0.0 }
-	const double y[9] = { 31.07, 63.02, 94.96, 126.9, 158.86, 191.1, 228.62, 255.0, 0.0 };
+	const float teleramp[9] = { 31.07, 63.02, 94.96, 126.9, 158.86, 191.1, 228.62, 255.0, 0.0 };
 
-	polyreg(REGORDER, 9, x, y, rgpr->cf);
-}
-
-// Convert a value to 0-255 based off the provided regression curve
-static double rgcal(float x, rgparam_t *rgpr) {
-	double y, p;
-	int i;
-
-	for (i = 0, y = 0.0, p = 1.0; i < REGORDER + 1; i++) {
-		y += rgpr->cf[i] * p;
-		p = p * x;
-	}
-	return y;
+	return linear_regression(wedges, teleramp, 9);
 }
 
 static double tele[16];
@@ -104,18 +86,18 @@ void apt_linearEnhance(float **prow, int nrow, int offset, int width){
 }
 
 // Brightness calibrate, including telemetry
-void calibrateImage(float **prow, int nrow, int offset, int width, rgparam_t regr){
+void calibrateImage(float **prow, int nrow, int offset, int width, linear_t regr){
 	offset -= APT_SYNC_WIDTH+APT_SPC_WIDTH;
 
 	for (int y = 0; y < nrow; y++) {
 		for (int x = 0; x < width+APT_SYNC_WIDTH+APT_SPC_WIDTH+APT_TELE_WIDTH; x++) {
-			float pv = (float)rgcal(prow[y][x + offset], &regr);
+			float pv = linear_calc(prow[y][x + offset], regr);
 			prow[y][x + offset] = CLIP(pv, 0, 255);
 		}
 	}
 }
 
-double teleNoise(double wedges[16]){
+double teleNoise(float *wedges){
 	double pattern[9] = { 31.07, 63.02, 94.96, 126.9, 158.86, 191.1, 228.62, 255.0, 0.0 };
 	double noise = 0;
 	for(int i = 0; i < 9; i++)
@@ -127,8 +109,8 @@ double teleNoise(double wedges[16]){
 // Get telemetry data for thermal calibration
 apt_channel_t apt_calibrate(float **prow, int nrow, int offset, int width) {
 	double teleline[APT_MAX_HEIGHT] = { 0.0 };
-	double wedge[16];
-	rgparam_t regr[APT_MAX_HEIGHT/APT_FRAME_LEN + 1];
+	float wedge[16];
+	linear_t regr[APT_MAX_HEIGHT/APT_FRAME_LEN + 1];
 	int telestart, mtelestart = 0;
 	int channel = -1;
 
@@ -194,9 +176,9 @@ apt_channel_t apt_calibrate(float **prow, int nrow, int offset, int width) {
 			bestFrame = k;
 
 			// Compute & apply regression on the wedges
-			rgcomp(wedge, &regr[k]);
+			regr[k] = compute_regression(wedge);
 			for (int j = 0; j < 16; j++)
-				tele[j] = (float)rgcal((float)wedge[j], &regr[k]);
+				tele[j] = linear_calc(wedge[j], regr[k]);
 
 			/* Compare the channel ID wedge to the reference
 			 * wedges, the wedge with the closest match will
@@ -227,7 +209,7 @@ apt_channel_t apt_calibrate(float **prow, int nrow, int offset, int width) {
 					i++;
 				}
 			}
-			Cs = rgcal((float)(Cs / i), &regr[k]);
+			Cs = linear_calc((Cs / i), regr[k]);
 		}
 	}
 
