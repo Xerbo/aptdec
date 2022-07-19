@@ -269,6 +269,7 @@ static int processAudio(char *filename, options_t *opts){
 	return 1;
 }
 
+float *samplebuf;
 static int initsnd(char *filename) {
 	SF_INFO infwav;
 	int	res;
@@ -293,6 +294,7 @@ static int initsnd(char *filename) {
 	printf("Input sample rate: %d\n", infwav.samplerate);
 
 	channels = infwav.channels;
+	samplebuf = (float *)malloc(sizeof(float) * 32768 * channels);
 
 	return 1;
 }
@@ -300,16 +302,17 @@ static int initsnd(char *filename) {
 // Read samples from the audio file
 int getsamples(void *context, float *samples, int nb) {
     (void) context;
-	if(channels == 1){
+	if (channels == 1){
 		return (int)sf_read_float(audioFile, samples, nb);
-	}else{
-		/* Multi channel audio is encoded such as:
-		 *  Ch1,Ch2,Ch1,Ch2,Ch1,Ch2
-		 */
-		float *buf = malloc(sizeof(float) * nb * channels); // Something like BLKIN*2 could also be used
-		int samplesRead = (int)sf_read_float(audioFile, buf, nb * channels);
-		for(int i = 0; i < nb; i++) samples[i] = buf[i * channels];
-		free(buf);
+	} else if (channels == 2) {
+		// Stereo channels are interleaved
+		int samplesRead = (int)sf_read_float(audioFile, samplebuf, nb * channels);
+		for(int i = 0; i < nb; i++) {
+			samples[i] = samplebuf[i * channels];
+		}
 		return samplesRead / channels;
+	} else {
+		printf("Only mono and stereo input files are supported\n");
+		exit(1);
 	}
 }

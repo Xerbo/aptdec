@@ -24,79 +24,58 @@
 #include "apt.h"
 #include "filter.h"
 #include "taps.h"
-
-// In case your C compiler is so old that Pi hadn't been invented yet
-#ifndef M_PI
-#define M_PI 3.141592653589793
-#endif
+#include "util.h"
 
 // Block sizes
 #define BLKAMP 32768
 #define BLKIN 32768
 
-#define Fc 2400.0
-#define DFc 50.0
-#define PixelLine 2080
-#define Fp (2 * PixelLine)
-#define RSMULT 15
-#define Fi (Fp * RSMULT)
+#define CARRIER_FREQ 2400.0
+#define MAX_CARRIER_OFFSET 20.0
 
-static float Fe;
+#define RSMULT 15
+#define Fi (APT_IMG_WIDTH*2 * RSMULT)
+
+static float _sample_rate;
 
 static float offset = 0.0;
 static float FreqLine = 1.0;
 
-static float FreqOsc;
-static float K1, K2;
+static float oscillator_freq;
+static float pll_alpha;
+static float pll_beta;
 
-// Check the sample rate and calculate some constants
-int apt_init(double F) {
-	if(F > Fi) return 1;
-	if(F < Fp) return -1;
-	Fe = F;
+// Initalise and configure PLL
+int apt_init(double sample_rate) {
+	if(sample_rate > Fi) return 1;
+	if(sample_rate < APT_IMG_WIDTH*2) return -1;
+	_sample_rate = sample_rate;
 
-	K1 = DFc / Fe;
-	K2 = K1 * K1 / 2.0;
-	// Number of samples per cycle
-	FreqOsc = Fc / Fe;
+	// Pll configuration
+	pll_alpha = 50 / _sample_rate;
+	pll_beta = pll_alpha * pll_alpha / 2.0;
+	oscillator_freq = CARRIER_FREQ/sample_rate;
 
 	return 0;
 }
 
-/* Phase locked loop
- * https://arachnoid.com/phase_locked_loop/
- * Model of this filter here https://www.desmos.com/calculator/m0uadgkoee
- */
-static float pll(float I2, float Q) {
-	// PLL coefficient
-	static float PhaseOsc = 0.0;
-	float Io, Qo;
-	float Ip, Qp;
-	float DPhi;
+static float pll(float complex in) {
+	static float oscillator_phase = 0.0;
 
-	// Quadrature oscillator / reference
-	Io = cos(PhaseOsc);
-	Qo = sin(PhaseOsc);
+	// Internal oscillator
+	float complex osc = cos(oscillator_phase) + -sin(oscillator_phase)*I;
+	in *= osc;
 
-	// Phase detector
-	Ip = I2 * Io + Q * Qo;
-	Qp = Q * Io - I2 * Qo;
-	DPhi = atan2f(Qp, Ip);
+	// Error detector
+	float error = cargf(in);
 
-	// Loop filter
-	PhaseOsc += 2.0 * M_PI * (K1 * DPhi + FreqOsc);
-	if (PhaseOsc > M_PI)
-		PhaseOsc -= 2.0 * M_PI;
-	if (PhaseOsc <= -M_PI)
-		PhaseOsc += 2.0 * M_PI;
+	// Adjust frequency and phase
+	oscillator_freq += pll_beta*error;
+	oscillator_freq = clamp_half(oscillator_freq, (CARRIER_FREQ + MAX_CARRIER_OFFSET) / _sample_rate);
+	oscillator_phase += M_TAUf * (pll_alpha*error + oscillator_freq);
+	oscillator_phase = remainderf(oscillator_phase, M_TAUf);
 
-	FreqOsc += K2 * DPhi;
-	if (FreqOsc > ((Fc + DFc) / Fe))
-		FreqOsc = (Fc + DFc) / Fe;
-	if (FreqOsc < ((Fc - DFc) / Fe))
-		FreqOsc = (Fc - DFc) / Fe;
-
-	return Ip;
+	return crealf(in);
 }
 
 // Convert samples into pixels
@@ -125,10 +104,8 @@ static int getamp(float *ampbuff, int count, apt_getsamples_t getsamples, void *
 		}
 
 		// Process read samples into a brightness value
-		float complex tmp = hilbert_transform(&inbuff[idxin], hilbert_filter, HILBERT_FILTER_SIZE);
-		I2 = crealf(tmp);
-		Q = cimagf(tmp);
-		ampbuff[n] = pll(I2, Q);
+		float complex sample = hilbert_transform(&inbuff[idxin], hilbert_filter, HILBERT_FILTER_SIZE);
+		ampbuff[n] = pll(sample);
 
 		// Increment current sample
 		idxin++;
@@ -148,7 +125,7 @@ int getpixelv(float *pvbuff, int count, apt_getsamples_t getsamples, void *conte
 	float mult;
 
 	// Gaussian resampling factor
-	mult = (float) Fi / Fe * FreqLine;
+	mult = (float) Fi / _sample_rate * FreqLine;
 	int m = (int)(LOW_PASS_SIZE / mult + 1);
 
 	for (int n = 0; n < count; n++) {
@@ -178,7 +155,7 @@ int getpixelv(float *pvbuff, int count, apt_getsamples_t getsamples, void *conte
 
 // Get an entire row of pixels, aligned with sync markers
 int apt_getpixelrow(float *pixelv, int nrow, int *zenith, int reset, apt_getsamples_t getsamples, void *context) {
-	static float pixels[PixelLine + SYNC_PATTERN_SIZE];
+	static float pixels[APT_IMG_WIDTH + SYNC_PATTERN_SIZE];
 	static size_t npv;
 	static int synced = 0;
 	static float max = 0.0;
@@ -205,7 +182,7 @@ int apt_getpixelrow(float *pixelv, int nrow, int *zenith, int reset, apt_getsamp
 	ecorr = convolve(pixelv, sync_pattern, SYNC_PATTERN_SIZE);
 	corr = convolve(&pixelv[1], sync_pattern, SYNC_PATTERN_SIZE - 1);
 	lcorr = convolve(&pixelv[2], sync_pattern, SYNC_PATTERN_SIZE - 2);
-	FreqLine = 1.0+((ecorr-lcorr) / corr / PixelLine / 4.0);
+	FreqLine = 1.0+((ecorr-lcorr) / corr / APT_IMG_WIDTH / 4.0);
 
 	float val = fabs(lcorr - ecorr)*0.25 + previous*0.75;
 	if(val < minDoppler && nrow > 10){
@@ -225,16 +202,16 @@ int apt_getpixelrow(float *pixelv, int nrow, int *zenith, int reset, apt_getsamp
 		int mshift;
         static int lastmshift;
 
-		if (npv < PixelLine + SYNC_PATTERN_SIZE) {
-			res = getpixelv(&(pixelv[npv]), PixelLine + SYNC_PATTERN_SIZE - npv, getsamples, context);
+		if (npv < APT_IMG_WIDTH + SYNC_PATTERN_SIZE) {
+			res = getpixelv(&(pixelv[npv]), APT_IMG_WIDTH + SYNC_PATTERN_SIZE - npv, getsamples, context);
 			npv += res;
-			if (npv < PixelLine + SYNC_PATTERN_SIZE)
+			if (npv < APT_IMG_WIDTH + SYNC_PATTERN_SIZE)
 				return 0;
 		}
 
 		// Test every possible position until we get the best result
 		mshift = 0;
-		for (int shift = 0; shift < PixelLine; shift++) {
+		for (int shift = 0; shift < APT_IMG_WIDTH; shift++) {
 			float corr;
 
 			corr = convolve(&(pixelv[shift + 1]), sync_pattern, SYNC_PATTERN_SIZE);
@@ -263,19 +240,19 @@ int apt_getpixelrow(float *pixelv, int nrow, int *zenith, int reset, apt_getsamp
 	}
 
 	// Get the rest of this row
-	if (npv < PixelLine) {
-		res = getpixelv(&(pixelv[npv]), PixelLine - npv, getsamples, context);
+	if (npv < APT_IMG_WIDTH) {
+		res = getpixelv(&(pixelv[npv]), APT_IMG_WIDTH - npv, getsamples, context);
 		npv += res;
-		if (npv < PixelLine)
+		if (npv < APT_IMG_WIDTH)
 			return 0;
 	}
 
 	// Move the sync lines into the output buffer with the calculated offset
-	if (npv == PixelLine) {
+	if (npv == APT_IMG_WIDTH) {
 		npv = 0;
 	} else {
-		memmove(pixels, &(pixelv[PixelLine]), (npv - PixelLine) * sizeof(float));
-		npv -= PixelLine;
+		memmove(pixels, &(pixelv[APT_IMG_WIDTH]), (npv - APT_IMG_WIDTH) * sizeof(float));
+		npv -= APT_IMG_WIDTH;
 	}
 
 	return 1;

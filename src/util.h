@@ -16,5 +16,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
+
+#define M_PIf 3.14159265358979323846f
+#define M_TAUf (M_PIf * 2.0f)
+
 #define MIN(a,b) (((a) < (b)) ? (a) : (b))
 #define MAX(a,b) (((a) > (b)) ? (a) : (b))
+
+static float clamp(float x, float hi, float lo) {
+    if (x > hi) return hi;
+    if (x < lo) return lo;
+    return x;
+}
+
+static float clamp_half(float x, float hi) {
+    return clamp(x, hi, -hi);
+}
