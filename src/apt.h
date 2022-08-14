@@ -100,7 +100,10 @@ apt_channel_t APT_API apt_calibrate(float **prow, int nrow, int offset, int widt
 void APT_API apt_denoise(float **prow, int nrow, int offset, int width);
 void APT_API apt_flipImage(apt_image_t *img, int width, int offset);
 int APT_API apt_cropNoise(apt_image_t *img);
-void APT_API apt_temperature(int satnum, apt_image_t *img, int offset, int width);
+void APT_API apt_calibrate_thermal(int satnum, apt_image_t *img, int offset, int width);
+void APT_API apt_calibrate_visible(int satnum, apt_image_t *img, int offset, int width);
+// Moved to apt_calibrate_thermal
+#define apt_temperature apt_calibrate_thermal
 
 apt_rgb_t APT_API apt_applyPalette(char *palette, int val);
 apt_rgb_t APT_API apt_RGBcomposite(apt_rgb_t top, float top_a, apt_rgb_t bottom, float bottom_a);

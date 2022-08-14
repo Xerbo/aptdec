@@ -47,7 +47,8 @@ enum imagetypes {
 	Temperature='t',
 	Channel_A='a',
 	Channel_B='b',
-	Distribution='d'
+	Distribution='d',
+	Visible='v'
 };
 enum effects {
 	Crop_Telemetry='t',

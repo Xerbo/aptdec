@@ -29,7 +29,7 @@
 #include <sndfile.h>
 #include <errno.h>
 #include <time.h>
-#include "libs/argparse.h"
+#include "argparse/argparse.h"
 
 #include "common.h"
 #include "apt.h"
@@ -222,8 +222,22 @@ static int processAudio(char *filename, options_t *opts){
 		}
 
 		// Perform temperature calibration
-		apt_temperature(opts->satnum, &tmpimg, APT_CHB_OFFSET, APT_CH_WIDTH);
+		apt_calibrate_thermal(opts->satnum, &tmpimg, APT_CHB_OFFSET, APT_CH_WIDTH);
 		ImageOut(opts, &tmpimg, APT_CHB_OFFSET, APT_CH_WIDTH, "Temperature", Temperature, (char *)apt_TempPalette);
+	}
+
+	// Temperature
+	if (CONTAINS(opts->type, Visible) && img.chA <= 2) {
+		// Create another buffer as to not modify the orignal
+		apt_image_t tmpimg = img;
+		for(int i = 0; i < img.nrow; i++){
+			tmpimg.prow[i] = (float *) malloc(sizeof(float) * APT_PROW_WIDTH);
+			memcpy(tmpimg.prow[i], img.prow[i], sizeof(float) * APT_PROW_WIDTH);
+		}
+
+		// Perform visible calibration
+		apt_calibrate_visible(opts->satnum, &tmpimg, APT_CHA_OFFSET, APT_CH_WIDTH);
+		ImageOut(opts, &tmpimg, APT_CHA_OFFSET, APT_CH_WIDTH, "Visible", Visible, (char *)apt_TempPalette);
 	}
 
 	// MCIR

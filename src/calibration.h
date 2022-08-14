@@ -16,23 +16,40 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef APTDEC_ALGEBRA_H
-#define APTDEC_ALGEBRA_H
-#include <stddef.h>
+#ifndef APTDEC_CALIBRATION_H
+#define APTDEC_CALIBRATION_H
+#include "algebra.h"
 
-// A linear equation in the form of y(x) = ax + b
 typedef struct {
-    float a, b;
-} linear_t;
+    char *name;
 
-// A quadratic equation in the form of y(x) = ax^2 + bx + c
-typedef struct {
-    float a, b, c;
-} quadratic_t;
+    // Quadratics for calculating PRT temperature
+    quadratic_t prt[4];
+ 
+    // Visible calibration coefficients
+    struct {
+        linear_t low;
+        linear_t high;
+        float cutoff;
+    } visible[2];
 
-linear_t linear_regression(const float *independent, const float *dependent, size_t len);
+    // Radiance coefficients
+    struct { 
+        float vc, A, B;  
+    } rad[3];
 
-float linear_calc(float x, linear_t line);
-float quadratic_calc(float x, quadratic_t quadratic);
+    // Non linear correction coefficients
+    struct {
+        float Ns;
+        quadratic_t quadratic;
+    } cor[3];
+} calibration_t;
+
+// First radiation constant (mW/(m2-sr-cm-4))
+static const float C1 = 1.1910427e-5f;
+// Second radiation constant (cm-K)
+static const float C2 = 1.4387752f;
+
+calibration_t get_calibration(int satid);
 
 #endif

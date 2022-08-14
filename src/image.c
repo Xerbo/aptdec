@@ -310,8 +310,8 @@ int apt_cropNoise(apt_image_t *img){
 	return startCrop;
 }
 
-// --- Temperature Calibration --- //
-#include "satcal.h"
+// --- Visible and Temperature Calibration --- //
+#include "calibration.h"
 
 typedef struct {
 	float Nbb;
@@ -321,71 +321,78 @@ typedef struct {
 } tempparam_t;
 
 // IR channel temperature compensation
-static void tempcomp(float t[16], int ch, int satnum, tempparam_t *tpr) {
-	float Tbb, T[4];
-	float C;
+tempparam_t tempcomp(float t[16], int ch, int satnum) {
+	tempparam_t tpr;
+	tpr.ch = ch - 4;
 
-	tpr->ch = ch - 4;
+	const calibration_t calibration = get_calibration(satnum);
+	const float Vc = calibration.rad[tpr.ch].vc;
+	const float A = calibration.rad[tpr.ch].A;
+	const float B = calibration.rad[tpr.ch].B;
 
-	// Compute equivalent T blackbody temperature
-	for (int n = 0; n < 4; n++) {
-		float d0, d1, d2;
-
-		C = t[9 + n] * 4.0;
-		d0 = satcal[satnum].d[n][0];
-		d1 = satcal[satnum].d[n][1];
-		d2 = satcal[satnum].d[n][2];
-		T[n] = d0;
-		T[n] += d1 * C;
-		C *= C;
-		T[n] += d2 * C;
+	// Compute PRT temperature
+	float T[4];
+	for (size_t n = 0; n < 4; n++) {
+		T[n] = quadratic_calc(t[n+9] * 4.0, calibration.prt[n]);
 	}
-	Tbb = (T[0] + T[1] + T[2] + T[3]) / 4.0;
-	Tbb = satcal[satnum].rad[tpr->ch].A + satcal[satnum].rad[tpr->ch].B * Tbb;
 
-	// Compute blackbody radiance temperature
-	C = satcal[satnum].rad[tpr->ch].vc;
-	tpr->Nbb = c1 * C * C * C / (expm1(c2 * C / Tbb));
+	float Tbb = (T[0]+T[1]+T[2]+T[3]) / 4.0; // Blackbody temperature
+	float Tbbstar = A + Tbb*B; // Effective blackbody temperature
 
-	// Store blackbody count and space
-	tpr->Cs = Cs * 4.0;
-	tpr->Cb = t[14] * 4.0;
+	tpr.Nbb = C1 * pow(Vc, 3) / (expf(C2 * Vc / Tbbstar) - 1.0f); // Blackbody radiance
+
+	tpr.Cs = 246.4 * 4.0; // FIXME
+	tpr.Cb = t[14] * 4.0;
+	return tpr;
 }
 
 // IR channel temperature calibration
-static float tempcal(float Ce, int satnum, tempparam_t * rgpr) {
-	float Nl, Nc, Ns, Ne;
-	float T, vc;
+static float tempcal(float Ce, int satnum, tempparam_t tpr) {
+	const calibration_t calibration = get_calibration(satnum);
+	const float Ns = calibration.cor[tpr.ch].Ns;
+	const float Vc = calibration.rad[tpr.ch].vc;
+	const float A = calibration.rad[tpr.ch].A;
+	const float B = calibration.rad[tpr.ch].B;
 
-	Ns = satcal[satnum].cor[rgpr->ch].Ns;
-	Nl = Ns + (rgpr->Nbb - Ns) * (rgpr->Cs - Ce * 4.0) / (rgpr->Cs - rgpr->Cb);
-	Nc = satcal[satnum].cor[rgpr->ch].b[0] +
-		 satcal[satnum].cor[rgpr->ch].b[1] * Nl +
-		 satcal[satnum].cor[rgpr->ch].b[2] * Nl * Nl;
+	float Nl = Ns + (tpr.Nbb - Ns) * (tpr.Cs - Ce * 4.0) / (tpr.Cs - tpr.Cb); // Linear radiance estimate
+	float Nc = quadratic_calc(Nl, calibration.cor[tpr.ch].quadratic); // Non-linear correction
+	float Ne = Nl + Nc; // Corrected radiance
 
-	Ne = Nl + Nc;
-
-	vc = satcal[satnum].rad[rgpr->ch].vc;
-	T = c2 * vc / log(c1 * vc * vc * vc / Ne + 1.0);
-	T = (T - satcal[satnum].rad[rgpr->ch].A) / satcal[satnum].rad[rgpr->ch].B;
+	float Testar = C2 * Vc / logf(C1 * powf(Vc, 3) / Ne + 1.0); // Equivlent black body temperature
+	float Te = (Testar - A) / B; // Temperature (kelvin)
 
 	// Convert to celsius
-	T -= 273.15;
+	Te -= 273.15;
 	// Rescale to 0-255 for -100°C to +60°C
-	T = (T + 100.0) / 160.0 * 255.0;
-
-	return T;
+	return (Te + 100.0) / 160.0 * 255.0;
 }
 
 // Temperature calibration wrapper
-void apt_temperature(int satnum, apt_image_t *img, int offset, int width){
-	tempparam_t temp;
-
-	tempcomp(tele, img->chB, satnum - 15, &temp);
+void apt_calibrate_thermal(int satnum, apt_image_t *img, int offset, int width) {
+	tempparam_t temp = tempcomp(tele, img->chB, satnum);
 
 	for (int y = 0; y < img->nrow; y++) {
 		for (int x = 0; x < width; x++) {
-			img->prow[y][x + offset] = (float)tempcal(img->prow[y][x + offset], satnum - 15, &temp);
+			img->prow[y][x + offset] = (float)tempcal(img->prow[y][x + offset], satnum, temp);
+		}
+	}
+}
+
+float calibrate_pixel(float value, int channel, calibration_t cal) {
+	if (value > cal.visible[channel].cutoff) {
+		return linear_calc(value*4.0f, cal.visible[channel].high) * 255.0f/100.0f;
+	} else {
+		return linear_calc(value*4.0f, cal.visible[channel].low) * 255.0f/100.0f;
+	}
+}
+
+void apt_calibrate_visible(int satnum, apt_image_t *img, int offset, int width) {
+	const calibration_t calibration = get_calibration(satnum);
+	int channel = img->chA-1;
+
+	for (int y = 0; y < img->nrow; y++) {
+		for (int x = 0; x < width; x++) {
+			img->prow[y][x + offset] = clamp(calibrate_pixel(img->prow[y][x + offset], channel, calibration), 255.0f, 0.0f);
 		}
 	}
 }

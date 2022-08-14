@@ -11,7 +11,7 @@ find_package(PNG)
 # libsndfile
 find_package(LibSndFile)
 
-set(LIB_C_SOURCE_FILES src/color.c src/dsp.c src/filter.c src/image.c src/algebra.c src/libs/median.c src/util.c)
+set(LIB_C_SOURCE_FILES src/color.c src/dsp.c src/filter.c src/image.c src/algebra.c src/libs/median.c src/util.c src/calibration.c)
 set(EXE_C_SOURCE_FILES src/main.c src/pngio.c src/argparse/argparse.c src/util.c)
 set(LIB_C_HEADER_FILES src/apt.h)
 
