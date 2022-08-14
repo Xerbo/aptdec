@@ -23,13 +23,14 @@
 #include <string.h>
 #include <stdint.h>
 #include <math.h>
+#include "util.h"
 
 #include "pngio.h"
 
 int mapOverlay(char *filename, apt_rgb_t **crow, int nrow, int zenith, int MCIR) {
 	FILE *fp = fopen(filename, "rb");
 	if(!fp) {
-		fprintf(stderr, "Cannot open %s\n", filename);
+		error_noexit("Cannot open map");
 		return 0;
 	}
 
@@ -55,16 +56,16 @@ int mapOverlay(char *filename, apt_rgb_t **crow, int nrow, int zenith, int MCIR)
 
 	// Check the image
 	if(width != 1040){
-		fprintf(stderr, "Map must be 1040px wide.\n");
+		error_noexit("Map must be 1040px wide");
 		return 0;
 	}else if(bit_depth != 16){
-		fprintf(stderr, "Map must be 16 bit color.\n");
+		error_noexit("Map must be 16 bit color");
 		return 0;
 	}else if(color_type != PNG_COLOR_TYPE_RGB){
-		fprintf(stderr, "Map must be RGB.\n");
+		error_noexit("Map must be RGB");
 		return 0;
 	}else if(zenith > height/2 || nrow-zenith > height/2){
-		fprintf(stderr, "WARNING: Map is too short to cover entire image\n");
+		warning("Map is too short to cover entire image");
 	}
 
 	// Create row buffers
@@ -145,7 +146,7 @@ int readRawImage(char *filename, float **prow, int *nrow) {
 	FILE *fp = fopen(filename, "rb");
     printf("%s", filename);
 	if(!fp) {
-		fprintf(stderr, "Cannot open %s\n", filename);
+		error_noexit("Cannot open image");
 		return 0;
 	}
 
@@ -171,13 +172,13 @@ int readRawImage(char *filename, float **prow, int *nrow) {
 
 	// Check the image
 	if(width != APT_IMG_WIDTH){
-		fprintf(stderr, "Raw image must be %ipx wide.\n", APT_IMG_WIDTH);
+		error_noexit("Raw image must be 2080px wide");
 		return 0;
 	}else if(bit_depth != 8){
-		fprintf(stderr, "Raw image must have 8 bit color.\n");
+		error_noexit("Raw image must have 8 bit color");
 		return 0;
 	}else if(color_type != PNG_COLOR_TYPE_GRAY){
-		fprintf(stderr, "Raw image must be grayscale.\n");
+		error_noexit("Raw image must be grayscale");
 		return 0;
 	}
 
@@ -214,7 +215,7 @@ int readPalette(char *filename, apt_rgb_t **pixels) {
 		sprintf(buffer, PALETTE_DIR"/%s", filename);
 		fp = fopen(buffer, "rb");
 			if(!fp){
-			fprintf(stderr, "Cannot open %s\n", filename);
+			error_noexit("Cannot open palette");
 			return 0;
 		}
 	}
@@ -241,13 +242,13 @@ int readPalette(char *filename, apt_rgb_t **pixels) {
 
 	// Check the image
 	if(width != 256 && height != 256){
-		fprintf(stderr, "Palette must be 256x256.\n");
+		error_noexit("Palette must be 256x256");
 		return 0;
 	}else if(bit_depth != 8){
-		fprintf(stderr, "Palette must be 8 bit color.\n");
+		error_noexit("Palette must be 8 bit color");
 		return 0;
 	}else if(color_type != PNG_COLOR_TYPE_RGB){
-		fprintf(stderr, "Palette must be RGB.\n");
+		error_noexit("Palette must be RGB");
 		return 0;
 	}
 
@@ -295,7 +296,7 @@ void prow2crow(float **prow, int nrow, char *palette, apt_rgb_t **crow){
 int applyUserPalette(float **prow, int nrow, char *filename, apt_rgb_t **crow){
 	apt_rgb_t *pal_row[256];
 	if(!readPalette(filename, pal_row)){
-		fprintf(stderr, "Could not read palette\n");
+		error_noexit("Could not read palette");
 		return 0;
 	}
 
@@ -358,9 +359,12 @@ int ImageOut(options_t *opts, apt_image_t *img, int offset, int width, char *des
 			case Histogram_Equalise: break;
 			case Linear_Equalise: break;
 			case Crop_Noise: break;
-			default:
-				fprintf(stderr, "NOTICE: Unrecognised effect, \"%c\"\n", opts->effects[i]);
+			default: {
+				char text[100];
+				sprintf(text, "Unrecognised effect, \"%c\"", opts->effects[i]);
+				warning(text);
 				break;
+			}
 		}
 	}
 
@@ -374,13 +378,13 @@ int ImageOut(options_t *opts, apt_image_t *img, int offset, int width, char *des
 	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 	if (!png_ptr) {
 		png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
-		fprintf(stderr, "Could not create a PNG writer\n");
+		error_noexit("Could not create a PNG writer");
 		return 0;
 	}
 	png_infop info_ptr = png_create_info_struct(png_ptr);
 	if (!info_ptr) {
 		png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
-		fprintf(stderr, "Could not create a PNG writer\n");
+		error_noexit("Could not create a PNG writer");
 		return 0;
 	}
 
@@ -402,7 +406,7 @@ int ImageOut(options_t *opts, apt_image_t *img, int offset, int width, char *des
 	// Init I/O
 	pngfile = fopen(outName, "wb");
 	if (!pngfile) {
-		fprintf(stderr, "Could not open %s for writing\n", outName);
+		error_noexit("Could not open PNG for writing");
 		return 1;
 	}
 	png_init_io(png_ptr, pngfile);
@@ -432,11 +436,11 @@ int ImageOut(options_t *opts, apt_image_t *img, int offset, int width, char *des
 	// Map stuff
 	if(opts->map != NULL && opts->map[0] != '\0'){
 		if(!mapOverlay(opts->map, crow, img->nrow, img->zenith+opts->mapOffset, CONTAINS(opts->type, MCIR))){
-			fprintf(stderr, "Skipping MCIR generation.\n");
+			warning("Skipping MCIR generation");
 			return 0;
 		}
 	}else if(CONTAINS(opts->type, MCIR)){
-		fprintf(stderr, "Skipping MCIR generation; no map provided.\n");
+		warning("Skipping MCIR generation; no map provided");
 		return 0;
 	}
 
@@ -502,13 +506,13 @@ int initWriter(options_t *opts, apt_image_t *img, int width, int height, char *d
 	rt_png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 	if (!rt_png_ptr) {
 		png_destroy_write_struct(&rt_png_ptr, (png_infopp) NULL);
-		fprintf(stderr, "Could not create a PNG writer\n");
+		error_noexit("Could not create a PNG writer");
 		return 0;
 	}
 	rt_info_ptr = png_create_info_struct(rt_png_ptr);
 	if (!rt_info_ptr) {
 		png_destroy_write_struct(&rt_png_ptr, (png_infopp) NULL);
-		fprintf(stderr, "Could not create a PNG writer\n");
+		error_noexit("Could not create a PNG writer");
 		return 0;
 	}
 
@@ -525,7 +529,7 @@ int initWriter(options_t *opts, apt_image_t *img, int width, int height, char *d
 	// Init I/O
 	rt_pngfile = fopen(outName, "wb");
 	if (!rt_pngfile) {
-		fprintf(stderr, "Could not open %s for writing\n", outName);
+		error_noexit("Could not open PNG for writing");
 		return 0;
 	}
 	png_init_io(rt_png_ptr, rt_pngfile);

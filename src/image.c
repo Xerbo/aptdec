@@ -25,6 +25,7 @@
 #include "apt.h"
 #include "algebra.h"
 #include "image.h"
+#include "util.h"
 
 static linear_t compute_regression(float *wedges) {
 	//				    { 0.106, 0.215, 0.324, 0.433, 0.542,  0.652, 0.78,   0.87,  0.0 }
@@ -116,7 +117,7 @@ apt_channel_t apt_calibrate(float **prow, int nrow, int offset, int width) {
 
 	// The minimum rows required to decode a full frame
 	if (nrow < APT_CALIBRATION_ROWS) {
-		fprintf(stderr, "Telemetry decoding error, not enough rows\n");
+		error_noexit("Telemetry decoding error, not enough rows");
 		return APT_CHANNEL_UNKNOWN;
 	}
 
@@ -151,7 +152,7 @@ apt_channel_t apt_calibrate(float **prow, int nrow, int offset, int width) {
 
 	// Make sure that theres at least one full frame in the image
 	if (nrow < telestart + APT_FRAME_LEN) {
-		fprintf(stderr, "Telemetry decoding error, not enough rows\n");
+		error_noexit("Telemetry decoding error, not enough rows");
 		return APT_CHANNEL_UNKNOWN;
 	}
 
@@ -214,7 +215,7 @@ apt_channel_t apt_calibrate(float **prow, int nrow, int offset, int width) {
 	}
 
 	if(bestFrame == -1){
-		fprintf(stderr, "Something has gone very wrong, please file a bug report.\n");
+		error_noexit("Something has gone very wrong, please file a bug report");
 		return APT_CHANNEL_UNKNOWN;
 	}
 

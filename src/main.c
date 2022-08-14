@@ -37,6 +37,7 @@
 #include "pngio.h"
 #include "image.h"
 #include "color.h"
+#include "util.h"
 
 // Audio file
 static SNDFILE *audioFile;
@@ -184,7 +185,7 @@ static int processAudio(char *filename, options_t *opts){
 	// Fallback for detecting the zenith
 	// TODO: encode metadata in raw images
 	if(opts->map != NULL && opts->map[0] != '\0' && img.zenith == 0){
-		fprintf(stderr, "Guessing zenith in image, map will most likely be misaligned.\n");
+		warning("Guessing zenith in image, map will most likely be misaligned");
 		img.zenith = img.nrow / 2;
 	}
 
@@ -278,17 +279,17 @@ static int initsnd(char *filename) {
 	infwav.format = 0;
 	audioFile = sf_open(filename, SFM_READ, &infwav);
 	if (audioFile == NULL) {
-		fprintf(stderr, "Could not open %s\n", filename);
+		error_noexit("Could not file");
 		return 0;
 	}
 
 	res = apt_init(infwav.samplerate);
 	printf("Input file: %s\n", filename);
 	if(res < 0) {
-		fprintf(stderr, "Input sample rate too low: %d\n", infwav.samplerate);
+		error_noexit("Input sample rate too low");
 		return 0;
 	}else if(res > 0) {
-		fprintf(stderr, "Input sample rate too high: %d\n", infwav.samplerate);
+		error_noexit("Input sample rate too high");
 		return 0;
 	}
 	printf("Input sample rate: %d\n", infwav.samplerate);

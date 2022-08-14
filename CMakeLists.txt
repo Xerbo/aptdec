@@ -11,8 +11,8 @@ find_package(PNG)
 # libsndfile
 find_package(LibSndFile)
 
-set(LIB_C_SOURCE_FILES src/color.c src/dsp.c src/filter.c src/image.c src/algebra.c src/libs/median.c)
-set(EXE_C_SOURCE_FILES src/main.c src/pngio.c src/argparse/argparse.c)
+set(LIB_C_SOURCE_FILES src/color.c src/dsp.c src/filter.c src/image.c src/algebra.c src/libs/median.c src/util.c)
+set(EXE_C_SOURCE_FILES src/main.c src/pngio.c src/argparse/argparse.c src/util.c)
 set(LIB_C_HEADER_FILES src/apt.h)
 
 # Link with static library for aptdec executable, so we don't need to set the path

@@ -16,19 +16,36 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "util.h"
+
 #include <stdio.h>
-#define M_PIf 3.14159265358979323846f
-#define M_TAUf (M_PIf * 2.0f)
+#include <stdlib.h>
 
-#define MIN(a,b) (((a) < (b)) ? (a) : (b))
-#define MAX(a,b) (((a) > (b)) ? (a) : (b))
-
-#ifndef UTIL_H
-#define UTIL_H
-float clamp(float x, float hi, float lo);
-float clamp_half(float x, float hi);
-
-void error(const char *text);
-void error_noexit(const char *text);
-void warning(const char *text);
+void error_noexit(const char *text) {
+#ifdef _WIN32
+    fprintf(stderr, "Error: %s\r\n", text);
+#else
+    fprintf(stderr, "\033[31mError: %s\033[0m\n", text);
 #endif
+}
+void error(const char *text) {
+    error_noexit(text);
+    exit(1);
+}
+void warning(const char *text) {
+#ifdef _WIN32
+    fprintf(stderr, "Warning: %s\r\n", text);
+#else
+    fprintf(stderr, "\033[33mWarning: %s\033[0m\n", text);
+#endif
+}
+
+float clamp(float x, float hi, float lo) {
+    if (x > hi) return hi;
+    if (x < lo) return lo;
+    return x;
+}
+
+float clamp_half(float x, float hi) {
+    return clamp(x, hi, -hi);
+}
