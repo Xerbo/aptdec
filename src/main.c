@@ -67,7 +67,16 @@ static char *basename(char *path)
 #endif
 
 int main(int argc, const char **argv) {
-	options_t opts = { "r", "", 19, "", ".", 0, "", "", 1.0, 0 };
+	options_t opts = { 
+		.type = "r",
+		.effects = "",
+		.satnum = 19,
+		.path = ".",
+		.realtime = 0,
+		.filename = "",
+		.palette = "",
+		.gamma = 1.0
+	};
 
 	static const char *const usages[] = {
 		"aptdec [options] [[--] sources]",
@@ -87,13 +96,11 @@ int main(int argc, const char **argv) {
 
 		OPT_GROUP("Paths"),
 		OPT_STRING('p', "palette", &opts.palette, "path to a palette", NULL, 0, 0),
-		OPT_STRING('m', "map", &opts.map, "path to a WXtoImg map", NULL, 0, 0),
 		OPT_STRING('o', "filename", &opts.filename, "filename of the output image", NULL, 0, 0),
 		OPT_STRING('d', "output", &opts.path, "output directory (must exist first)", NULL, 0, 0),
 
 		OPT_GROUP("Misc"),
 		OPT_BOOLEAN('r', "realtime", &opts.realtime, "decode in realtime", NULL, 0, 0),
-		OPT_INTEGER('k', "map-offset", &opts.mapOffset, "Map offset (in px, default 0)", NULL, 0, 0),
 		OPT_END(),
 	};
 
@@ -182,13 +189,6 @@ static int processAudio(char *filename, options_t *opts){
 
 	printf("Total rows: %d\n", img.nrow);
 
-	// Fallback for detecting the zenith
-	// TODO: encode metadata in raw images
-	if(opts->map != NULL && opts->map[0] != '\0' && img.zenith == 0){
-		warning("Guessing zenith in image, map will most likely be misaligned");
-		img.zenith = img.nrow / 2;
-	}
-
 	// Calibrate
 	img.chA = apt_calibrate(img.prow, img.nrow, APT_CHA_OFFSET, APT_CH_WIDTH);
 	img.chB = apt_calibrate(img.prow, img.nrow, APT_CHB_OFFSET, APT_CH_WIDTH);
@@ -239,10 +239,6 @@ static int processAudio(char *filename, options_t *opts){
 		apt_calibrate_visible(opts->satnum, &tmpimg, APT_CHA_OFFSET, APT_CH_WIDTH);
 		ImageOut(opts, &tmpimg, APT_CHA_OFFSET, APT_CH_WIDTH, "Visible", Visible, (char *)apt_TempPalette);
 	}
-
-	// MCIR
-	if (CONTAINS(opts->type, MCIR))
-		ImageOut(opts, &img, APT_CHA_OFFSET, APT_CH_WIDTH, "MCIR", MCIR, NULL);
 
 	// Linear equalise
 	if(CONTAINS(opts->effects, Linear_Equalise)){

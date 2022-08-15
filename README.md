@@ -15,7 +15,6 @@ Aptdec can turn the audio recordings into PNG images and generate images such as
  - Individual channel: one of the channels form the image
  - Temperature image: a temperature compensated image derived from the IR channel
  - Palleted image: a image where the color is derived from a palette (false color, etc)
- - MCIR: a false color that uses a underlay map for color
 
 The input audio format can be anything supported by `libsndfile` (although only tested with WAV and FLAC). Sample rate doesn't matter, although lower samples rates will process faster.
 
@@ -71,11 +70,9 @@ Apply a falsecolor palette
 -o <path>        Output filename
 -d <path>        Destination directory
 -s (15-19)       Satellite number
--m <path>        Path to WXtoImg map
 -p <path>        Path to palette
 -r               Realtime decode
 -g               Gamma adjustment (1.0 = off)
--k               Map offset (in px, default: 0)
 ```
 
 ### Image output types
@@ -84,7 +81,6 @@ Apply a falsecolor palette
  - `a`: Channel A
  - `b`: Channel B
  - `t`: Temperature
- - `m`: MCIR (Map Color InfraRed)
  - `p`: Palleted
 
 ### Post-Processing Effects

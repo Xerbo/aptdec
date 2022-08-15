@@ -31,18 +31,15 @@ typedef struct {
 	char *type; // Output image type
 	char *effects; // Effects on the image
 	int   satnum; // The satellite number
-	char *map; // Path to a map file
 	char *path; // Output directory
 	int   realtime; // Realtime decoding
 	char *filename; // Output filename
 	char *palette; // Filename of palette
 	float gamma; // Gamma
-	int mapOffset;
 } options_t;
 
 enum imagetypes {
 	Raw_Image='r',
-	MCIR='m',
 	Palleted='p',
 	Temperature='t',
 	Channel_A='a',

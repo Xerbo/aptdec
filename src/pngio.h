@@ -1,7 +1,6 @@
 #include "apt.h"
 #include "common.h"
 
-int mapOverlay(char *filename, apt_rgb_t **crow, int nrow, int zenith, int MCIR);
 int readRawImage(char *filename, float **prow, int *nrow);
 int readPalette(char *filename, apt_rgb_t **pixels);
 void prow2crow(float **prow, int nrow, char *palette, apt_rgb_t **crow);

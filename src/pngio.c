@@ -27,121 +27,6 @@
 
 #include "pngio.h"
 
-int mapOverlay(char *filename, apt_rgb_t **crow, int nrow, int zenith, int MCIR) {
-	FILE *fp = fopen(filename, "rb");
-	if(!fp) {
-		error_noexit("Cannot open map");
-		return 0;
-	}
-
-	// Create reader
-	png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	if(!png) {
-		fclose(fp);
-		return 0;
-	}
-	png_infop info = png_create_info_struct(png);
-	if(!info) {
-		fclose(fp);
-		return 0;
-	}
-	png_init_io(png, fp);
-
-	// Read info from header
-	png_read_info(png, info);
-	int width = png_get_image_width(png, info);
-	int height = png_get_image_height(png, info);
-	png_byte color_type = png_get_color_type(png, info);
-	png_byte bit_depth = png_get_bit_depth(png, info);
-
-	// Check the image
-	if(width != 1040){
-		error_noexit("Map must be 1040px wide");
-		return 0;
-	}else if(bit_depth != 16){
-		error_noexit("Map must be 16 bit color");
-		return 0;
-	}else if(color_type != PNG_COLOR_TYPE_RGB){
-		error_noexit("Map must be RGB");
-		return 0;
-	}else if(zenith > height/2 || nrow-zenith > height/2){
-		warning("Map is too short to cover entire image");
-	}
-
-	// Create row buffers
-	png_bytep *mapRows = NULL;
-	mapRows = (png_bytep *) malloc(sizeof(png_bytep) * height);
-	for(int y = 0; y < height; y++)
-		mapRows[y] = (png_byte *) malloc(png_get_rowbytes(png, info));
-
-	// Read image
-	png_read_image(png, mapRows);
-
-	// Tidy up
-	fclose(fp);
-	png_destroy_read_struct(&png, &info, NULL);
-
-	printf("Adding map overlay\n");
-
-	// Map overlay / MCIR / Precipitation
-	int mapOffset = (height/2)-zenith;
-	for(int y = 0; y < nrow; y++) {
-		for(int x = 49; x < width - 82; x++){
-			// Maps are 16 bit / channel
-			png_bytep px = &mapRows[CLIP(y + mapOffset, 0, height-1)][x * 6];
-			apt_rgb_t map = {
-				(px[0] << 8) | px[1],
-				(px[2] << 8) | px[3],
-				(px[4] << 8) | px[5]
-			};
-
-			// Pixel offsets
-			int chb = x + APT_CHB_OFFSET - 49;
-			int cha = x + 36;
-
-			// Fill in map
-			if(MCIR){
-				if(map.b < 128 && map.g > 128){
-					// Land
-					float darken = ((255-crow[y][chb].r)-100)/50;
-					float green = CLIP(map.g/300, 0, 1);
-					float blue = 0.15 - CLIP(map.b/960.0, 0, 1);
-					crow[y][cha] = (apt_rgb_t){blue*1000*darken, green*98*darken, blue*500.0*darken};
-				}else{
-					// Sea
-					crow[y][cha] = (apt_rgb_t){9, 17, 74};
-				}
-			}
-
-			// Color -> alpha: composite
-			int composite = map.r + map.g + map.b;
-			// Color -> alpha: flattern and convert to 8 bits / channel
-			float factor = (255 * 255 * 2.0) / composite;
-			map.r *= factor/257.0; map.g *= factor/257.0; map.b *= factor/257.0;
-			// Color -> alpha: convert black to alpha
-			float alpha = CLIP(composite / 65535.0, 0, 1);
-			// Clip
-			map.r = CLIP(map.r, 0, 255.0);
-			map.g = CLIP(map.g, 0, 255.0);
-			map.b = CLIP(map.b, 0, 255.0);
-
-			// Map overlay on channel A
-			crow[y][cha] = apt_RGBcomposite(map, alpha, crow[y][cha], 1);
-			// Map overlay on channel B
-			if(!MCIR)
-				crow[y][chb] = apt_RGBcomposite(map, alpha, crow[y][chb], 1);
-
-			// Cloud overlay on channel A
-			if(MCIR){
-				float cloud = CLIP((crow[y][chb].r - 113) / 90.0, 0, 1);
-				crow[y][cha] = apt_RGBcomposite((apt_rgb_t){255, 250, 245}, cloud, crow[y][cha], 1);
-			}
-		}
-	}
-
-	return 1;
-}
-
 int readRawImage(char *filename, float **prow, int *nrow) {
 	FILE *fp = fopen(filename, "rb");
     printf("%s", filename);
@@ -210,14 +95,8 @@ int readRawImage(char *filename, float **prow, int *nrow) {
 int readPalette(char *filename, apt_rgb_t **pixels) {
 	FILE *fp = fopen(filename, "rb");
 	if(!fp) {
-		char buffer[1024];
-		// PALETTE_DIR is set through CMake
-		sprintf(buffer, PALETTE_DIR"/%s", filename);
-		fp = fopen(buffer, "rb");
-			if(!fp){
-			error_noexit("Cannot open palette");
-			return 0;
-		}
+		error_noexit("Cannot open palette");
+		return 0;
 	}
 	
 	// Create reader
@@ -334,9 +213,6 @@ int ImageOut(options_t *opts, apt_image_t *img, int offset, int width, char *des
 		case Temperature:
 			greyscale = 0;
 			break;
-		case MCIR:
-			greyscale = 0;
-			break;
 		case Raw_Image: break;
 		case Channel_A: break;
 		case Channel_B: break;
@@ -366,10 +242,6 @@ int ImageOut(options_t *opts, apt_image_t *img, int offset, int width, char *des
 				break;
 			}
 		}
-	}
-
-	if(opts->map != NULL && opts->map[0] != '\0'){
-		greyscale = 0;
 	}
 
 	FILE *pngfile;
@@ -431,17 +303,6 @@ int ImageOut(options_t *opts, apt_image_t *img, int offset, int width, char *des
 					crow[y][x + APT_CHB_OFFSET] = crow[y][x + APT_CHA_OFFSET] = apt_applyPalette(apt_PrecipPalette, img->prow[y][x + APT_CHB_OFFSET]-198);
 			}
 		}
-	}
-
-	// Map stuff
-	if(opts->map != NULL && opts->map[0] != '\0'){
-		if(!mapOverlay(opts->map, crow, img->nrow, img->zenith+opts->mapOffset, CONTAINS(opts->type, MCIR))){
-			warning("Skipping MCIR generation");
-			return 0;
-		}
-	}else if(CONTAINS(opts->type, MCIR)){
-		warning("Skipping MCIR generation; no map provided");
-		return 0;
 	}
 
 	printf("Writing %s", outName);
