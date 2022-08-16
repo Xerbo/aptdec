@@ -172,7 +172,7 @@ static int processAudio(char *filename, options_t *opts){
 			img.prow[img.nrow] = (float *) malloc(sizeof(float) * APT_PROW_WIDTH);
 
 			// Write into memory and break the loop when there are no more samples to read
-			if (apt_getpixelrow(img.prow[img.nrow], img.nrow, &img.zenith, (img.nrow == 0), getsamples, NULL) == 0)
+			if (apt_getpixelrow(img.prow[img.nrow], img.nrow, NULL, (img.nrow == 0), getsamples, NULL) == 0)
 				break;
 
 			if(opts->realtime) pushRow(img.prow[img.nrow], APT_IMG_WIDTH);
@@ -197,7 +197,7 @@ static int processAudio(char *filename, options_t *opts){
 
 	// Crop noise from start and end of image
 	if(CONTAINS(opts->effects, Crop_Noise)){
-		img.zenith -= apt_cropNoise(&img);
+		apt_cropNoise(&img);
 	}
 
 	// Denoise
