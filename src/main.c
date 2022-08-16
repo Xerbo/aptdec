@@ -226,7 +226,7 @@ static int processAudio(char *filename, options_t *opts){
 		ImageOut(opts, &tmpimg, APT_CHB_OFFSET, APT_CH_WIDTH, "Temperature", Temperature, (char *)apt_TempPalette);
 	}
 
-	// Temperature
+	// Visible
 	if (CONTAINS(opts->type, Visible) && img.chA <= 2) {
 		// Create another buffer as to not modify the orignal
 		apt_image_t tmpimg = img;
@@ -237,7 +237,7 @@ static int processAudio(char *filename, options_t *opts){
 
 		// Perform visible calibration
 		apt_calibrate_visible(opts->satnum, &tmpimg, APT_CHA_OFFSET, APT_CH_WIDTH);
-		ImageOut(opts, &tmpimg, APT_CHA_OFFSET, APT_CH_WIDTH, "Visible", Visible, (char *)apt_TempPalette);
+		ImageOut(opts, &tmpimg, APT_CHA_OFFSET, APT_CH_WIDTH, "Visible", Visible, NULL);
 	}
 
 	// Linear equalise

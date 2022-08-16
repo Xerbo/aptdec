@@ -223,9 +223,11 @@ int ImageOut(options_t *opts, apt_image_t *img, int offset, int width, char *des
 	for(unsigned long int i = 0; i < strlen(opts->effects); i++){
 		switch (opts->effects[i]) {
 			case Crop_Telemetry:
-				width -= APT_TOTAL_TELE;
-				offset += APT_SYNC_WIDTH + APT_SPC_WIDTH;
-				crop_telemetry = 1;
+				if (width == 2080) {
+					width -= APT_TOTAL_TELE;
+					offset += APT_SYNC_WIDTH + APT_SPC_WIDTH;
+					crop_telemetry = 1;
+				}
 				break;
 			case Precipitation_Overlay:
 				greyscale = 0;
