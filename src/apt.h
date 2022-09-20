@@ -81,6 +81,7 @@ typedef int (*apt_getsamples_t)(void *context, float *samples, int count);
 typedef struct {
 	float *prow[APT_MAX_HEIGHT]; // Row buffers
 	int nrow; // Number of rows
+	int zenith; // Row in image where satellite reaches peak elevation
 	apt_channel_t chA, chB; // ID of each channel
 	char name[256]; // Stripped filename
 	char *palette; // Filename of palette

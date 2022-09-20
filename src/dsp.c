@@ -26,6 +26,12 @@
 #include "taps.h"
 #include "util.h"
 
+#ifdef _MSC_VER
+typedef _Fcomplex complexf_t;
+#else
+typedef complex float complexf_t;
+#endif
+
 // Block sizes
 #define BLKAMP 32768
 #define BLKIN 32768
@@ -59,11 +65,11 @@ int apt_init(double sample_rate) {
 	return 0;
 }
 
-static float pll(float complex in) {
+static float pll(complexf_t in) {
 	static float oscillator_phase = 0.0;
 
 	// Internal oscillator
-	float complex osc = cos(oscillator_phase) + -sin(oscillator_phase)*I;
+	complexf_t osc = cos(oscillator_phase) + -sin(oscillator_phase)*I;
 	in *= osc;
 
 	// Error detector
@@ -104,7 +110,7 @@ static int getamp(float *ampbuff, int count, apt_getsamples_t getsamples, void *
 		}
 
 		// Process read samples into a brightness value
-		float complex sample = hilbert_transform(&inbuff[idxin], hilbert_filter, HILBERT_FILTER_SIZE);
+		complexf_t sample = hilbert_transform(&inbuff[idxin], hilbert_filter, HILBERT_FILTER_SIZE);
 		ampbuff[n] = pll(sample);
 
 		// Increment current sample
@@ -159,6 +165,7 @@ int apt_getpixelrow(float *pixelv, int nrow, int *zenith, int reset, apt_getsamp
 	static size_t npv;
 	static int synced = 0;
 	static float max = 0.0;
+	static float minDoppler = 1000000000, previous = 0;
 
 	if(reset) synced = 0;
 
@@ -182,6 +189,14 @@ int apt_getpixelrow(float *pixelv, int nrow, int *zenith, int reset, apt_getsamp
 	corr = convolve(&pixelv[1], sync_pattern, SYNC_PATTERN_SIZE - 1);
 	lcorr = convolve(&pixelv[2], sync_pattern, SYNC_PATTERN_SIZE - 2);
 	FreqLine = 1.0+((ecorr-lcorr) / corr / APT_IMG_WIDTH / 4.0);
+
+	float val = fabs(lcorr - ecorr)*0.25 + previous*0.75;
+	if(val < minDoppler && nrow > 10){
+		minDoppler = val;
+		*zenith = nrow;
+	}
+	previous = fabs(lcorr - ecorr);
+
 	// The point in which the pixel offset is recalculated
 	if (corr < 0.75 * max) {
 		synced = 0;
