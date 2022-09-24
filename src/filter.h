@@ -19,6 +19,12 @@
 #include <stddef.h>
 #include <complex.h>
 
-float                  convolve(const float *in, const float *taps, size_t len);
-float complex hilbert_transform(const float *in, const float *taps, size_t len);
-float    interpolating_convolve(const float *in, const float *taps, size_t len, float offset, float delta);
+#ifdef _MSC_VER
+typedef _Fcomplex complexf_t;
+#else
+typedef complex float complexf_t;
+#endif
+
+float      convolve(const float *in, const float *taps, size_t len);
+complexf_t hilbert_transform(const float *in, const float *taps, size_t len);
+float      interpolating_convolve(const float *in, const float *taps, size_t len, float offset, float delta);

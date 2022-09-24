@@ -26,12 +26,6 @@
 #include "taps.h"
 #include "util.h"
 
-#ifdef _MSC_VER
-typedef _Fcomplex complexf_t;
-#else
-typedef complex float complexf_t;
-#endif
-
 // Block sizes
 #define BLKAMP 32768
 #define BLKIN 32768
@@ -69,8 +63,13 @@ static float pll(complexf_t in) {
 	static float oscillator_phase = 0.0;
 
 	// Internal oscillator
+#ifdef _MSC_VER
+	complexf_t osc = _FCbuild(cos(oscillator_phase), -sin(oscillator_phase));
+    in = _FCmulcc(in, osc);
+#else
 	complexf_t osc = cos(oscillator_phase) + -sin(oscillator_phase)*I;
-	in *= osc;
+    in *= osc;
+#endif
 
 	// Error detector
 	float error = cargf(in);

@@ -29,7 +29,7 @@ float convolve(const float *in, const float *taps, size_t len) {
 	return sum;
 }
 
-float complex hilbert_transform(const float *in, const float *taps, size_t len) {
+complexf_t hilbert_transform(const float *in, const float *taps, size_t len) {
 	float i = 0.0;
 	float q = 0.0;
 
@@ -39,7 +39,11 @@ float complex hilbert_transform(const float *in, const float *taps, size_t len) 
 	}
 
 	i = in[len-1] - (i / len);
+#ifdef _MSC_VER
+	return _FCbuild(i, q);
+#else
 	return i + q*I;
+#endif
 }
 
 float interpolating_convolve(const float *in, const float *taps, size_t len, float offset, float delta) {
