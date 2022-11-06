@@ -16,45 +16,47 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <math.h>
 #include "filter.h"
+
+#include <math.h>
+
 #include "util.h"
 
 float convolve(const float *in, const float *taps, size_t len) {
-	float sum = 0.0;
-	for (size_t i = 0; i < len; i++) {
-		sum += in[i] * taps[i];
-	}
+    float sum = 0.0;
+    for (size_t i = 0; i < len; i++) {
+        sum += in[i] * taps[i];
+    }
 
-	return sum;
+    return sum;
 }
 
 complexf_t hilbert_transform(const float *in, const float *taps, size_t len) {
-	float i = 0.0;
-	float q = 0.0;
+    float i = 0.0;
+    float q = 0.0;
 
-	for (size_t k = 0; k < len; k++) {
-		q += in[2*k] * taps[k];
-		i += in[2*k];
-	}
+    for (size_t k = 0; k < len; k++) {
+        q += in[2 * k] * taps[k];
+        i += in[2 * k];
+    }
 
-	i = in[len-1] - (i / len);
+    i = in[len - 1] - (i / len);
 #ifdef _MSC_VER
-	return _FCbuild(i, q);
+    return _FCbuild(i, q);
 #else
-	return i + q*I;
+    return i + q * I;
 #endif
 }
 
 float interpolating_convolve(const float *in, const float *taps, size_t len, float offset, float delta) {
-	float out = 0.0;
-	float n = offset;
+    float out = 0.0;
+    float n = offset;
 
-	for (size_t i = 0; i < (len-1)/delta-1; n += delta, i++) {
-		int k = (int)floor(n);
-		float alpha = n - k;
+    for (size_t i = 0; i < (len - 1) / delta - 1; n += delta, i++) {
+        int k = (int)floor(n);
+        float alpha = n - k;
 
-		out += in[i] * (taps[k] * (1.0f-alpha) + taps[k + 1] * alpha);
-	}
-	return out;
+        out += in[i] * (taps[k] * (1.0f - alpha) + taps[k + 1] * alpha);
+    }
+    return out;
 }

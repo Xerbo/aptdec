@@ -17,6 +17,7 @@
  */
 
 #include "algebra.h"
+
 #include <math.h>
 
 // Find the best linear equation to estimate the value of the
@@ -39,21 +40,17 @@ linear_t linear_regression(const float *independent, const float *dependent, siz
             a_numerator += (independent[i] - independent_mean) * (dependent[i] - dependent_mean);
             a_denominator += powf(independent[i] - independent_mean, 2.0f);
         }
-        a = a_numerator/a_denominator;
+        a = a_numerator / a_denominator;
     }
 
     // We can now solve for the y-intercept since we know the slope
     // and the centoid, which the line must pass through
     float b = dependent_mean - a * independent_mean;
 
-    //printf("y(x) = %fx + %f\n", a, b);
+    // printf("y(x) = %fx + %f\n", a, b);
     return (linear_t){a, b};
 }
 
-float linear_calc(float x, linear_t line) {
-    return x*line.a + line.b;
-}
+float linear_calc(float x, linear_t line) { return x * line.a + line.b; }
 
-float quadratic_calc(float x, quadratic_t quadratic) {
-    return x*x*quadratic.a + x*quadratic.b + quadratic.c;
-}
+float quadratic_calc(float x, quadratic_t quadratic) { return x * x * quadratic.a + x * quadratic.b + quadratic.c; }

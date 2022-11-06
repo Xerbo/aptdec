@@ -25,7 +25,7 @@ typedef struct {
 
     // Quadratics for calculating PRT temperature
     quadratic_t prt[4];
- 
+
     // Visible calibration coefficients
     struct {
         linear_t low;
@@ -34,8 +34,8 @@ typedef struct {
     } visible[2];
 
     // Radiance coefficients
-    struct { 
-        float vc, A, B;  
+    struct {
+        float vc, A, B;
     } rad[3];
 
     // Non linear correction coefficients

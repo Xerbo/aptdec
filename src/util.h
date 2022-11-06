@@ -20,8 +20,8 @@
 #define M_PIf 3.14159265358979323846f
 #define M_TAUf (M_PIf * 2.0f)
 
-#define MIN(a,b) (((a) < (b)) ? (a) : (b))
-#define MAX(a,b) (((a) > (b)) ? (a) : (b))
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 #ifndef UTIL_H
 #define UTIL_H

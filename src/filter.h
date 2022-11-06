@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <stddef.h>
 #include <complex.h>
+#include <stddef.h>
 
 #ifdef _MSC_VER
 typedef _Fcomplex complexf_t;
@@ -25,6 +25,6 @@ typedef _Fcomplex complexf_t;
 typedef complex float complexf_t;
 #endif
 
-float      convolve(const float *in, const float *taps, size_t len);
+float convolve(const float *in, const float *taps, size_t len);
 complexf_t hilbert_transform(const float *in, const float *taps, size_t len);
-float      interpolating_convolve(const float *in, const float *taps, size_t len, float offset, float delta);
+float interpolating_convolve(const float *in, const float *taps, size_t len, float offset, float delta);

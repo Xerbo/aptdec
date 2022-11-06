@@ -46,6 +46,4 @@ float clamp(float x, float hi, float lo) {
     return x;
 }
 
-float clamp_half(float x, float hi) {
-    return clamp(x, hi, -hi);
-}
+float clamp_half(float x, float hi) { return clamp(x, hi, -hi); }
