@@ -1,28 +1,27 @@
 # How To Contribute
 
-Thank you for showing interest to contributing to aptdec, these guidelines layout how you should go about reporting issues and contributing.
+Thanks for showing an interest in improving aptdec, these guidelines outline how you should go about contributing to the project.
 
-## Did you Find A Bug?
+## Did you find a bug?
 
-1. Ensure the bug was not already reported by searching on GitHub under Issues.
-2. If you're unable to find an closed issue addressing the problem, open a new one. Be sure to include a title and clear description, as much relevant information as possible and an audio file that demonstrates what is unexpected behaviour.
-3. If possible, use the report templates to create the issue.
+1. Make sure the bug has not already been reported
+2. If an issue already exists, leave a thumbs up to "bump" the issue
+3. If an issue doesn't exist, open a new one with a clear title and description and, if relevant, any files that cause the behavior
 
-## Do you have a patch that fixes a bug?
+## Do you have a patch that fixes a bug/adds a feature?
 
-1. Fork the repository and push your changes on a new branch.
-2. Add your changes on that branch, make sure to use sensible commit names.
-3. Open a new GitHub pull request to pull into master.
-4. Ensure the pull request description clearly describes the problem and solution. Include the relevant issue number if applicable.
+1. Fork this repository and put your changes on a *new branch*
+2. Make sure to use sensible commit names
+3. Open a new pull request into master
+
+If you don't have a GitHub account, you can email me the patch at `xerbo (at) protonmail (dot) com`
 
 ## Coding style
 
-- Whitespaces should be denoted with tabs
-- This is FOSS software, consider that people will read your code, so make it easily readable.
-- If you're making major changes, make sure to create an issue to discuss it.
+The coding style of LeanHRPT is based off the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html) with minor modifications (see `.clang-format`), in addition to this all files should use LF line endings and end in a newline. Use American english (i.e. "color", not "colour").
 
 ## Commit message style
 
-- Keep titles under 80 characters to prevent wrapping.
-- Make sure the commit message is descriptive of the change, dont be afraid to go into detail.
-- Split up large changes into multiple commits.
+- Keep titles short to prevent wrapping (descriptions exist)
+- Split up large changes into multiple commits
+- Never use hastags for sequential counting in commits, as this interferes with issue/PR referencing

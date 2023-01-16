@@ -1,81 +1,86 @@
-cmake_minimum_required (VERSION 3.0.0)
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+cmake_minimum_required(VERSION 3.0.0)
+
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_EXTENSIONS OFF)
+
+# Get version
+find_package(Git)
+if (GIT_FOUND)
+    execute_process(COMMAND ${GIT_EXECUTABLE} describe --tag WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR} OUTPUT_VARIABLE GIT_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
+    set(VERSION "${GIT_TAG}")
+else()
+    set(VERSION "Unknown")
+endif()
 
 project(aptdec C)
-
 include(GNUInstallDirs)
 
-# libpng
+# aptdec-cli
 find_package(PNG)
+find_path(SNDFILE_INCLUDE_DIR sndfile.h)
+find_library(SNDFILE_LIBRARIES NAMES sndfile libsndfile PATH)
 
-# libsndfile
-find_package(LibSndFile)
+if(PNG_FOUND AND SNDFILE_LIBRARIES AND SNDFILE_INCLUDE_DIR)
+    set(APTDEC_CLI_SOURCE_FILES
+        aptdec-cli/argparse/argparse.c
+        aptdec-cli/main.c
+        aptdec-cli/pngio.c
+        aptdec-cli/util.c
+    )
+    add_executable(aptdec-cli ${APTDEC_CLI_SOURCE_FILES})
 
-set(LIB_C_SOURCE_FILES src/color.c src/dsp.c src/filter.c src/image.c src/algebra.c src/libs/median.c src/util.c src/calibration.c)
-set(EXE_C_SOURCE_FILES src/main.c src/pngio.c src/argparse/argparse.c src/util.c)
-set(LIB_C_HEADER_FILES src/apt.h)
+    target_compile_definitions(aptdec-cli PRIVATE "VERSION=\"${VERSION}\"")
+    target_include_directories(aptdec-cli PRIVATE ${PNG_INCLUDE_DIRS})
+    target_include_directories(aptdec-cli PRIVATE ${SNDFILE_INCLUDE_DIR})
+    target_include_directories(aptdec-cli PRIVATE libaptdec/include/)
+    target_link_libraries(aptdec-cli PRIVATE ${PNG_LIBRARIES})
+    target_link_libraries(aptdec-cli PRIVATE ${SNDFILE_LIBRARIES})
+    target_link_libraries(aptdec-cli PRIVATE aptdec)
 
-# Link with static library for aptdec executable, so we don't need to set the path
-add_library(aptstatic STATIC ${LIB_C_SOURCE_FILES})
-
-# Create shared library for 3rd party apps
-add_library(apt SHARED ${LIB_C_SOURCE_FILES})
-set_target_properties(apt PROPERTIES PUBLIC_HEADER ${LIB_C_HEADER_FILES})
-
-add_compile_definitions(PALETTE_DIR="${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/palettes")
-
-if (PNG_FOUND AND LIBSNDFILE_FOUND)
-    add_executable(aptdec ${EXE_C_SOURCE_FILES})
-    include_directories(${PNG_PNG_INCLUDE_DIR})
-    include_directories(${LIBSNDFILE_INCLUDE_DIR})
-    target_link_libraries(aptdec PRIVATE PNG::PNG)
-    target_link_libraries(aptdec PRIVATE ${LIBSNDFILE_LIBRARY})
-    target_link_libraries(aptdec PRIVATE aptstatic)
-    if (MSVC)
-        target_compile_options(aptdec PRIVATE /D_CRT_SECURE_NO_WARNINGS=1 /DAPT_API_STATIC)
+    if(MSVC)
+        target_compile_options(aptdec-cli PRIVATE /D_CRT_SECURE_NO_WARNINGS=1)
     else()
-        # Math
-        target_link_libraries(aptdec PRIVATE m)
-
-        # Throw errors on warnings on release builds
-        if(CMAKE_BUILD_TYPE MATCHES "Release")
-            target_compile_options(aptdec PRIVATE -Wall -Wextra -pedantic -Wno-missing-field-initializers)
-        else()
-            target_compile_options(aptdec PRIVATE -Wall -Wextra -pedantic -Wno-missing-field-initializers)
-        endif()
+        target_link_libraries(aptdec-cli PRIVATE m)
+        target_compile_options(aptdec-cli PRIVATE -Wall -Wextra -pedantic -Wno-missing-field-initializers)
     endif()
 else()
-    MESSAGE(WARNING "Only building apt library, as not all of the required libraries were found for aptdec.")
+    message(WARNING "Not building aptdec-cli as some/all required dependencies are missing, libaptdec will still be built")
 endif()
 
-if (MSVC)
-    target_compile_options(apt PRIVATE /D_CRT_SECURE_NO_WARNINGS=1 /DAPT_API_EXPORT)
-    target_compile_options(aptstatic PRIVATE /D_CRT_SECURE_NO_WARNINGS=1 /DAPT_API_STATIC)
+# libaptdec
+set(LIBAPTDEC_HEADER_FILES libaptdec/include/aptdec.h)
+set(LIBAPTDEC_SOURCE_FILES
+    libaptdec/algebra.c
+    libaptdec/calibration.c
+    libaptdec/color.c
+    libaptdec/dsp.c
+    libaptdec/filter.c
+    libaptdec/image.c
+    libaptdec/util.c
+    libaptdec/effects.c
+)
+add_library(aptdec SHARED ${LIBAPTDEC_SOURCE_FILES})
+
+set_target_properties(aptdec PROPERTIES PUBLIC_HEADER ${LIBAPTDEC_HEADER_FILES})
+target_include_directories(aptdec PRIVATE libaptdec/include/)
+target_compile_definitions(aptdec PRIVATE "VERSION=\"${VERSION}\"")
+
+if(MSVC)
+    target_compile_options(aptdec PRIVATE /D_CRT_SECURE_NO_WARNINGS=1 /DAPTDEC_API_EXPORT)
 else()
-    # Math
-    target_link_libraries(apt PRIVATE m)
-    target_link_libraries(aptstatic PRIVATE m)
-
-    if(CMAKE_BUILD_TYPE MATCHES "Release")
-        target_compile_options(apt PRIVATE -Wall -Wextra -pedantic -Wno-missing-field-initializers)
-    else()
-        target_compile_options(apt PRIVATE -Wall -Wextra -pedantic -Wno-missing-field-initializers)
-    endif()
+    target_link_libraries(aptdec PRIVATE m)
+    target_compile_options(aptdec PRIVATE -Wall -Wextra -pedantic -Wno-missing-field-initializers)
 endif()
 
-# TODO: get this from git
-set(PROJECT_VERSION "1.7.0")
-
-# CPack
-set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+# Packaging
+set(CPACK_PACKAGE_VERSION "${VERSION}")
 set(CPACK_PACKAGE_NAME "aptdec")
 set(CPACK_PACKAGE_CONTACT "Xerbo (xerbo@protonmail.com)")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "NOAA APT satellite imagery decoder")
-set(CPACK_PACKAGE_DESCRIPTION "Aptdec is a FOSS program that decodes images transmitted by NOAA weather satellites. These satellites transmit constantly (among other things) medium resolution (4km/px) images of the earth over a analog mode called APT.")
-set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+set(CPACK_PACKAGE_DESCRIPTION "Aptdec is a FOSS library/program that decodes images transmitted by the NOAA POES weather satellites. These satellites transmit constantly (among other things) medium resolution (4km/px) images of the earth over a analog mode called APT.")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 
-IF(NOT WIN32)
+if(NOT WIN32)
     set(CPACK_GENERATOR "DEB;TGZ")
     set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}.${CMAKE_SYSTEM_PROCESSOR}")
 else()
@@ -89,11 +94,10 @@ else()
     endif()
 endif()
 
-if (TARGET aptdec)
+if(TARGET aptdec-cli)
     install(TARGETS aptdec RUNTIME DESTINATION bin)
-    install(DIRECTORY "${PROJECT_SOURCE_DIR}/palettes" DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME})
 endif()
 
-install(TARGETS apt PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/apt LIBRARY DESTINATION lib)
+install(TARGETS aptdec PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aptdec LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 include(CPack)

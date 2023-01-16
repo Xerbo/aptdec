@@ -6,58 +6,63 @@ Copyright (c) 2004-2009 Thierry Leconte (F4DWV), Xerbo (xerbo@protonmail.com) 20
 
 ## Introduction
 
-Aptdec is a FOSS program that decodes images transmitted by NOAA weather satellites. These satellites transmit constantly (among other things) medium resolution (4km/px) images of the earth over a analog mode called APT.
-These transmissions can easily be received with a cheap SDR and simple antenna. Then the transmission can be decoded in narrow FM mode.
+Aptdec is a FOSS library/program that decodes images transmitted by the NOAA POES weather satellites. These satellites transmit constantly (among other things) medium resolution (4km/px) images of the earth over a analog mode called APT.
+These transmissions can easily be received with a cheap SDR and simple antenna, the transmission can be demodulated in narrow FM mode.
 
-Aptdec can turn the audio recordings into PNG images and generate images such as:
+Aptdec can turn the audio into PNG images and generate other products such as:
 
- - Raw image: both channels with full telemetry included
- - Individual channel: one of the channels form the image
- - Temperature image: a temperature compensated image derived from the IR channel
- - Palleted image: a image where the color is derived from a palette (false color, etc)
+ - Raw image: both channels (including telemetry)
+ - Individual channel: one channel (including telemetry)
+ - Visible image: a calibrated visible image of either channel 1 or 2
+ - Thermal image: a calibrated thermal image from channel B
+ - LUT image: a image where the color is derived from a LUT (used for false color, etc)
 
-The input audio format can be anything supported by `libsndfile` (although only tested with WAV and FLAC). Sample rate doesn't matter, although lower samples rates will process faster.
+The input audio format can be anything supported by `libsndfile` (although only tested with WAV, FLAC and Ogg Vorbis). While sample rate doesn't matter, it is recommended to use 16640 Hz (4x oversampling).
 
 ## Quick start
+
+Grab a release from [Releases](https://github.com/Xerbo/aptdec/releases) or compile from source:
 
 ```sh
 sudo apt install cmake git gcc libsndfile-dev libpng-dev
 git clone --recursive https://github.com/Xerbo/aptdec.git && cd aptdec
 cmake -B build
 cmake --build build
-# Resulting binary is build/aptdec
+# Resulting binary is build/aptdec-cli
 ```
+
+In place builds are not supported.
 
 ## Examples
 
-To create an image from `gqrx_20200527_115730_137914960.wav` (output filename will be `gqrx_20200527_115730_137914960-r.png`)
+To create an image from `gqrx_20200527_115730_137914960.wav` (output filename will be `gqrx_20200527_115730_137914960-raw.png`)
 ```sh
-./aptdec gqrx_20200527_115730_137914960.wav
+aptdec-cli gqrx_20200527_115730_137914960.wav
 ```
 
-To manually set the output filename
+To manually specify the output filename
 ```sh
-./aptdec -o image.png gqrx_20200527_115730_137914960.wav
+aptdec-cli -o image.png gqrx_20200527_115730_137914960.wav
 ```
 
-Decode all WAV files in the current directory and put them in `images`
+Decode all WAV files in the current directory:
 ```sh
-mkdir images && ./aptdec -d images *.wav
+aptdec-cli *.wav
 ```
 
 Apply a denoise filter (see [Post-Processing Effects](#post-processing-effects) for a full list of post-processing effects)
 ```sh
-./aptdec -e d gqrx_20200527_115730_137914960.wav
+aptdec-cli -e denoise gqrx_20200527_115730_137914960.wav
 ```
 
-Create a temperature compensated image for NOAA 18
+Create a calibrated IR image from NOAA 18
 ```sh
-./aptdec -i t -s 18 gqrx_20200527_115730_137914960.wav
+aptdec-cli -i thermal gqrx_20200527_115730_137914960.wav
 ```
 
-Apply a falsecolor palette
+Apply a falsecolor LUT
 ```sh
-./aptdec -i p -p palettes/WXtoImg-N18-HVC.png gqrx_20200527_115730_137914960.wav
+aptdec-cli -i lut -l luts/WXtoImg-N18-HVC.png gqrx_20200527_115730_137914960.wav
 ```
 
 ## Usage
@@ -65,72 +70,74 @@ Apply a falsecolor palette
 ### Arguments
 
 ```
--i [r|a|b|t|m|p] Output type (stackable)
--e [t|h|l|d|p|f] Effects (stackable)
--o <path>        Output filename
--d <path>        Destination directory
--s (15-19)       Satellite number
--p <path>        Path to palette
--r               Realtime decode
--g               Gamma adjustment (1.0 = off)
+-h, --help                show a help message and exit
+-i, --image=<str>         set output image type (see below)
+-e, --effect=<str>        add an effect (see below)
+-g, --gamma=<flt>         gamma adjustment (1.0 = off)
+-s, --satellite=<int>     satellite ID, must be between 15, 18 or 19 or NORAD
+-l, --lut=<str>           path to a LUT
+-o, --output=<str>        path of output image
+-r, --realtime            decode in realtime
 ```
 
 ### Image output types
 
- - `r`: Raw Image
- - `a`: Channel A
- - `b`: Channel B
- - `t`: Temperature
- - `p`: Palleted
+ - `raw`: Raw Image
+ - `a`: Channel A (including telemetry)
+ - `b`: Channel B (including telemetry)
+ - `thermal`: Calibrated thermal (MWIR/LWIR) image
+ - `visible`: calibrated visible/NIR image
+ - `lut`: LUT image, see also `-l/--lut`
 
 ### Post-Processing Effects
 
- - `t`: Crop telemetry (only effects raw image)
- - `h`: Histogram equalise
- - `l`: Linear equalise
- - `d`: Denoise
- - `p`: Precipitation overlay
- - `f`: Flip image (for northbound passes)
- - `c`: Crop noise from ends of image
+ - `strip`: Strip telemetry (only effects raw/a/b images)
+ - `equalize`: Histogram equalise
+ - `stretch`: Linear equalise
+ - `denoise`: Denoise
+ - ~~`precipitation`: Precipitation overlay~~
+ - `flip`: Flip image (for northbound passes)
+ - `crop`: Crop noise from ends of image
 
 ## Realtime decoding
 
-Aptdec even supports decoding in realtime. The following decodes the audio coming from the audio device `pulseaudio alsa_output.pci-0000_00_1b.0.analog-stereo`
+Aptdec supports decoding in realtime. The following captures and decodes audio from the `pipewire` interface:
 
-```
-mkfifo /tmp/aptaudio
-aptdec -r /tmp/aptaudio
-sox -t pulseaudio alsa_output.pci-0000_00_1b.0.analog-stereo.monitor -c 1 -t wav /tmp/aptaudio
+```sh
+arecord -f cd -D pipewire | aptdec -r -
 ```
 
-To stop the decode and calibrate the image simply kill the `sox` process.
+or directly from an SDR:
 
-## Palette formatting
+```sh
+rtl_fm -f 137.1M -g 40 -s 40k | sox -t raw -r 40k -e signed-integer -b 16 - -t wav - | aptdec -r -
+```
 
-Palettes are just simple PNG images, 256x256px in size with 24bit RGB color. The X axis represents the value of Channel A and the Y axis the value of Channel B.
+Image data will be streamed to `CURRENT_TIME.png` (deleted when finished). To stop the decode and normalize the image simply `Ctrl+C` the process.
+
+## LUT format
+
+LUT's are just plain PNG images, 256x256px in size with 24bit RGB color. The X axis represents the value of Channel A and the Y axis the value of Channel B.
 
 ## Building for Windows
 
-You can cross build for Windows from Linux with the `build_windows.sh` script, you will need the following:
-```
+You can cross build for Windows from Linux (recommended) using with the following commands:
+```sh
 sudo apt install wget cmake make mingw-w64 git unzip
+./build_windows.sh
 ```
 
-To build natively on Windows using MSVC, you will also need: git, ninja and cmake. Then run:
+To build natively on Windows using MSVC, you will need: git, ninja and cmake. Then run:
 ```
 .\build_windows.bat
 ```
 
-If you just wish to build libaptdec on Windows, libpng and libsndfile aren't needed.
+If you only want to build libaptdec, libpng and libsndfile aren't needed.
 
-## Further Reading
+## References
 
-[User's Guide for Building and Operating
-Environmental Satellite Receiving Stations](https://noaasis.noaa.gov/NOAASIS/pubs/Users_Guide-Building_Receive_Stations_March_2009.pdf)  
-
-[NOAA KLM coefficients](https://web.archive.org/web/20141220021557/https://www.ncdc.noaa.gov/oa/pod-guide/ncdc/docs/klm/tables.htm)
-
-[NOAA Satellite specifications and more information](https://www1.ncdc.noaa.gov/pub/data/satellite/publications/podguides/N-15%20thru%20N-19/pdf/)
+- [User's Guide for Building and Operating Environmental Satellite Receiving Stations](https://noaasis.noaa.gov/NOAASIS/pubs/Users_Guide-Building_Receive_Stations_March_2009.pdf)
+- [NOAA KLM Users Guide](https://archive.org/details/noaa-klm-guide)
 
 ## License
 
