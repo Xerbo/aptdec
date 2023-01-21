@@ -33,8 +33,8 @@ if [ ! -d libsndfile-1.2.0-win64 ]; then
 fi
 
 # Copy required GCC libs
-cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libgcc_s_seh-1.dll  $TEMP_PATH/bin
-cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libwinpthread-1.dll $TEMP_PATH/bin
+cp $(find /usr | grep libgcc_s_seh-1.dll)  $TEMP_PATH/bin
+cp $(find /usr | grep libwinpthread-1.dll) $TEMP_PATH/bin
 
 # Build aptdec
 cmake -B $BUILD_DIR -DCMAKE_BUILD_TYPE=$1 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-mingw32.cmake -DCMAKE_INSTALL_PREFIX=$TEMP_PATH
