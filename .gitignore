@@ -83,3 +83,9 @@ _deps
 *.ogg
 
 build/
+winbuild/
+winpath/
+zlib/
+libpng/
+libsndfile-*-win64.zip
+libsndfile-*-win64/
