@@ -10,9 +10,6 @@ on:
     paths-ignore:
       - '**.md'
 
-env:
-  BUILD_TYPE: Release
-
 jobs:
   build_linux:
     runs-on: ubuntu-latest
@@ -23,35 +20,25 @@ jobs:
         submodules: 'recursive'
     
     - name: Install dependencies
-      # The user does not run as root
       run: sudo apt-get install cmake git gcc libsndfile-dev libpng-dev
 
-    - name: Create Build Environment
-      # Some projects don't allow in-source building, so create a separate build directory
-      # We'll use this as our working directory for all subsequent commands
-      run: cmake -E make_directory ${{runner.workspace}}/build
+    - name: Configure cmake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
-    - name: Configure CMake
-      # Use a bash shell so we can use the same syntax for environment variable
-      # access regardless of the host operating system
-      shell: bash
-      working-directory: ${{runner.workspace}}/build
-      # Note the current convention is to use the -S and -B options here to specify source 
-      # and build directories, but this is only available with CMake 3.13 and higher.  
-      # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+    - name: Build and package
+      run: cmake --build build -j$(nproc) && cmake --build build --target package
 
-    - name: Build
-      working-directory: ${{runner.workspace}}/build
-      shell: bash
-      # Execute the build.  You can specify a specific target with "--target <NAME>"
-      run: cmake --build . --config $BUILD_TYPE
-
-    - name: Upload compilied binary
-      uses: actions/upload-artifact@v2
+    - name: Upload TGZ package
+      uses: actions/upload-artifact@v3
       with:
-          name: aptdec_lin64
-          path: ${{runner.workspace}}/build/aptdec
+          name: TGZ package
+          path: build/aptdec/aptdec_*.tar.gz
+
+    - name: Upload DEB package
+      uses: actions/upload-artifact@v3
+      with:
+          name: Debian package
+          path: build/aptdec/aptdec_*.deb
 
   build_windows:
     runs-on: ubuntu-latest
@@ -62,16 +49,13 @@ jobs:
         submodules: 'recursive'
     
     - name: Install dependencies
-      # The user does not run as root
-      run: sudo apt install wget cmake make mingw-w64 git unzip libsndfile-dev
+      run: sudo apt install cmake git mingw-w64 unzip
 
     - name: Run build script
-      shell: bash
-      working-directory: ${{runner.workspace}}
-      run: cd $GITHUB_WORKSPACE && ./build_windows.sh $BUILD_TYPE
+      run: ./build_windows.sh $BUILD_TYPE
 
-    - name: Upload compilied binary
-      uses: actions/upload-artifact@v2
+    - name: Upload ZIP package
+      uses: actions/upload-artifact@v3
       with:
-          name: aptdec-win64.zip
-          path: ${{runner.workspace}}/aptdec/winbuild/aptdec-1.7.0.zip
+          name: ZIP package
+          path: build/aptdec/aptdec_*.zip

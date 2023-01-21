@@ -1,54 +1,42 @@
 #!/usr/bin/env bash
 # Cross compile for Windows from Linux
-
-TEMP_PATH="$(pwd)/winpath"
 set -e
 
-# Compile and build zlib
-if [ -d "zlib" ]; then
-    cd zlib && git pull
-else
-    git clone https://github.com/madler/zlib && cd zlib
+TEMP_PATH="$(pwd)/winpath"
+BUILD_DIR="winbuild"
+
+# Build zlib from source
+if [ ! -d "zlib" ]; then
+    git clone -b v1.2.13 https://github.com/madler/zlib && cd zlib
+    cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-mingw32.cmake -DCMAKE_INSTALL_PREFIX=$TEMP_PATH
+    cmake --build build -j$(nproc)
+    cmake --build build --target install
+    cd ..
 fi
 
-mkdir -p build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../../cmake/toolchain-mingw32.cmake -DCMAKE_INSTALL_PREFIX=$TEMP_PATH ..
-make -j4
-make install
-cd ../..
-
-# Clone and build ligpng
-if [ -d "libpng" ]; then
-    cd libpng && git pull
-else
-    git clone https://github.com/glennrp/libpng && cd libpng
+# Build libpng from source
+if [ ! -d "libpng" ]; then
+    git clone -b v1.6.39 https://github.com/glennrp/libpng && cd libpng
+    cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-mingw32.cmake -DCMAKE_INSTALL_PREFIX=$TEMP_PATH
+    cmake --build build -j$(nproc)
+    cmake --build build --target install
+    cd ..
 fi
-
-mkdir -p build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../../cmake/toolchain-mingw32.cmake -DCMAKE_INSTALL_PREFIX=$TEMP_PATH ..
-make -j4
-make install
-cd ../..
 
 # Download libsndfile
-if [ ! -d "libsndfile-1.0.29-win64" ]; then
-    wget https://github.com/erikd/libsndfile/releases/download/v1.0.29/libsndfile-1.0.29-win64.zip
-    unzip libsndfile-1.0.29-win64.zip
+if [ ! -d libsndfile-1.2.0-win64 ]; then
+    wget https://github.com/libsndfile/libsndfile/releases/download/1.2.0/libsndfile-1.2.0-win64.zip
+    unzip libsndfile-1.2.0-win64.zip
+    cp "libsndfile-1.2.0-win64/bin/sndfile.dll"   $TEMP_PATH/bin
+    cp "libsndfile-1.2.0-win64/include/sndfile.h" $TEMP_PATH/include
+    cp "libsndfile-1.2.0-win64/lib/sndfile.lib"   $TEMP_PATH/lib
 fi
-cp "libsndfile-1.0.29-win64/bin/sndfile.dll"   $TEMP_PATH/bin/sndfile.dll
-cp "libsndfile-1.0.29-win64/include/sndfile.h" $TEMP_PATH/include/sndfile.h
-cp "libsndfile-1.0.29-win64/lib/sndfile.lib"   $TEMP_PATH/lib/sndfile.lib
 
-# Copy DLL's into root for CPack
-cp $TEMP_PATH/bin/*.dll ../
-
-buildtype="Debug"
-if [[ "$1" == "Release" ]]; then
-    buildtype="Release"
-fi
+# Copy required GCC libs
+cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libgcc_s_seh-1.dll  $TEMP_PATH/bin
+cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libwinpthread-1.dll $TEMP_PATH/bin
 
 # Build aptdec
-mkdir -p winbuild && cd winbuild
-cmake -DCMAKE_BUILD_TYPE=$buildtype -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-mingw32.cmake -DCMAKE_INSTALL_PREFIX=$TEMP_PATH ..
-make -j 4
-make package
+cmake -B $BUILD_DIR -DCMAKE_BUILD_TYPE=$1 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-mingw32.cmake -DCMAKE_INSTALL_PREFIX=$TEMP_PATH
+cmake --build $BUILD_DIR -j$(nproc)
+cmake --build $BUILD_DIR --target package

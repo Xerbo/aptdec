@@ -11,7 +11,7 @@ assignees: ''
 A clear description of what the bug is.
 
 **To Reproduce**
-Steps to reproduce the behaviour.
+Steps to reproduce the behavior.
 
 **Expected behaviour**
 A clear description of what you expected to happen.
@@ -21,4 +21,3 @@ A link to the audio that caused the problem.
 
 **Build information**
 The commit of aptdec you are running (check with `git rev-parse HEAD`), make sure it's up to date before opening this issue.
-And whether you are using GNU automake or CMake.

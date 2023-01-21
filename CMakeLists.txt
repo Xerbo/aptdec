@@ -18,7 +18,7 @@ include(GNUInstallDirs)
 # aptdec-cli
 find_package(PNG)
 find_path(SNDFILE_INCLUDE_DIR sndfile.h)
-find_library(SNDFILE_LIBRARIES NAMES sndfile libsndfile PATH)
+find_library(SNDFILE_LIBRARIES NAMES sndfile libsndfile)
 
 if(PNG_FOUND AND SNDFILE_LIBRARIES AND SNDFILE_INCLUDE_DIR)
     set(APTDEC_CLI_SOURCE_FILES
@@ -43,6 +43,10 @@ if(PNG_FOUND AND SNDFILE_LIBRARIES AND SNDFILE_INCLUDE_DIR)
         target_link_libraries(aptdec-cli PRIVATE m)
         target_compile_options(aptdec-cli PRIVATE -Wall -Wextra -pedantic -Wno-missing-field-initializers)
     endif()
+
+    install(TARGETS aptdec-cli RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+    file(GLOB LUTS luts/*.png)
+    install(FILES ${LUTS} DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/aptdec/luts)
 else()
     message(WARNING "Not building aptdec-cli as some/all required dependencies are missing, libaptdec will still be built")
 endif()
@@ -72,32 +76,24 @@ else()
     target_compile_options(aptdec PRIVATE -Wall -Wextra -pedantic -Wno-missing-field-initializers)
 endif()
 
+install(TARGETS aptdec PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aptdec LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
 # Packaging
 set(CPACK_PACKAGE_VERSION "${VERSION}")
 set(CPACK_PACKAGE_NAME "aptdec")
 set(CPACK_PACKAGE_CONTACT "Xerbo (xerbo@protonmail.com)")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "NOAA APT satellite imagery decoder")
 set(CPACK_PACKAGE_DESCRIPTION "Aptdec is a FOSS library/program that decodes images transmitted by the NOAA POES weather satellites. These satellites transmit constantly (among other things) medium resolution (4km/px) images of the earth over a analog mode called APT.")
+set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}_${CPACK_PACKAGE_VERSION}.${CMAKE_SYSTEM_PROCESSOR}")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 
-if(NOT WIN32)
-    set(CPACK_GENERATOR "DEB;TGZ")
-    set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}.${CMAKE_SYSTEM_PROCESSOR}")
-else()
-    #set(CPACK_GENERATOR "ZIP;NSIS")
+if(WIN32)
+    file(GLOB DLLS ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/*.dll)
+    install(FILES ${DLLS} DESTINATION ${CMAKE_INSTALL_BINDIR})
+
     set(CPACK_GENERATOR "ZIP")
-    set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
-
-    if (TARGET aptdec)
-        file(GLOB_RECURSE DLLS *.dll)
-        install(FILES ${DLLS} DESTINATION ${CMAKE_INSTALL_BINDIR})
-    endif()
+else()
+    set(CPACK_GENERATOR "DEB;TGZ")
 endif()
-
-if(TARGET aptdec-cli)
-    install(TARGETS aptdec RUNTIME DESTINATION bin)
-endif()
-
-install(TARGETS aptdec PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aptdec LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 include(CPack)
