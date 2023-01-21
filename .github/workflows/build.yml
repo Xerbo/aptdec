@@ -33,13 +33,13 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
           name: TGZ package
-          path: build/aptdec/aptdec_*.tar.gz
+          path: build/aptdec_*.tar.gz
 
     - name: Upload DEB package
       uses: actions/upload-artifact@v3
       with:
           name: Debian package
-          path: build/aptdec/aptdec_*.deb
+          path: build/aptdec_*.deb
 
   build_windows:
     runs-on: ubuntu-latest
@@ -60,4 +60,4 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
           name: ZIP package
-          path: build/aptdec/aptdec_*.zip
+          path: build/aptdec_*.zip
