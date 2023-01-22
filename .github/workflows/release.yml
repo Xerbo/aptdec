@@ -86,4 +86,4 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
           name: ZIP package
-          path: build/aptdec_*.zip
+          path: winbuild/aptdec_*.zip
