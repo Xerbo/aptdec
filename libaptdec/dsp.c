@@ -27,7 +27,6 @@
 #include "util.h"
 #include "algebra.h"
 
-#define BUFFER_SIZE 16384
 #define LOW_PASS_SIZE 101
 
 #define CARRIER_FREQ 2400.0f
@@ -113,7 +112,7 @@ aptdec_t *aptdec_init(float sample_rate) {
     }
 
     // Hilbert transform
-    apt->hilbert = fir_init(BUFFER_SIZE, 31);
+    apt->hilbert = fir_init(APTDEC_BUFFER_SIZE, 31);
     if (apt->hilbert == NULL) {
         free(apt->pll);
         free(apt);
@@ -163,18 +162,18 @@ static int am_demod(aptdec_t *apt, float *out, size_t count, aptdec_callback_t c
 }
 
 static int get_pixels(aptdec_t *apt, float *out, size_t count, aptdec_callback_t callback, void *context) {
-    static float buffer[BUFFER_SIZE];
-    static size_t n = BUFFER_SIZE;
+    static float buffer[APTDEC_BUFFER_SIZE];
+    static size_t n = APTDEC_BUFFER_SIZE;
     static float offset = 0.0;
 
     float ratio = apt->sample_rate / (4160.0f * apt->sync_frequency);
 
     for (size_t i = 0; i < count; i++) {
         // Get more samples if there are less than `LOW_PASS_SIZE` available
-        if (n + LOW_PASS_SIZE > BUFFER_SIZE) {
-            memcpy(buffer, &buffer[n], (BUFFER_SIZE-n) * sizeof(float));
+        if (n + LOW_PASS_SIZE > APTDEC_BUFFER_SIZE) {
+            memcpy(buffer, &buffer[n], (APTDEC_BUFFER_SIZE-n) * sizeof(float));
 
-            size_t read = am_demod(apt, &buffer[BUFFER_SIZE-n], n, callback, context);
+            size_t read = am_demod(apt, &buffer[APTDEC_BUFFER_SIZE-n], n, callback, context);
             if (read != n) {
                 return i;
             }

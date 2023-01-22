@@ -64,6 +64,8 @@ extern "C" {
 
 // Number of rows needed for apt_normalize to (reliably) work
 #define APTDEC_NORMALIZE_ROWS (APT_FRAME_LEN * 2)
+// Maximum amount of samples that will be requested from aptdec_callback_t
+#define APTDEC_BUFFER_SIZE 16384
 
 // Channel 1:  visible (0.58-0.68 um)
 // Channel 2:  near-IR (0.725-1.0 um)
@@ -115,7 +117,7 @@ typedef size_t (*aptdec_callback_t)(float *samples, size_t count, void *context)
 
 // Clone an apt_image_t struct
 // Useful for calibration
-apt_image_t apt_image_clone(apt_image_t img);
+APTDEC_API apt_image_t apt_image_clone(apt_image_t img);
 
 // Returns version of libaptdec in git tag format
 // i.e. v2.0.0 or v2.0.0-1-xxxxxx
@@ -159,8 +161,8 @@ static const apt_region_t APT_REGION_CHA_FULL = { 0,               APT_IMG_WIDTH
 static const apt_region_t APT_REGION_CHB_FULL = { APT_IMG_WIDTH/2, APT_IMG_WIDTH/2 };
 static const apt_region_t APT_REGION_FULL     = { 0,               APT_IMG_WIDTH };
 
-extern const uint32_t temperature_gradient[256];
-extern const uint32_t precipitation_gradient[58];
+APTDEC_API extern const uint32_t temperature_gradient[256];
+APTDEC_API extern const uint32_t precipitation_gradient[58];
 
 #ifdef __cplusplus
 }

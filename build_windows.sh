@@ -17,7 +17,7 @@ fi
 # Build libpng from source
 if [ ! -d "libpng" ]; then
     git clone --depth 1 -b v1.6.39 https://github.com/glennrp/libpng && cd libpng
-    cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-mingw32.cmake -DCMAKE_INSTALL_PREFIX=$TEMP_PATH
+    cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-mingw32.cmake -DCMAKE_INSTALL_PREFIX=$TEMP_PATH -DPNG_STATIC=OFF -DPNG_EXECUTABLES=OFF -DPNG_TESTS=OFF
     cmake --build build -j$(nproc)
     cmake --build build --target install
     cd ..

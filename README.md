@@ -70,11 +70,10 @@ aptdec-cli -i lut -l luts/WXtoImg-N18-HVC.png gqrx_20200527_115730_137914960.wav
 ### Arguments
 
 ```
--h, --help                show a help message and exit
--i, --image=<str>         set output image type (see below)
--e, --effect=<str>        add an effect (see below)
--g, --gamma=<flt>         gamma adjustment (1.0 = off)
--s, --satellite=<int>     satellite ID, must be between 15, 18 or 19 or NORAD
+-h, --help                show this help message and exit
+-i, --image=<str>         set output image type (see the README for a list)
+-e, --effect=<str>        add an effect (see the README for a list)
+-s, --satellite=<int>     satellite ID, must be either NORAD or 15/18/19
 -l, --lut=<str>           path to a LUT
 -o, --output=<str>        path of output image
 -r, --realtime            decode in realtime
@@ -129,7 +128,7 @@ sudo apt install wget cmake make mingw-w64 git unzip
 
 To build natively on Windows using MSVC, you will need: git, ninja and cmake. Then run:
 ```
-.\build_windows.bat
+./build_windows.bat
 ```
 
 If you only want to build libaptdec, libpng and libsndfile aren't needed.

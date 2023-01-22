@@ -22,7 +22,11 @@
 #include <stddef.h>
 
 void error_noexit(const char *text);
+#ifdef _MSC_VER
+void error(const char *text);
+#else
 __attribute__((noreturn)) void error(const char *text);
+#endif
 void warning(const char *text);
 
 int clamp_int(int x, int lo, int hi);

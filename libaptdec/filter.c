@@ -98,7 +98,11 @@ complexf_t hilbert_transform(const float *in, const float *taps, size_t len) {
 }
 
 float interpolating_convolve(const float *in, const float *taps, size_t len, float offset) {
+#ifdef _MSC_VER
+    float *_taps = (float *)_alloca(len * sizeof(float));
+#else
     float _taps[len];
+#endif
 
     for (size_t i = 0; i < len; i++) {
         float next = (i == len-1) ? 0.0f : taps[i+1];

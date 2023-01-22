@@ -138,7 +138,7 @@ int apt_crop(apt_image_t *img) {
     const float sync_pattern[] = {-1, -1, -1, -1, 1, 1, -1, -1, 1, 1, -1, -1, 1,  1,  -1, -1, 1,  1,  -1, -1,
                                   1,  1,  -1, -1, 1, 1, -1, -1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, 0};
 
-    float spc_rows[img->rows];
+    float *spc_rows = (float *)malloc(img->rows * sizeof(float));
     int startCrop = 0;
     int endCrop = img->rows;
 
@@ -171,5 +171,6 @@ int apt_crop(apt_image_t *img) {
     // Remove the noisy rows at start
     memmove(img->data, &img->data[startCrop * APT_IMG_WIDTH], img->rows * APT_IMG_WIDTH * sizeof(float));
 
+    free(spc_rows);
     return startCrop;
 }

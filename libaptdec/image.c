@@ -38,7 +38,7 @@ apt_image_t apt_image_clone(apt_image_t img) {
 
 static void decode_telemetry(const float *data, size_t rows, size_t offset, float *wedges) {
     // Calculate row average
-    float telemetry_rows[rows];
+    float *telemetry_rows = (float *)malloc(rows * sizeof(float));
     for (size_t y = 0; y < rows; y++) {
         telemetry_rows[y] = meanf(&data[y*APT_IMG_WIDTH + offset + APT_CH_WIDTH], APT_TELEMETRY_WIDTH);
     }
@@ -74,10 +74,12 @@ static void decode_telemetry(const float *data, size_t rows, size_t offset, floa
     for (size_t i = 0; i < APT_FRAME_WEDGES; i++) {
         wedges[i] = meanf(&telemetry_rows[best_frame + i*APT_WEDGE_HEIGHT], APT_WEDGE_HEIGHT);
     }
+
+    free(telemetry_rows);
 }
 
 static float average_spc(apt_image_t *img, size_t offset) {
-    float rows[img->rows];
+    float *rows = (float *)malloc(img->rows * sizeof(float));
     float average = 0.0f;
     for (size_t y = 0; y < img->rows; y++) {
         float row_average = 0.0f;
@@ -100,6 +102,7 @@ static float average_spc(apt_image_t *img, size_t offset) {
         }
     }
 
+    free(rows);
     return weighted_average / (float)n;
 }
 

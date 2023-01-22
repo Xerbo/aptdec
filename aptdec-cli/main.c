@@ -110,7 +110,7 @@ int main(int argc, const char **argv) {
         OPT_STRING('i', "image", &opts.type, "set output image type (see the README for a list)", NULL, 0, 0),
         OPT_STRING('e', "effect", &opts.effects, "add an effect (see the README for a list)", NULL, 0, 0),
         OPT_GROUP("Satellite options"),
-        OPT_INTEGER('s', "satellite", &opts.satellite, "satellite ID, must be either NORAD or between 15 and 19", NULL, 0, 0),
+        OPT_INTEGER('s', "satellite", &opts.satellite, "satellite ID, must be either NORAD or 15/18/19", NULL, 0, 0),
         OPT_GROUP("Paths"),
         OPT_STRING('l', "lut", &opts.lut, "path to a LUT", NULL, 0, 0),
         OPT_STRING('o', "output", &opts.filename, "path of output image", NULL, 0, 0),
@@ -454,7 +454,7 @@ static size_t callback(float *samples, size_t count, void *context) {
         case 1:
             return sf_read_float(file->file, samples, count);
         case 2: {
-            float _samples[count * 2];
+            float _samples[APTDEC_BUFFER_SIZE * 2];
             size_t read = sf_read_float(file->file, _samples, count * 2);
 
             for (size_t i = 0; i < count; i++) {
