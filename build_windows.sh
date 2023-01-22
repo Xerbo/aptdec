@@ -48,8 +48,8 @@ find_dll() {
 }
 
 # Copy required GCC libs
-cp $(find_dll file-name=libgcc_s_seh-1.dll)  $TEMP_PATH/bin
-cp $(find_dll file-name=libwinpthread-1.dll) $TEMP_PATH/bin
+cp $(find_dll libgcc_s_seh-1.dll)  $TEMP_PATH/bin
+cp $(find_dll libwinpthread-1.dll) $TEMP_PATH/bin
 
 # Build aptdec
 cmake -B $BUILD_DIR -DCMAKE_BUILD_TYPE=$1 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-mingw32.cmake -DCMAKE_INSTALL_PREFIX=$TEMP_PATH
