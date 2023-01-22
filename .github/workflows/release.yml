@@ -65,7 +65,7 @@ jobs:
       uses: actions/upload-release-asset@v1
       with:
         upload_url: ${{ needs.prepare_release.outputs.upload_url }}
-        asset_path: ${{runner.workspace}}/aptdec/build/aptdec-${{ github.ref_name }}.x86_64.tar.gz
+        asset_path: ${{runner.workspace}}/build/aptdec-${{ github.ref_name }}.x86_64.tar.gz
         asset_name: aptdec-${{ github.ref_name }}.x86_64.tar.gz
         asset_content_type: application/gzip
       env:
@@ -75,7 +75,7 @@ jobs:
       uses: actions/upload-release-asset@v1
       with:
         upload_url: ${{ needs.prepare_release.outputs.upload_url }}
-        asset_path: ${{runner.workspace}}/aptdec/build/aptdec-${{ github.ref_name }}.x86_64.deb
+        asset_path: ${{runner.workspace}}/build/aptdec-${{ github.ref_name }}.x86_64.deb
         asset_name: aptdec-${{ github.ref_name }}.x86_64.deb
         asset_content_type: application/vnd.debian.binary-package
       env:
@@ -103,7 +103,7 @@ jobs:
       uses: actions/upload-release-asset@v1
       with:
         upload_url: ${{ needs.prepare_release.outputs.upload_url }}
-        asset_path: ${{runner.workspace}}/aptdec/winbuild/aptdec-${{ github.ref_name }}.zip
+        asset_path: ${{runner.workspace}}/winbuild/aptdec-${{ github.ref_name }}.zip
         asset_name: aptdec-${{ github.ref_name }}.zip
         asset_content_type: application/zip
       env:

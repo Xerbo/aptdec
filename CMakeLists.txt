@@ -64,7 +64,7 @@ else()
 endif()
 
 # TODO: get this from git
-set(PROJECT_VERSION "1.8.0")
+set(PROJECT_VERSION "v1.8.0")
 
 # CPack
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
