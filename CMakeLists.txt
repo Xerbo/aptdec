@@ -76,7 +76,7 @@ else()
     target_compile_options(aptdec PRIVATE -Wall -Wextra -pedantic -Wno-missing-field-initializers)
 endif()
 
-install(TARGETS aptdec PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aptdec LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS aptdec PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 # Packaging
 string(REPLACE v "" CPACK_PACKAGE_VERSION ${VERSION})

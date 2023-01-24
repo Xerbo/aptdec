@@ -4,7 +4,7 @@
 #   docker run -v $(pwd):/aptdec:z -w /aptdec debian:11 ./build_arm.sh
 
 apt-get update
-apt-get install -y debootstrap cmake gcc-arm-linux-gnueabihf
+apt-get install -y debootstrap cmake gcc-arm-linux-gnueabihf git
 
 # Prepare armhf root environment
 if [ ! -d root ]; then

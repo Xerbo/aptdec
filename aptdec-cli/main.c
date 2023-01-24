@@ -67,6 +67,8 @@ static int freq_from_filename(const char *filename);
 static int satid_from_freq(int freq);
 static size_t callback(float *samples, size_t count, void *context);
 static void write_line(writer_t *png, float *row);
+apt_image_t strip(apt_image_t img);
+int array_contains(char **array, char *value, size_t n);
 
 static volatile int sigint_stop = 0;
 void sigint_handler(int signum) {
@@ -361,8 +363,16 @@ static int process_file(const char *path, options_t *opts) {
                 channel_desc[img.ch[1]]
             );
 
-            writer_t *writer = writer_init(filename, APT_REGION_FULL, img.rows, PNG_COLOR_TYPE_GRAY, description);
-            writer_write_image(writer, &img);
+            writer_t *writer;
+            if (array_contains(effects, "strip", effects_len)) {
+                writer = writer_init(filename, (apt_region_t){0, APT_CH_WIDTH*2}, img.rows, PNG_COLOR_TYPE_GRAY, description);
+                apt_image_t _img = strip(img);
+                writer_write_image(writer, &_img);
+                free(_img.data);
+            } else {
+                writer = writer_init(filename, APT_REGION_FULL, img.rows, PNG_COLOR_TYPE_GRAY, description);
+                writer_write_image(writer, &img);
+            }
             writer_free(writer);
         } else if (strcmp(images[i], "lut") == 0) {
             if (opts->lut != NULL && opts->lut[0] != '\0') {
@@ -393,8 +403,16 @@ static int process_file(const char *path, options_t *opts) {
             char description[128];
             sprintf(description, "Channel A: %s - %s", channel_name[img.ch[0]], channel_desc[img.ch[0]]);
 
-            writer_t *writer = writer_init(filename, APT_REGION_CHA_FULL, img.rows, PNG_COLOR_TYPE_GRAY, description);
-            writer_write_image(writer, &img);
+            writer_t *writer;
+            if (array_contains(effects, "strip", effects_len)) {
+                writer = writer_init(filename, (apt_region_t){0, APT_CH_WIDTH}, img.rows, PNG_COLOR_TYPE_GRAY, description);
+                apt_image_t _img = strip(img);
+                writer_write_image(writer, &_img);
+                free(_img.data);
+            } else {
+                writer = writer_init(filename, APT_REGION_CHA_FULL, img.rows, PNG_COLOR_TYPE_GRAY, description);
+                writer_write_image(writer, &img);
+            }
             writer_free(writer);
         } else if (strcmp(images[i], "b") == 0) {
             char filename[269];
@@ -402,8 +420,16 @@ static int process_file(const char *path, options_t *opts) {
             char description[128];
             sprintf(description, "Channel B: %s - %s", channel_name[img.ch[1]], channel_desc[img.ch[1]]);
 
-            writer_t *writer = writer_init(filename, APT_REGION_CHB_FULL, img.rows, PNG_COLOR_TYPE_GRAY, description);
-            writer_write_image(writer, &img);
+            writer_t *writer;
+            if (array_contains(effects, "strip", effects_len)) {
+                writer = writer_init(filename, (apt_region_t){APT_CH_WIDTH, APT_CH_WIDTH}, img.rows, PNG_COLOR_TYPE_GRAY, description);
+                apt_image_t _img = strip(img);
+                writer_write_image(writer, &_img);
+                free(_img.data);
+            } else {
+                writer = writer_init(filename, APT_REGION_CHB_FULL, img.rows, PNG_COLOR_TYPE_GRAY, description);
+                writer_write_image(writer, &img);
+            }
             writer_free(writer);
         }
     }
@@ -488,4 +514,24 @@ static void write_line(writer_t *png, float *row) {
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
     png_write_row(png->png, pixels);
 #pragma GCC diagnostic pop
+}
+
+apt_image_t strip(apt_image_t img) {
+    uint8_t *data = (uint8_t *)malloc(img.rows * APT_IMG_WIDTH);
+    for (size_t y = 0; y < img.rows; y++) {
+        memcpy(&data[y*APT_IMG_WIDTH], &img.data[y*APT_IMG_WIDTH + APT_CHA_OFFSET], APT_CH_WIDTH);
+        memcpy(&data[y*APT_IMG_WIDTH + APT_CH_WIDTH], &img.data[y*APT_IMG_WIDTH + APT_CHB_OFFSET], APT_CH_WIDTH);
+    }
+
+    img.data = data;
+    return img;
+}
+
+int array_contains(char **array, char *value, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        if (strcmp(array[i], value) == 0) {
+            return 1;
+        }
+    }
+    return 0;
 }
