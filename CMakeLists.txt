@@ -79,13 +79,14 @@ endif()
 install(TARGETS aptdec PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aptdec LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 # Packaging
-set(CPACK_PACKAGE_VERSION "${VERSION}")
+string(REPLACE v "" CPACK_PACKAGE_VERSION ${VERSION})
+set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE ${CMAKE_SYSTEM_PROCESSOR})
 set(CPACK_PACKAGE_NAME "aptdec")
 set(CPACK_PACKAGE_CONTACT "Xerbo (xerbo@protonmail.com)")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "NOAA APT satellite imagery decoder")
 set(CPACK_PACKAGE_DESCRIPTION "Aptdec is a FOSS library/program that decodes images transmitted by the NOAA POES weather satellites. These satellites transmit constantly (among other things) medium resolution (4km/px) images of the earth over a analog mode called APT.")
 set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}_${CPACK_PACKAGE_VERSION}.${CMAKE_SYSTEM_PROCESSOR}")
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libsndfile1, libpng16-16")
 
 if(WIN32)
     file(GLOB DLLS ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/*.dll)
