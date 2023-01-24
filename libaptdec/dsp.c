@@ -32,6 +32,10 @@
 #define CARRIER_FREQ 2400.0f
 #define MAX_CARRIER_OFFSET 10.0f
 
+const float sync_pattern[] = {-1, -1, -1, -1, 1, 1, -1, -1, 1, 1, -1, -1, 1,  1,  -1, -1, 1,  1,  -1, -1,
+                              1,  1,  -1, -1, 1, 1, -1, -1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, 0};
+#define SYNC_SIZE (sizeof(sync_pattern)/sizeof(sync_pattern[0]))
+
 typedef struct {
     float alpha;
     float beta;
@@ -58,6 +62,11 @@ struct aptdec_t {
     fir_t *hilbert;
 
     float low_pass[LOW_PASS_SIZE];
+    float row_buffer[APT_IMG_WIDTH + SYNC_SIZE + 2];
+
+    float interpolator_buffer[APTDEC_BUFFER_SIZE];
+    size_t interpolator_n;
+    float interpolator_offset;
 };
 
 char *aptdec_get_version(void) {
@@ -162,47 +171,38 @@ static int am_demod(aptdec_t *apt, float *out, size_t count, aptdec_callback_t c
 }
 
 static int get_pixels(aptdec_t *apt, float *out, size_t count, aptdec_callback_t callback, void *context) {
-    static float buffer[APTDEC_BUFFER_SIZE];
-    static size_t n = APTDEC_BUFFER_SIZE;
-    static float offset = 0.0;
-
     float ratio = apt->sample_rate / (4160.0f * apt->sync_frequency);
 
     for (size_t i = 0; i < count; i++) {
         // Get more samples if there are less than `LOW_PASS_SIZE` available
-        if (n + LOW_PASS_SIZE > APTDEC_BUFFER_SIZE) {
-            memcpy(buffer, &buffer[n], (APTDEC_BUFFER_SIZE-n) * sizeof(float));
+        if (apt->interpolator_n + LOW_PASS_SIZE > APTDEC_BUFFER_SIZE) {
+            memcpy(apt->interpolator_buffer, &apt->interpolator_buffer[apt->interpolator_n], (APTDEC_BUFFER_SIZE-apt->interpolator_n) * sizeof(float));
 
-            size_t read = am_demod(apt, &buffer[APTDEC_BUFFER_SIZE-n], n, callback, context);
-            if (read != n) {
+            size_t read = am_demod(apt, &apt->interpolator_buffer[APTDEC_BUFFER_SIZE-apt->interpolator_n], apt->interpolator_n, callback, context);
+            if (read != apt->interpolator_n) {
                 return i;
             }
-            n = 0;
+            apt->interpolator_n = 0;
         }
 
-        out[i] = interpolating_convolve(&buffer[n], apt->low_pass, LOW_PASS_SIZE, offset);
+        out[i] = interpolating_convolve(&apt->interpolator_buffer[apt->interpolator_n], apt->low_pass, LOW_PASS_SIZE, apt->interpolator_offset);
 
         // Do not question the sacred code
-        int shift = ceilf(ratio - offset);
-        offset = shift + offset - ratio;
-        n += shift;
+        int shift = ceilf(ratio - apt->interpolator_offset);
+        apt->interpolator_offset = shift + apt->interpolator_offset - ratio;
+        apt->interpolator_n += shift;
     }
 
     return count;
 }
 
-const float sync_pattern[] = {-1, -1, -1, -1, 1, 1, -1, -1, 1, 1, -1, -1, 1,  1,  -1, -1, 1,  1,  -1, -1,
-                              1,  1,  -1, -1, 1, 1, -1, -1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, 0};
-#define SYNC_SIZE (sizeof(sync_pattern)/sizeof(sync_pattern[0]))
-
 // Get an entire row of pixels, aligned with sync markers
 int aptdec_getrow(aptdec_t *apt, float *row, aptdec_callback_t callback, void *context) {
-    static float pixels[APT_IMG_WIDTH + SYNC_SIZE + 2];
-
     // Wrap the circular buffer
-    memcpy(pixels, &pixels[APT_IMG_WIDTH], (SYNC_SIZE + 2) * sizeof(float));
+    memcpy(apt->row_buffer, &apt->row_buffer[APT_IMG_WIDTH], (SYNC_SIZE + 2) * sizeof(float));
+
     // Get a lines worth (APT_IMG_WIDTH) of samples
-    if (get_pixels(apt, &pixels[SYNC_SIZE + 2], APT_IMG_WIDTH, callback, context) != APT_IMG_WIDTH) {
+    if (get_pixels(apt, &apt->row_buffer[SYNC_SIZE + 2], APT_IMG_WIDTH, callback, context) != APT_IMG_WIDTH) {
         return 0;
     }
 
@@ -213,9 +213,9 @@ int aptdec_getrow(aptdec_t *apt, float *row, aptdec_callback_t callback, void *c
     size_t phase = 0;
 
     for (size_t i = 0; i < APT_IMG_WIDTH; i++) {
-        float _left   = convolve(&pixels[i + 0], sync_pattern, SYNC_SIZE);
-        float _middle = convolve(&pixels[i + 1], sync_pattern, SYNC_SIZE);
-        float _right  = convolve(&pixels[i + 2], sync_pattern, SYNC_SIZE);
+        float _left   = convolve(&apt->row_buffer[i + 0], sync_pattern, SYNC_SIZE);
+        float _middle = convolve(&apt->row_buffer[i + 1], sync_pattern, SYNC_SIZE);
+        float _right  = convolve(&apt->row_buffer[i + 2], sync_pattern, SYNC_SIZE);
         if (_middle > middle) {
             left = _left;
             middle = _middle;
@@ -226,11 +226,11 @@ int aptdec_getrow(aptdec_t *apt, float *row, aptdec_callback_t callback, void *c
 
     // Frequency
     float bias = (left / middle) - (right / middle);
-    apt->sync_frequency = 1.0f + bias / APT_IMG_WIDTH / 2.0f;
+    apt->sync_frequency = 1.0f + bias / APT_IMG_WIDTH / 4.0f;
 
     // Phase
-    memcpy(&row[APT_IMG_WIDTH], &pixels[phase], (APT_IMG_WIDTH - phase) * sizeof(float));
-    memcpy(&row[APT_IMG_WIDTH - phase], pixels, phase * sizeof(float));
+    memcpy(&row[APT_IMG_WIDTH], &apt->row_buffer[phase], (APT_IMG_WIDTH - phase) * sizeof(float));
+    memcpy(&row[APT_IMG_WIDTH - phase], apt->row_buffer, phase * sizeof(float));
 
     return 1;
 }

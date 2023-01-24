@@ -244,6 +244,7 @@ static int process_file(const char *path, options_t *opts) {
     // Normalize
     int error;
     apt_image_t img = apt_normalize(data, rows, opts->satellite, &error);
+    free(data);
     if (error) {
         error_noexit("Normalization failed");
         return 0;
