@@ -52,12 +52,9 @@ linear_t linear_regression(const float *independent, const float *dependent, siz
     return (linear_t){a, b};
 }
 
+// "Sample" standard deviation
 float standard_deviation(const float *data, size_t len) {
-    float mean = 0.0f;
-    for (size_t i = 0; i < len; i++) {
-        mean += data[i];
-    }
-    mean /= (float)len;
+    float mean = meanf(data, len);
 
     float deviation_mean = 0.0f;
     for (size_t i = 0; i < len; i++) {
@@ -65,7 +62,7 @@ float standard_deviation(const float *data, size_t len) {
         deviation_mean += deviation * deviation;
     }
 
-    return sqrtf(deviation_mean / (float)len);
+    return sqrtf(deviation_mean / (float)(len-1));
 }
 
 float sumf(const float *x, size_t len) {
