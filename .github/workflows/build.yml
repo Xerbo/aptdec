@@ -73,7 +73,7 @@ jobs:
 
     - name: Run build script
       shell: cmd
-      run: "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvars64.bat" & build_windows.bat
+      run: '"C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvars64.bat" & build_windows.bat'
 
     - name: Upload ZIP package
       uses: actions/upload-artifact@v3
