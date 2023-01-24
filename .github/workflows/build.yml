@@ -61,3 +61,21 @@ jobs:
       with:
           name: ZIP package
           path: winbuild/aptdec_*.zip
+  
+  build_windows_msvc:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: 'recursive'
+        fetch-depth: 0
+
+    - name: Run build script
+      run: vcvarsx86_amd64 & ./build_windows.bat
+
+    - name: Upload ZIP package
+      uses: actions/upload-artifact@v3
+      with:
+          name: ZIP package (MSVC)
+          path: winbuild/aptdec_*.zip
