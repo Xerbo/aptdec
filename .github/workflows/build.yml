@@ -32,13 +32,13 @@ jobs:
     - name: Upload TGZ archive
       uses: actions/upload-artifact@v3
       with:
-          name: TGZ archive (x86_64/gcc)
+          name: TGZ archive (x86_64-gcc)
           path: build/aptdec_*.tar.gz
 
     - name: Upload Debian package
       uses: actions/upload-artifact@v3
       with:
-          name: Debian package (x86_64/gcc)
+          name: Debian package (x86_64-gcc)
           path: build/aptdec_*.deb
 
   build_windows:
@@ -59,7 +59,7 @@ jobs:
     - name: Upload ZIP archive
       uses: actions/upload-artifact@v3
       with:
-          name: ZIP archive (x86_64/MinGW)
+          name: ZIP archive (x86_64-MinGW)
           path: winbuild/aptdec_*.zip
   
   build_windows_msvc:
@@ -78,7 +78,7 @@ jobs:
     - name: Upload ZIP archive
       uses: actions/upload-artifact@v3
       with:
-          name: ZIP archive (x86_64/MSVC)
+          name: ZIP archive (x86_64-MSVC)
           path: winbuild/aptdec_*.zip
   
   build_linux_armhf:
@@ -96,11 +96,11 @@ jobs:
     - name: Upload Debian package
       uses: actions/upload-artifact@v3
       with:
-          name: Debian package (armhf/gcc)
+          name: Debian package (armhf-gcc)
           path: build/aptdec_*.deb
 
     - name: Upload TGZ archive
       uses: actions/upload-artifact@v3
       with:
-          name: TGZ archive (armhf/gcc)
+          name: TGZ archive (armhf-gcc)
           path: build/aptdec_*.tar.gz
