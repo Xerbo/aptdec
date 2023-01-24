@@ -29,16 +29,16 @@ jobs:
     - name: Build and package
       run: cmake --build build -j$(nproc) && cmake --build build --target package
 
-    - name: Upload TGZ package
+    - name: Upload TGZ archive
       uses: actions/upload-artifact@v3
       with:
-          name: TGZ package
+          name: TGZ archive (x86_64/gcc)
           path: build/aptdec_*.tar.gz
 
-    - name: Upload DEB package
+    - name: Upload Debian package
       uses: actions/upload-artifact@v3
       with:
-          name: Debian package
+          name: Debian package (x86_64/gcc)
           path: build/aptdec_*.deb
 
   build_windows:
@@ -56,10 +56,10 @@ jobs:
     - name: Run build script
       run: ./build_windows.sh $BUILD_TYPE
 
-    - name: Upload ZIP package
+    - name: Upload ZIP archive
       uses: actions/upload-artifact@v3
       with:
-          name: ZIP package
+          name: ZIP archive (x86_64/MinGW)
           path: winbuild/aptdec_*.zip
   
   build_windows_msvc:
@@ -75,10 +75,10 @@ jobs:
       shell: cmd
       run: '"C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvars64.bat" & build_windows.bat'
 
-    - name: Upload ZIP package
+    - name: Upload ZIP archive
       uses: actions/upload-artifact@v3
       with:
-          name: ZIP package (MSVC)
+          name: ZIP archive (x86_64/MSVC)
           path: winbuild/aptdec_*.zip
   
   build_linux_armhf:
@@ -93,14 +93,14 @@ jobs:
     - name: Run build script
       run: docker run -v $(pwd):/aptdec:z -w /aptdec debian:11 ./build_arm.sh
 
-    - name: Upload DEB package
+    - name: Upload Debian package
       uses: actions/upload-artifact@v3
       with:
-          name: DEB package (ARM)
+          name: Debian package (armhf/gcc)
           path: build/aptdec_*.deb
 
-    - name: Upload TGZ package
+    - name: Upload TGZ archive
       uses: actions/upload-artifact@v3
       with:
-          name: TGZ package (ARM)
+          name: TGZ archive (armhf/gcc)
           path: build/aptdec_*.tar.gz

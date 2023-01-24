@@ -4,7 +4,6 @@ about: Create a bug report to improve aptdec
 title: ''
 labels: bug
 assignees: ''
-
 ---
 
 **Describe the bug**
@@ -17,7 +16,7 @@ Steps to reproduce the behavior.
 A clear description of what you expected to happen.
 
 **Link to audio**
-A link to the audio that caused the problem.
+A link to the audio file that caused the problem (if applicable).
 
 **Build information**
-The commit of aptdec you are running (check with `git rev-parse HEAD`), make sure it's up to date before opening this issue.
+The version of aptdec you are running (check with `git describe --tag`), make sure it's up to date before opening this issue.
