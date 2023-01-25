@@ -21,9 +21,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <float.h>
+#include <aptdec.h>
 
 #include "algebra.h"
-#include <aptdec.h>
 #include "util.h"
 #include "calibration.h"
 
@@ -31,14 +31,14 @@
 
 apt_image_t apt_image_clone(apt_image_t img) {
     apt_image_t _img = img;
-    _img.data = (uint8_t *)malloc(APT_IMG_WIDTH * img.rows);
+    _img.data = calloc(APT_IMG_WIDTH * img.rows, sizeof(uint8_t));
     memcpy(_img.data, img.data, APT_IMG_WIDTH * img.rows);
     return _img;
 }
 
 static void decode_telemetry(const float *data, size_t rows, size_t offset, float *wedges) {
     // Calculate row average
-    float *telemetry_rows = (float *)malloc(rows * sizeof(float));
+    float *telemetry_rows = calloc(rows, sizeof(float));
     for (size_t y = 0; y < rows; y++) {
         telemetry_rows[y] = meanf(&data[y*APT_IMG_WIDTH + offset + APT_CH_WIDTH], APT_TELEMETRY_WIDTH);
     }
@@ -59,7 +59,7 @@ static void decode_telemetry(const float *data, size_t rows, size_t offset, floa
     // Find the least noisy frame (via standard deviation)
     float best_noise = FLT_MAX;
     size_t best_frame = 0;
-    for (size_t y = telemetry_offset; y < rows; y += APT_FRAME_LEN) {
+    for (size_t y = telemetry_offset; y < rows-APT_FRAME_LEN; y += APT_FRAME_LEN) {
         float noise = 0.0f;
         for (size_t i = 0; i < APT_FRAME_WEDGES; i++) {
             noise += standard_deviation(&telemetry_rows[y + i*APT_WEDGE_HEIGHT], APT_WEDGE_HEIGHT);
@@ -79,7 +79,7 @@ static void decode_telemetry(const float *data, size_t rows, size_t offset, floa
 }
 
 static float average_spc(apt_image_t *img, size_t offset) {
-    float *rows = (float *)malloc(img->rows * sizeof(float));
+    float *rows = calloc(img->rows, sizeof(float));
     float average = 0.0f;
     for (size_t y = 0; y < img->rows; y++) {
         float row_average = 0.0f;
@@ -170,7 +170,7 @@ static void make_thermal_lut(apt_image_t *img, avhrr_channel_t ch, int satellite
     const float B  = calibration.rad[ch].B;
 
     // Compute PRT temperature
-    float T[4];
+    float T[4] = { 0.0f };
     for (size_t n = 0; n < 4; n++) {
         T[n] = quadratic_calc(img->telemetry[1][n + 9] * APT_COUNT_RATIO, calibration.prt[n]);
     }
@@ -201,7 +201,7 @@ int apt_calibrate_thermal(apt_image_t *img, apt_region_t region) {
         return 1;
     }
 
-    float lut[256];
+    float lut[256] = { 0.0f };
     make_thermal_lut(img, img->ch[1], img->satellite, lut);
 
     for (size_t y = 0; y < img->rows; y++) {

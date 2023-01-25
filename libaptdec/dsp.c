@@ -74,11 +74,11 @@ char *aptdec_get_version(void) {
 }
 
 fir_t *fir_init(size_t max_size, size_t ntaps) {
-    fir_t *fir = (fir_t *)malloc(sizeof(fir_t));
+    fir_t *fir = calloc(1, sizeof(fir_t));
     fir->ntaps = ntaps;
     fir->ring_size = max_size + ntaps;
-    fir->taps = (float *)malloc(ntaps * sizeof(float));
-    fir->ring_buffer = (float *)malloc((max_size + ntaps) * sizeof(float));
+    fir->taps = calloc(ntaps, sizeof(float));
+    fir->ring_buffer = calloc(max_size + ntaps, sizeof(float));
     return fir;
 }
 
@@ -89,7 +89,7 @@ void fir_free(fir_t *fir) {
 }
 
 pll_t *pll_init(float alpha, float beta, float min_freq, float max_freq, float sample_rate) {
-    pll_t *pll = (pll_t *)malloc(sizeof(pll_t));
+    pll_t *pll = calloc(1, sizeof(pll_t));
     pll->alpha = alpha;
     pll->beta = beta;
     pll->min_freq = M_TAUf * min_freq / sample_rate;
@@ -104,9 +104,11 @@ aptdec_t *aptdec_init(float sample_rate) {
         return NULL;
     }
 
-    aptdec_t *apt = (aptdec_t *)malloc(sizeof(aptdec_t));
+    aptdec_t *apt = calloc(1, sizeof(aptdec_t));
     apt->sample_rate = sample_rate;
     apt->sync_frequency = 1.0f;
+    apt->interpolator_n = APTDEC_BUFFER_SIZE;
+    apt->interpolator_offset = 0.0f;
 
     // PLL configuration
     // https://www.trondeau.com/blog/2011/8/13/control-loop-gain-values.html

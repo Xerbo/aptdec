@@ -102,7 +102,7 @@ void apt_stretch(apt_image_t *img, apt_region_t region) {
 void apt_denoise(apt_image_t *img, apt_region_t region) {
     for (size_t y = 1; y < img->rows - 1; y++) {
         for (size_t x = 1; x < region.width - 1; x++) {
-            float pixels[9];
+            float pixels[9] = { 0.0f };
             int pixeln = 0;
             for (int y2 = -1; y2 < 2; y2++) {
                 for (int x2 = -1; x2 < 2; x2++) {
@@ -139,12 +139,12 @@ int apt_crop(apt_image_t *img) {
     const float sync_pattern[] = {-1, -1, -1, -1, 1, 1, -1, -1, 1, 1, -1, -1, 1,  1,  -1, -1, 1,  1,  -1, -1,
                                   1,  1,  -1, -1, 1, 1, -1, -1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, 0};
 
-    float *spc_rows = (float *)malloc(img->rows * sizeof(float));
+    float *spc_rows = calloc(img->rows, sizeof(float));
     int startCrop = 0;
     int endCrop = img->rows;
 
     for (size_t y = 0; y < img->rows; y++) {
-        float temp[39];
+        float temp[39] = { 0.0f };
         for (size_t i = 0; i < 39; i++) {
             temp[i] = img->data[y * APT_IMG_WIDTH + i];
         }

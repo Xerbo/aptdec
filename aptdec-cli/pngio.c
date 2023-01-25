@@ -25,7 +25,7 @@
 #include "util.h"
 
 writer_t *writer_init(const char *filename, apt_region_t region, uint32_t height, int color, char *channel) {
-    writer_t *png = (writer_t *)malloc(sizeof(writer_t));
+    writer_t *png = calloc(1, sizeof(writer_t));
     png->region = region;
 
     // Create writer
@@ -43,7 +43,7 @@ writer_t *writer_init(const char *filename, apt_region_t region, uint32_t height
 
     png_set_IHDR(png->png, png->info, png->region.width, height, 8, color, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
-    char version[128];
+    char version[128] = { 0 };
     int version_len = get_version(version);
 
     png_text text[] = {

@@ -86,7 +86,7 @@ char *basename(const char *filename) {
 #endif
 
 int main(int argc, const char **argv) {
-    char version[128];
+    char version[128] = { 0 };
     get_version(version);
     printf("%s\n", version);
     // clang-format off
@@ -166,7 +166,7 @@ int main(int argc, const char **argv) {
 static int process_file(const char *path, options_t *opts) {
     const char *path_basename = basename((char *)path);
     const char *dot = strrchr(path_basename, '.');
-    char name[256];
+    char name[256] = { 0 };
     if (dot == NULL) {
         strncpy(name, path_basename, 255);
     } else {
@@ -181,7 +181,7 @@ static int process_file(const char *path, options_t *opts) {
 
     writer_t *realtime_png;
     if (opts->realtime) {
-        char filename[269];
+        char filename[269] = { 0 };
         sprintf(filename, "%s-decoding.png", name);
         realtime_png = writer_init(filename, APT_REGION_FULL, APTDEC_MAX_HEIGHT, PNG_COLOR_TYPE_GRAY, "Unknown");
 
@@ -209,7 +209,7 @@ static int process_file(const char *path, options_t *opts) {
     }
 
     // Decode image
-    float *data = (float *)malloc(APT_IMG_WIDTH * (APTDEC_MAX_HEIGHT+1) * sizeof(float));
+    float *data = calloc(APT_IMG_WIDTH * (APTDEC_MAX_HEIGHT+1), sizeof(float));
     size_t rows;
     for (rows = 0; rows < APTDEC_MAX_HEIGHT; rows++) {
         float *row = &data[rows * APT_IMG_WIDTH];
@@ -238,7 +238,7 @@ static int process_file(const char *path, options_t *opts) {
         writer_free(realtime_png);
 #pragma GCC diagnostic pop
 
-        char filename[269];
+        char filename[269] = { 0 };
         sprintf(filename, "%s-decoding.png", name);
         remove(filename);
     }
@@ -294,9 +294,9 @@ static int process_file(const char *path, options_t *opts) {
 
         if (strcmp(images[i], "thermal") == 0) {
             if (img.ch[1] >= 4) {
-                char filename[269];
+                char filename[269] = { 0 };
                 sprintf(filename, "%s-thermal.png", base);
-                char description[128];
+                char description[128] = { 0 };
                 sprintf(description, "Calibrated thermal image, channel %s - %s", channel_name[img.ch[1]], channel_desc[img.ch[1]]);
 
                 // Perform visible calibration
@@ -313,9 +313,9 @@ static int process_file(const char *path, options_t *opts) {
             }
         } else if (strcmp(images[i], "visible") == 0) {
             if (img.ch[0] <= 2) {
-                char filename[269];
+                char filename[269] = { 0 };
                 sprintf(filename, "%s-visible.png", base);
-                char description[128];
+                char description[128] = { 0 };
                 sprintf(description, "Calibrated visible image, channel %s - %s", channel_name[img.ch[0]], channel_desc[img.ch[0]]);
 
                 // Perform visible calibration
@@ -352,9 +352,9 @@ static int process_file(const char *path, options_t *opts) {
         }
 
         if (strcmp(images[i], "raw") == 0) {
-            char filename[269];
+            char filename[269] = { 0 };
             sprintf(filename, "%s-raw.png", base);
-            char description[128];
+            char description[128] = { 0 };
             sprintf(description,
                 "Raw image, channel %s - %s / %s - %s",
                 channel_name[img.ch[0]],
@@ -376,9 +376,9 @@ static int process_file(const char *path, options_t *opts) {
             writer_free(writer);
         } else if (strcmp(images[i], "lut") == 0) {
             if (opts->lut != NULL && opts->lut[0] != '\0') {
-                char filename[269];
+                char filename[269] = { 0 };
                 sprintf(filename, "%s-lut.png", base);
-                char description[128];
+                char description[128] = { 0 };
                 sprintf(description,
                     "LUT image, channel %s - %s / %s - %s",
                     channel_name[img.ch[0]],
@@ -387,7 +387,7 @@ static int process_file(const char *path, options_t *opts) {
                     channel_desc[img.ch[1]]
                 );
 
-                png_colorp lut = (png_colorp)malloc(sizeof(png_color)*256*256);
+                png_colorp lut = calloc(256*256, sizeof(png_color));
                 if (read_lut(opts->lut, lut)) {
                     writer_t *writer = writer_init(filename, APT_REGION_CHA, img.rows, PNG_COLOR_TYPE_RGB, description);
                     writer_write_image_lut(writer, &img, lut);
@@ -398,9 +398,9 @@ static int process_file(const char *path, options_t *opts) {
                 warning("Cannot create LUT image, missing -l/--lut");
             }
         } else if (strcmp(images[i], "a") == 0) {
-            char filename[269];
+            char filename[269] = { 0 };
             sprintf(filename, "%s-a.png", base);
-            char description[128];
+            char description[128] = { 0 };
             sprintf(description, "Channel A: %s - %s", channel_name[img.ch[0]], channel_desc[img.ch[0]]);
 
             writer_t *writer;
@@ -415,9 +415,9 @@ static int process_file(const char *path, options_t *opts) {
             }
             writer_free(writer);
         } else if (strcmp(images[i], "b") == 0) {
-            char filename[269];
+            char filename[269] = { 0 };
             sprintf(filename, "%s-b.png", base);
-            char description[128];
+            char description[128] = { 0 };
             sprintf(description, "Channel B: %s - %s", channel_name[img.ch[1]], channel_desc[img.ch[1]]);
 
             writer_t *writer;
@@ -517,7 +517,7 @@ static void write_line(writer_t *png, float *row) {
 }
 
 apt_image_t strip(apt_image_t img) {
-    uint8_t *data = (uint8_t *)malloc(img.rows * APT_IMG_WIDTH);
+    uint8_t *data = calloc(img.rows * APT_IMG_WIDTH, sizeof(uint8_t));
     for (size_t y = 0; y < img.rows; y++) {
         memcpy(&data[y*APT_IMG_WIDTH], &img.data[y*APT_IMG_WIDTH + APT_CHA_OFFSET], APT_CH_WIDTH);
         memcpy(&data[y*APT_IMG_WIDTH + APT_CH_WIDTH], &img.data[y*APT_IMG_WIDTH + APT_CHB_OFFSET], APT_CH_WIDTH);
