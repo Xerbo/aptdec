@@ -1,110 +1,89 @@
-name: Build
+name: Build (release)
 
 on:
   push:
     tags:
       - 'v*'
 
-env:
-  BUILD_TYPE: Release
-
 jobs:
-  prepare_release:
+  create_release:
     runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    needs: [ build_linux, build_windows ]
 
     steps:
-    - name: Create Release
-      uses: actions/create-release@v1
-      id: create_release
+    - name: Download TGZ package
+      uses: actions/download-artifact@v3
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        body: A release wow
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: TGZ package
+
+    - name: Download DEB package
+      uses: actions/download-artifact@v3
+      with:
+        name: DEB package
+
+    - name: Download ZIP package
+      uses: actions/download-artifact@v3
+      with:
+        name: ZIP package
+
+    - name: Test
+      run: ls -la
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          aptdec_$GITHUB_REF_NAME.x86_64.tar.gz
+          aptdec_$GITHUB_REF_NAME.x86_64.deb
+          aptdec_$GITHUB_REF_NAME.amd64.zip
 
   build_linux:
     runs-on: ubuntu-latest
-    needs: [prepare_release]
 
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: 'recursive'
-    
+        fetch-depth: 0
+
     - name: Install dependencies
-      # The user does not run as root
       run: sudo apt-get install cmake git gcc libsndfile-dev libpng-dev
 
-    - name: Create Build Environment
-      # Some projects don't allow in-source building, so create a separate build directory
-      # We'll use this as our working directory for all subsequent commands
-      run: cmake -E make_directory ${{runner.workspace}}/build
+    - name: Configure cmake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
-    - name: Configure CMake
-      # Use a bash shell so we can use the same syntax for environment variable
-      # access regardless of the host operating system
-      shell: bash
-      working-directory: ${{runner.workspace}}/build
-      # Note the current convention is to use the -S and -B options here to specify source 
-      # and build directories, but this is only available with CMake 3.13 and higher.  
-      # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
-
-    - name: Build
-      working-directory: ${{runner.workspace}}/build
-      shell: bash
-      # Execute the build.  You can specify a specific target with "--target <NAME>"
-      run: cmake --build . --config $BUILD_TYPE && cmake --build . --target package
+    - name: Build and package
+      run: cmake --build build -j$(nproc) && cmake --build build --target package
 
     - name: Upload TGZ package
-      uses: actions/upload-release-asset@v1
+      uses: actions/upload-artifact@v3
       with:
-        upload_url: ${{ needs.prepare_release.outputs.upload_url }}
-        asset_path: ${{runner.workspace}}/build/aptdec-${{ github.ref_name }}.x86_64.tar.gz
-        asset_name: aptdec-${{ github.ref_name }}.x86_64.tar.gz
-        asset_content_type: application/gzip
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
+          name: TGZ package
+          path: build/aptdec_*.tar.gz
 
     - name: Upload DEB package
-      uses: actions/upload-release-asset@v1
+      uses: actions/upload-artifact@v3
       with:
-        upload_url: ${{ needs.prepare_release.outputs.upload_url }}
-        asset_path: ${{runner.workspace}}/build/aptdec-${{ github.ref_name }}.x86_64.deb
-        asset_name: aptdec-${{ github.ref_name }}.x86_64.deb
-        asset_content_type: application/vnd.debian.binary-package
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
+          name: Debian package
+          path: build/aptdec_*.deb
 
   build_windows:
     runs-on: ubuntu-latest
-    needs: [prepare_release]
 
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: 'recursive'
+        fetch-depth: 0
     
     - name: Install dependencies
-      # The user does not run as root
-      run: sudo apt install wget cmake make mingw-w64 git unzip libsndfile-dev
+      run: sudo apt install cmake git mingw-w64 unzip
 
     - name: Run build script
-      shell: bash
-      working-directory: ${{runner.workspace}}
-      run: cd $GITHUB_WORKSPACE && ./build_windows.sh $BUILD_TYPE
+      run: ./build_windows.sh $BUILD_TYPE
 
-    - name: Upload zip
-      uses: actions/upload-release-asset@v1
+    - name: Upload ZIP package
+      uses: actions/upload-artifact@v3
       with:
-        upload_url: ${{ needs.prepare_release.outputs.upload_url }}
-        asset_path: ${{runner.workspace}}/aptdec/winbuild/aptdec-${{ github.ref_name }}.zip
-        asset_name: aptdec-${{ github.ref_name }}.zip
-        asset_content_type: application/zip
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
+          name: ZIP package
+          path: winbuild/aptdec_*.zip

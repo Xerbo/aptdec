@@ -1,14 +1,15 @@
 # the name of the target operating system
-SET(CMAKE_SYSTEM_NAME Windows)
-SET(CMAKE_SYSTEM_PROCESSOR x86_64)
+SET(CMAKE_SYSTEM_NAME Linux)
+SET(CMAKE_SYSTEM_PROCESSOR armhf)
 
 # which compilers to use for C and C++
-SET(CMAKE_C_COMPILER x86_64-w64-mingw32-gcc)
-SET(CMAKE_CXX_COMPILER x86_64-w64-mingw32-g++)
-SET(CMAKE_RC_COMPILER x86_64-w64-mingw32-windres)
+SET(CMAKE_C_COMPILER arm-linux-gnueabihf-gcc)
+SET(CMAKE_CXX_COMPILER arm-linux-gnueabihf-g++)
 
 # here is the target environment located
-SET(CMAKE_FIND_ROOT_PATH /usr/x86_64-w64-mingw32 ${CMAKE_INSTALL_PREFIX})
+SET(CMAKE_FIND_ROOT_PATH /usr/arm-linux-gnueabihf/ ${CMAKE_INSTALL_PREFIX})
+# Hack
+link_directories(${CMAKE_INSTALL_PREFIX}/lib/arm-linux-gnueabihf)
 
 # adjust the default behaviour of the FIND_XXX() commands:
 # search headers and libraries in the target environment, search
