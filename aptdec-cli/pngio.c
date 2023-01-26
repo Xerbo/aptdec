@@ -24,7 +24,7 @@
 
 #include "util.h"
 
-writer_t *writer_init(const char *filename, apt_region_t region, uint32_t height, int color, char *channel) {
+writer_t *writer_init(const char *filename, aptdec_region_t region, uint32_t height, int color, char *channel) {
     writer_t *png = calloc(1, sizeof(writer_t));
     png->region = region;
 
@@ -64,17 +64,17 @@ writer_t *writer_init(const char *filename, apt_region_t region, uint32_t height
     return png;
 }
 
-void writer_write_image(writer_t *png, const apt_image_t *img) {
+void writer_write_image(writer_t *png, const aptdec_image_t *img) {
     for (size_t y = 0; y < img->rows; y++) {
-        png_write_row(png->png, &img->data[y*APT_IMG_WIDTH + png->region.offset]);
+        png_write_row(png->png, &img->data[y*APTDEC_IMG_WIDTH + png->region.offset]);
     }
 }
 
-void writer_write_image_gradient(writer_t *png, const apt_image_t *img, const uint32_t *gradient) {
+void writer_write_image_gradient(writer_t *png, const aptdec_image_t *img, const uint32_t *gradient) {
     for (size_t y = 0; y < img->rows; y++) {
-        png_color pixels[APT_IMG_WIDTH];
-        for (size_t x = 0; x < APT_IMG_WIDTH; x++) {
-            apt_rgb_t pixel = apt_gradient(gradient, img->data[y*APT_IMG_WIDTH + x + png->region.offset]);
+        png_color pixels[APTDEC_IMG_WIDTH];
+        for (size_t x = 0; x < APTDEC_IMG_WIDTH; x++) {
+            aptdec_rgb_t pixel = aptdec_gradient(gradient, img->data[y*APTDEC_IMG_WIDTH + x + png->region.offset]);
             pixels[x] = (png_color){ pixel.r, pixel.g, pixel.b };
         }
 
@@ -82,12 +82,12 @@ void writer_write_image_gradient(writer_t *png, const apt_image_t *img, const ui
     }
 }
 
-void writer_write_image_lut(writer_t *png, const apt_image_t *img, const png_colorp lut) {
+void writer_write_image_lut(writer_t *png, const aptdec_image_t *img, const png_colorp lut) {
     for (size_t y = 0; y < img->rows; y++) {
-        png_color pixels[APT_CH_WIDTH];
-        for (size_t x = 0; x < APT_CH_WIDTH; x++) {
-            uint8_t a = img->data[y*APT_IMG_WIDTH + x + APT_CHA_OFFSET];
-            uint8_t b = img->data[y*APT_IMG_WIDTH + x + APT_CHB_OFFSET];
+        png_color pixels[APTDEC_CH_WIDTH];
+        for (size_t x = 0; x < APTDEC_CH_WIDTH; x++) {
+            uint8_t a = img->data[y*APTDEC_IMG_WIDTH + x + APTDEC_CHA_OFFSET];
+            uint8_t b = img->data[y*APTDEC_IMG_WIDTH + x + APTDEC_CHB_OFFSET];
             pixels[x] = lut[b*256 + a];
         }
 

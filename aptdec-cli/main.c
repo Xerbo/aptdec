@@ -67,7 +67,6 @@ static int freq_from_filename(const char *filename);
 static int satid_from_freq(int freq);
 static size_t callback(float *samples, size_t count, void *context);
 static void write_line(writer_t *png, float *row);
-apt_image_t strip(apt_image_t img);
 int array_contains(char **array, char *value, size_t n);
 
 static volatile int sigint_stop = 0;
@@ -183,7 +182,7 @@ static int process_file(const char *path, options_t *opts) {
     if (opts->realtime) {
         char filename[269] = { 0 };
         sprintf(filename, "%s-decoding.png", name);
-        realtime_png = writer_init(filename, APT_REGION_FULL, APTDEC_MAX_HEIGHT, PNG_COLOR_TYPE_GRAY, "Unknown");
+        realtime_png = writer_init(filename, APTDEC_REGION_FULL, APTDEC_MAX_HEIGHT, PNG_COLOR_TYPE_GRAY, "Unknown");
 
         // Capture Ctrl+C
         signal(SIGINT, sigint_handler);
@@ -209,10 +208,10 @@ static int process_file(const char *path, options_t *opts) {
     }
 
     // Decode image
-    float *data = calloc(APT_IMG_WIDTH * (APTDEC_MAX_HEIGHT+1), sizeof(float));
+    float *data = calloc(APTDEC_IMG_WIDTH * (APTDEC_MAX_HEIGHT+1), sizeof(float));
     size_t rows;
     for (rows = 0; rows < APTDEC_MAX_HEIGHT; rows++) {
-        float *row = &data[rows * APT_IMG_WIDTH];
+        float *row = &data[rows * APTDEC_IMG_WIDTH];
 
         // Break the loop when there are no more samples or the process has been sent SIGINT
         if (aptdec_getrow(aptdec, row, callback, &audioFile) == 0 || sigint_stop) {
@@ -220,7 +219,10 @@ static int process_file(const char *path, options_t *opts) {
         }
 
         if (opts->realtime) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
             write_line(realtime_png, row);
+#pragma GCC diagnostic pop
         }
 
         fprintf(stderr, "Row: %zu/%zu\r", rows+1, audioFile.info.frames/audioFile.info.samplerate * 2);
@@ -245,7 +247,7 @@ static int process_file(const char *path, options_t *opts) {
 
     // Normalize
     int error;
-    apt_image_t img = apt_normalize(data, rows, opts->satellite, &error);
+    aptdec_image_t img = aptdec_normalize(data, rows, opts->satellite, &error);
     free(data);
     if (error) {
         error_noexit("Normalization failed");
@@ -274,13 +276,13 @@ static int process_file(const char *path, options_t *opts) {
 
     for (size_t i = 0; i < effects_len; i++) {
         if (strcmp(effects[i], "crop") == 0) {
-            apt_crop(&img);
+            aptdec_crop(&img);
         } else if (strcmp(effects[i], "denoise") == 0) {
-            apt_denoise(&img, APT_REGION_CHA);
-            apt_denoise(&img, APT_REGION_CHB);
+            aptdec_denoise(&img, APTDEC_REGION_CHA);
+            aptdec_denoise(&img, APTDEC_REGION_CHB);
         } else if (strcmp(effects[i], "flip") == 0) {
-            apt_flip(&img, APT_REGION_CHA);
-            apt_flip(&img, APT_REGION_CHB);
+            aptdec_flip(&img, APTDEC_REGION_CHA);
+            aptdec_flip(&img, APTDEC_REGION_CHB);
         }
     }
 
@@ -300,11 +302,11 @@ static int process_file(const char *path, options_t *opts) {
                 sprintf(description, "Calibrated thermal image, channel %s - %s", channel_name[img.ch[1]], channel_desc[img.ch[1]]);
 
                 // Perform visible calibration
-                apt_image_t _img = apt_image_clone(img);
-                apt_calibrate_thermal(&_img, APT_REGION_CHA);
+                aptdec_image_t _img = aptdec_image_clone(img);
+                aptdec_calibrate_thermal(&_img, APTDEC_REGION_CHA);
 
-                writer_t *writer = writer_init(filename, APT_REGION_CHB, img.rows, PNG_COLOR_TYPE_RGB, description);
-                writer_write_image_gradient(writer, &_img, temperature_gradient);
+                writer_t *writer = writer_init(filename, APTDEC_REGION_CHB, img.rows, PNG_COLOR_TYPE_RGB, description);
+                writer_write_image_gradient(writer, &_img, aptdec_temperature_gradient);
                 writer_free(writer);
 
                 free(_img.data);
@@ -319,10 +321,10 @@ static int process_file(const char *path, options_t *opts) {
                 sprintf(description, "Calibrated visible image, channel %s - %s", channel_name[img.ch[0]], channel_desc[img.ch[0]]);
 
                 // Perform visible calibration
-                apt_image_t _img = apt_image_clone(img);
-                apt_calibrate_visible(&_img, APT_REGION_CHA);
+                aptdec_image_t _img = aptdec_image_clone(img);
+                aptdec_calibrate_visible(&_img, APTDEC_REGION_CHA);
 
-                writer_t *writer = writer_init(filename, APT_REGION_CHA, img.rows, PNG_COLOR_TYPE_GRAY, description);
+                writer_t *writer = writer_init(filename, APTDEC_REGION_CHA, img.rows, PNG_COLOR_TYPE_GRAY, description);
                 writer_write_image(writer, &_img);
                 writer_free(writer);
 
@@ -335,11 +337,11 @@ static int process_file(const char *path, options_t *opts) {
 
     for (size_t i = 0; i < effects_len; i++) {
         if (strcmp(effects[i], "stretch") == 0) {
-            apt_stretch(&img, APT_REGION_CHA);
-            apt_stretch(&img, APT_REGION_CHB);
+            aptdec_stretch(&img, APTDEC_REGION_CHA);
+            aptdec_stretch(&img, APTDEC_REGION_CHB);
         } else if (strcmp(effects[i], "equalize") == 0) {
-            apt_equalize(&img, APT_REGION_CHA);
-            apt_equalize(&img, APT_REGION_CHB);
+            aptdec_equalize(&img, APTDEC_REGION_CHA);
+            aptdec_equalize(&img, APTDEC_REGION_CHB);
         }
     }
 
@@ -365,12 +367,13 @@ static int process_file(const char *path, options_t *opts) {
 
             writer_t *writer;
             if (array_contains(effects, "strip", effects_len)) {
-                writer = writer_init(filename, (apt_region_t){0, APT_CH_WIDTH*2}, img.rows, PNG_COLOR_TYPE_GRAY, description);
-                apt_image_t _img = strip(img);
+                writer = writer_init(filename, (aptdec_region_t){0, APTDEC_CH_WIDTH*2}, img.rows, PNG_COLOR_TYPE_GRAY, description);
+                aptdec_image_t _img = aptdec_image_clone(img);
+                aptdec_strip(&_img);
                 writer_write_image(writer, &_img);
                 free(_img.data);
             } else {
-                writer = writer_init(filename, APT_REGION_FULL, img.rows, PNG_COLOR_TYPE_GRAY, description);
+                writer = writer_init(filename, APTDEC_REGION_FULL, img.rows, PNG_COLOR_TYPE_GRAY, description);
                 writer_write_image(writer, &img);
             }
             writer_free(writer);
@@ -389,7 +392,7 @@ static int process_file(const char *path, options_t *opts) {
 
                 png_colorp lut = calloc(256*256, sizeof(png_color));
                 if (read_lut(opts->lut, lut)) {
-                    writer_t *writer = writer_init(filename, APT_REGION_CHA, img.rows, PNG_COLOR_TYPE_RGB, description);
+                    writer_t *writer = writer_init(filename, APTDEC_REGION_CHA, img.rows, PNG_COLOR_TYPE_RGB, description);
                     writer_write_image_lut(writer, &img, lut);
                     writer_free(writer);
                 }
@@ -405,12 +408,13 @@ static int process_file(const char *path, options_t *opts) {
 
             writer_t *writer;
             if (array_contains(effects, "strip", effects_len)) {
-                writer = writer_init(filename, (apt_region_t){0, APT_CH_WIDTH}, img.rows, PNG_COLOR_TYPE_GRAY, description);
-                apt_image_t _img = strip(img);
+                writer = writer_init(filename, (aptdec_region_t){0, APTDEC_CH_WIDTH}, img.rows, PNG_COLOR_TYPE_GRAY, description);
+                aptdec_image_t _img = aptdec_image_clone(img);
+                aptdec_strip(&_img);
                 writer_write_image(writer, &_img);
                 free(_img.data);
             } else {
-                writer = writer_init(filename, APT_REGION_CHA_FULL, img.rows, PNG_COLOR_TYPE_GRAY, description);
+                writer = writer_init(filename, APTDEC_REGION_CHA_FULL, img.rows, PNG_COLOR_TYPE_GRAY, description);
                 writer_write_image(writer, &img);
             }
             writer_free(writer);
@@ -422,12 +426,13 @@ static int process_file(const char *path, options_t *opts) {
 
             writer_t *writer;
             if (array_contains(effects, "strip", effects_len)) {
-                writer = writer_init(filename, (apt_region_t){APT_CH_WIDTH, APT_CH_WIDTH}, img.rows, PNG_COLOR_TYPE_GRAY, description);
-                apt_image_t _img = strip(img);
+                writer = writer_init(filename, (aptdec_region_t){APTDEC_CH_WIDTH, APTDEC_CH_WIDTH}, img.rows, PNG_COLOR_TYPE_GRAY, description);
+                aptdec_image_t _img = aptdec_image_clone(img);
+                aptdec_strip(&_img);
                 writer_write_image(writer, &_img);
                 free(_img.data);
             } else {
-                writer = writer_init(filename, APT_REGION_CHB_FULL, img.rows, PNG_COLOR_TYPE_GRAY, description);
+                writer = writer_init(filename, APTDEC_REGION_CHB_FULL, img.rows, PNG_COLOR_TYPE_GRAY, description);
                 writer_write_image(writer, &img);
             }
             writer_free(writer);
@@ -500,31 +505,17 @@ static size_t callback(float *samples, size_t count, void *context) {
 static void write_line(writer_t *png, float *row) {
     float min = FLT_MAX;
     float max = FLT_MIN;
-    for (int i = 0; i < APT_IMG_WIDTH; i++) {
+    for (int i = 0; i < APTDEC_IMG_WIDTH; i++) {
         if (row[i] < min) min = row[i];
         if (row[i] > max) max = row[i];
     }
 
-    png_byte pixels[APT_IMG_WIDTH];
-    for (int i = 0; i < APT_IMG_WIDTH; i++) {
+    png_byte pixels[APTDEC_IMG_WIDTH];
+    for (int i = 0; i < APTDEC_IMG_WIDTH; i++) {
         pixels[i] = clamp_int(roundf((row[i]-min) / (max-min) * 255.0f), 0, 255);
     }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
     png_write_row(png->png, pixels);
-#pragma GCC diagnostic pop
-}
-
-apt_image_t strip(apt_image_t img) {
-    uint8_t *data = calloc(img.rows * APT_IMG_WIDTH, sizeof(uint8_t));
-    for (size_t y = 0; y < img.rows; y++) {
-        memcpy(&data[y*APT_IMG_WIDTH], &img.data[y*APT_IMG_WIDTH + APT_CHA_OFFSET], APT_CH_WIDTH);
-        memcpy(&data[y*APT_IMG_WIDTH + APT_CH_WIDTH], &img.data[y*APT_IMG_WIDTH + APT_CHB_OFFSET], APT_CH_WIDTH);
-    }
-
-    img.data = data;
-    return img;
 }
 
 int array_contains(char **array, char *value, size_t n) {

@@ -27,12 +27,12 @@
 #include "util.h"
 #include "calibration.h"
 
-#define APT_COUNT_RATIO (1023.0f/255.0f)
+#define APTDEC_COUNT_RATIO (1023.0f/255.0f)
 
-apt_image_t apt_image_clone(apt_image_t img) {
-    apt_image_t _img = img;
-    _img.data = calloc(APT_IMG_WIDTH * img.rows, sizeof(uint8_t));
-    memcpy(_img.data, img.data, APT_IMG_WIDTH * img.rows);
+aptdec_image_t aptdec_image_clone(aptdec_image_t img) {
+    aptdec_image_t _img = img;
+    _img.data = calloc(APTDEC_IMG_WIDTH * img.rows, sizeof(uint8_t));
+    memcpy(_img.data, img.data, APTDEC_IMG_WIDTH * img.rows);
     return _img;
 }
 
@@ -40,29 +40,29 @@ static void decode_telemetry(const float *data, size_t rows, size_t offset, floa
     // Calculate row average
     float *telemetry_rows = calloc(rows, sizeof(float));
     for (size_t y = 0; y < rows; y++) {
-        telemetry_rows[y] = meanf(&data[y*APT_IMG_WIDTH + offset + APT_CH_WIDTH], APT_TELEMETRY_WIDTH);
+        telemetry_rows[y] = meanf(&data[y*APTDEC_IMG_WIDTH + offset + APTDEC_CH_WIDTH], APTDEC_TELEMETRY_WIDTH);
     }
 
     // Calculate relative telemetry offset (via step detection, i.e. wedge 8 to 9)
     size_t telemetry_offset = 0;
     float max_difference = 0.0f;
-    for (size_t y = APT_WEDGE_HEIGHT; y <= rows - APT_WEDGE_HEIGHT; y++) {
-        float difference = sumf(&telemetry_rows[y - APT_WEDGE_HEIGHT], APT_WEDGE_HEIGHT) - sumf(&telemetry_rows[y], APT_WEDGE_HEIGHT);
+    for (size_t y = APTDEC_WEDGE_HEIGHT; y <= rows - APTDEC_WEDGE_HEIGHT; y++) {
+        float difference = sumf(&telemetry_rows[y - APTDEC_WEDGE_HEIGHT], APTDEC_WEDGE_HEIGHT) - sumf(&telemetry_rows[y], APTDEC_WEDGE_HEIGHT);
 
         // Find the maximum difference
         if (difference > max_difference) {
             max_difference = difference;
-            telemetry_offset = (y + 64) % APT_FRAME_LEN;
+            telemetry_offset = (y + 64) % APTDEC_FRAME_LEN;
         }
     }
 
     // Find the least noisy frame (via standard deviation)
     float best_noise = FLT_MAX;
     size_t best_frame = 0;
-    for (size_t y = telemetry_offset; y < rows-APT_FRAME_LEN; y += APT_FRAME_LEN) {
+    for (size_t y = telemetry_offset; y < rows-APTDEC_FRAME_LEN; y += APTDEC_FRAME_LEN) {
         float noise = 0.0f;
-        for (size_t i = 0; i < APT_FRAME_WEDGES; i++) {
-            noise += standard_deviation(&telemetry_rows[y + i*APT_WEDGE_HEIGHT], APT_WEDGE_HEIGHT);
+        for (size_t i = 0; i < APTDEC_FRAME_WEDGES; i++) {
+            noise += standard_deviation(&telemetry_rows[y + i*APTDEC_WEDGE_HEIGHT], APTDEC_WEDGE_HEIGHT);
         }
 
         if (noise < best_noise) {
@@ -71,22 +71,22 @@ static void decode_telemetry(const float *data, size_t rows, size_t offset, floa
         }
     }
 
-    for (size_t i = 0; i < APT_FRAME_WEDGES; i++) {
-        wedges[i] = meanf(&telemetry_rows[best_frame + i*APT_WEDGE_HEIGHT], APT_WEDGE_HEIGHT);
+    for (size_t i = 0; i < APTDEC_FRAME_WEDGES; i++) {
+        wedges[i] = meanf(&telemetry_rows[best_frame + i*APTDEC_WEDGE_HEIGHT], APTDEC_WEDGE_HEIGHT);
     }
 
     free(telemetry_rows);
 }
 
-static float average_spc(apt_image_t *img, size_t offset) {
+static float average_spc(aptdec_image_t *img, size_t offset) {
     float *rows = calloc(img->rows, sizeof(float));
     float average = 0.0f;
     for (size_t y = 0; y < img->rows; y++) {
         float row_average = 0.0f;
-        for (size_t x = 0; x < APT_SPC_WIDTH; x++) {
-            row_average += img->data[y*APT_IMG_WIDTH + offset - APT_SPC_WIDTH + x];
+        for (size_t x = 0; x < APTDEC_SPC_WIDTH; x++) {
+            row_average += img->data[y*APTDEC_IMG_WIDTH + offset - APTDEC_SPC_WIDTH + x];
         }
-        row_average /= (float)APT_SPC_WIDTH;
+        row_average /= (float)APTDEC_SPC_WIDTH;
 
         rows[y] = row_average;
         average += row_average;
@@ -106,8 +106,8 @@ static float average_spc(apt_image_t *img, size_t offset) {
     return weighted_average / (float)n;
 }
 
-apt_image_t apt_normalize(const float *data, size_t rows, apt_satellite_t satellite, int *error) {
-    apt_image_t img;
+aptdec_image_t aptdec_normalize(const float *data, size_t rows, aptdec_satellite_t satellite, int *error) {
+    aptdec_image_t img;
     img.rows = rows;
     img.satellite = satellite;
 
@@ -118,12 +118,12 @@ apt_image_t apt_normalize(const float *data, size_t rows, apt_satellite_t satell
     }
 
     // Decode and average wedges
-    float wedges[APT_FRAME_WEDGES];
-    float wedges_cha[APT_FRAME_WEDGES];
-    float wedges_chb[APT_FRAME_WEDGES];
-    decode_telemetry(data, rows, APT_CHA_OFFSET, wedges_cha);
-    decode_telemetry(data, rows, APT_CHB_OFFSET, wedges_chb);
-    for (size_t i = 0; i < APT_FRAME_WEDGES; i++) {
+    float wedges[APTDEC_FRAME_WEDGES];
+    float wedges_cha[APTDEC_FRAME_WEDGES];
+    float wedges_chb[APTDEC_FRAME_WEDGES];
+    decode_telemetry(data, rows, APTDEC_CHA_OFFSET, wedges_cha);
+    decode_telemetry(data, rows, APTDEC_CHB_OFFSET, wedges_chb);
+    for (size_t i = 0; i < APTDEC_FRAME_WEDGES; i++) {
         wedges[i] = (wedges_cha[i] + wedges_chb[i]) / 2.0f;
     }
 
@@ -136,7 +136,7 @@ apt_image_t apt_normalize(const float *data, size_t rows, apt_satellite_t satell
     }
 
     // Normalize telemetry
-    for (size_t i = 0; i < APT_FRAME_WEDGES; i++) {
+    for (size_t i = 0; i < APTDEC_FRAME_WEDGES; i++) {
         img.telemetry[0][i] = linear_calc(wedges_cha[i], normalization);
         img.telemetry[1][i] = linear_calc(wedges_chb[i], normalization);
     }
@@ -148,20 +148,20 @@ apt_image_t apt_normalize(const float *data, size_t rows, apt_satellite_t satell
     if (img.ch[1] < 1 || img.ch[1] > 6) img.ch[1] = AVHRR_CHANNEL_UNKNOWN; 
 
     // Normalize and quantize image data
-    img.data = (uint8_t *)malloc(rows * APT_IMG_WIDTH);
-    for (size_t i = 0; i < rows * APT_IMG_WIDTH; i++) {
+    img.data = (uint8_t *)malloc(rows * APTDEC_IMG_WIDTH);
+    for (size_t i = 0; i < rows * APTDEC_IMG_WIDTH; i++) {
         float count = linear_calc(data[i], normalization);
         img.data[i] = clamp_int(roundf(count), 0, 255);
     }
 
     // Get space brightness
-    img.space_view[0] = average_spc(&img, APT_CHA_OFFSET);
-    img.space_view[1] = average_spc(&img, APT_CHB_OFFSET);
+    img.space_view[0] = average_spc(&img, APTDEC_CHA_OFFSET);
+    img.space_view[1] = average_spc(&img, APTDEC_CHB_OFFSET);
 
     return img;
 }
 
-static void make_thermal_lut(apt_image_t *img, avhrr_channel_t ch, int satellite, float *lut) {
+static void make_thermal_lut(aptdec_image_t *img, avhrr_channel_t ch, int satellite, float *lut) {
     ch -= 4;
     const calibration_t calibration = get_calibration(satellite);
     const float Ns = calibration.cor[ch].Ns;
@@ -172,7 +172,7 @@ static void make_thermal_lut(apt_image_t *img, avhrr_channel_t ch, int satellite
     // Compute PRT temperature
     float T[4] = { 0.0f };
     for (size_t n = 0; n < 4; n++) {
-        T[n] = quadratic_calc(img->telemetry[1][n + 9] * APT_COUNT_RATIO, calibration.prt[n]);
+        T[n] = quadratic_calc(img->telemetry[1][n + 9] * APTDEC_COUNT_RATIO, calibration.prt[n]);
     }
 
     float Tbb = meanf(T, 4);      // Blackbody temperature
@@ -180,11 +180,11 @@ static void make_thermal_lut(apt_image_t *img, avhrr_channel_t ch, int satellite
 
     float Nbb = C1 * pow(Vc, 3) / (expf(C2 * Vc / Tbbstar) - 1.0f);  // Blackbody radiance
 
-    float Cs = img->space_view[1] * APT_COUNT_RATIO;
-    float Cb = img->telemetry[1][14] * APT_COUNT_RATIO;
+    float Cs = img->space_view[1] * APTDEC_COUNT_RATIO;
+    float Cb = img->telemetry[1][14] * APTDEC_COUNT_RATIO;
     
     for (size_t i = 0; i < 256; i++) {
-        float Nl = Ns + (Nbb - Ns) * (Cs - i * APT_COUNT_RATIO) / (Cs - Cb);      // Linear radiance estimate
+        float Nl = Ns + (Nbb - Ns) * (Cs - i * APTDEC_COUNT_RATIO) / (Cs - Cb);      // Linear radiance estimate
         float Nc = quadratic_calc(Nl, calibration.cor[ch].quadratic);  // Non-linear correction
         float Ne = Nl + Nc;                                            // Corrected radiance
 
@@ -196,7 +196,7 @@ static void make_thermal_lut(apt_image_t *img, avhrr_channel_t ch, int satellite
     }
 }
 
-int apt_calibrate_thermal(apt_image_t *img, apt_region_t region) {
+int aptdec_calibrate_thermal(aptdec_image_t *img, aptdec_region_t region) {
     if (img->ch[1] != AVHRR_CHANNEL_4 && img->ch[1] != AVHRR_CHANNEL_5 && img->ch[1] != AVHRR_CHANNEL_3B) {
         return 1;
     }
@@ -206,8 +206,8 @@ int apt_calibrate_thermal(apt_image_t *img, apt_region_t region) {
 
     for (size_t y = 0; y < img->rows; y++) {
         for (size_t x = 0; x < region.width; x++) {
-            float temperature = lut[img->data[y * APT_IMG_WIDTH + region.offset + x]];
-            img->data[y * APT_IMG_WIDTH + region.offset + x] = clamp_int(roundf((temperature + 100.0) / 160.0 * 255.0), 0, 255);
+            float temperature = lut[img->data[y * APTDEC_IMG_WIDTH + region.offset + x]];
+            img->data[y * APTDEC_IMG_WIDTH + region.offset + x] = clamp_int(roundf((temperature + 100.0) / 160.0 * 255.0), 0, 255);
         }
     }
 
@@ -216,13 +216,13 @@ int apt_calibrate_thermal(apt_image_t *img, apt_region_t region) {
 
 static float calibrate_pixel_visible(float value, int channel, calibration_t cal) {
     if (value > cal.visible[channel].cutoff) {
-        return linear_calc(value * APT_COUNT_RATIO, cal.visible[channel].high) / 100.0f * 255.0f;
+        return linear_calc(value * APTDEC_COUNT_RATIO, cal.visible[channel].high) / 100.0f * 255.0f;
     } else {
-        return linear_calc(value * APT_COUNT_RATIO, cal.visible[channel].low) / 100.0f * 255.0f;
+        return linear_calc(value * APTDEC_COUNT_RATIO, cal.visible[channel].low) / 100.0f * 255.0f;
     }
 }
 
-int apt_calibrate_visible(apt_image_t *img, apt_region_t region) {
+int aptdec_calibrate_visible(aptdec_image_t *img, aptdec_region_t region) {
     if (img->ch[0] != AVHRR_CHANNEL_1 && img->ch[0] != AVHRR_CHANNEL_2) {
         return 1;
     }
@@ -230,10 +230,17 @@ int apt_calibrate_visible(apt_image_t *img, apt_region_t region) {
     calibration_t calibration = get_calibration(img->satellite);
     for (size_t y = 0; y < img->rows; y++) {
         for (size_t x = 0; x < region.width; x++) {
-            float albedo = calibrate_pixel_visible(img->data[y * APT_IMG_WIDTH + region.offset + x], img->ch[0]-1, calibration);
-            img->data[y * APT_IMG_WIDTH + region.offset + x] = clamp_int(roundf(albedo), 0, 255);
+            float albedo = calibrate_pixel_visible(img->data[y * APTDEC_IMG_WIDTH + region.offset + x], img->ch[0]-1, calibration);
+            img->data[y * APTDEC_IMG_WIDTH + region.offset + x] = clamp_int(roundf(albedo), 0, 255);
         }
     }
 
     return 0;
+}
+
+void aptdec_strip(aptdec_image_t* img) {
+    for (size_t y = 0; y < img->rows; y++) {
+        memcpy(&img->data[y*APTDEC_IMG_WIDTH], &img->data[y*APTDEC_IMG_WIDTH + APTDEC_CHA_OFFSET], APTDEC_CH_WIDTH);
+        memcpy(&img->data[y*APTDEC_IMG_WIDTH + APTDEC_CH_WIDTH], &img->data[y*APTDEC_IMG_WIDTH + APTDEC_CHB_OFFSET], APTDEC_CH_WIDTH);
+    }
 }

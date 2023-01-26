@@ -54,7 +54,7 @@ typedef struct {
     size_t ntaps;
 } fir_t;
 
-struct aptdec_t {
+struct aptdec {
     float sample_rate;
     float sync_frequency;
 
@@ -62,7 +62,7 @@ struct aptdec_t {
     fir_t *hilbert;
 
     float low_pass[LOW_PASS_SIZE];
-    float row_buffer[APT_IMG_WIDTH + SYNC_SIZE + 2];
+    float row_buffer[APTDEC_IMG_WIDTH + SYNC_SIZE + 2];
 
     float interpolator_buffer[APTDEC_BUFFER_SIZE];
     size_t interpolator_n;
@@ -100,15 +100,15 @@ pll_t *pll_init(float alpha, float beta, float min_freq, float max_freq, float s
 }
 
 aptdec_t *aptdec_init(float sample_rate) {
-    if (sample_rate > 96000 || sample_rate < (CARRIER_FREQ + APT_IMG_WIDTH) * 2.0f) {
+    if (sample_rate > 96000 || sample_rate < (CARRIER_FREQ + APTDEC_IMG_WIDTH) * 2.0f) {
         return NULL;
     }
 
-    aptdec_t *apt = calloc(1, sizeof(aptdec_t));
-    apt->sample_rate = sample_rate;
-    apt->sync_frequency = 1.0f;
-    apt->interpolator_n = APTDEC_BUFFER_SIZE;
-    apt->interpolator_offset = 0.0f;
+    aptdec_t *aptdec = calloc(1, sizeof(aptdec_t));
+    aptdec->sample_rate = sample_rate;
+    aptdec->sync_frequency = 1.0f;
+    aptdec->interpolator_n = APTDEC_BUFFER_SIZE;
+    aptdec->interpolator_offset = 0.0f;
 
     // PLL configuration
     // https://www.trondeau.com/blog/2011/8/13/control-loop-gain-values.html
@@ -116,30 +116,30 @@ aptdec_t *aptdec_init(float sample_rate) {
     float bw = 0.005f;
     float alpha = (4.0f * damp * bw) / (1.0f + 2.0f * damp * bw + bw * bw);
     float beta = (4.0f * bw * bw) / (1.0f + 2.0f * damp * bw + bw * bw);
-    apt->pll = pll_init(alpha, beta, CARRIER_FREQ-MAX_CARRIER_OFFSET, CARRIER_FREQ+MAX_CARRIER_OFFSET, sample_rate);
-    if (apt->pll == NULL) {
-        free(apt);
+    aptdec->pll = pll_init(alpha, beta, CARRIER_FREQ-MAX_CARRIER_OFFSET, CARRIER_FREQ+MAX_CARRIER_OFFSET, sample_rate);
+    if (aptdec->pll == NULL) {
+        free(aptdec);
         return NULL;
     }
 
     // Hilbert transform
-    apt->hilbert = fir_init(APTDEC_BUFFER_SIZE, 31);
-    if (apt->hilbert == NULL) {
-        free(apt->pll);
-        free(apt);
+    aptdec->hilbert = fir_init(APTDEC_BUFFER_SIZE, 31);
+    if (aptdec->hilbert == NULL) {
+        free(aptdec->pll);
+        free(aptdec);
         return NULL;
     }
-    design_hilbert(apt->hilbert->taps, apt->hilbert->ntaps);
+    design_hilbert(aptdec->hilbert->taps, aptdec->hilbert->ntaps);
 
-    design_low_pass(apt->low_pass, apt->sample_rate, (2080.0f + CARRIER_FREQ) / 2.0f, LOW_PASS_SIZE);
+    design_low_pass(aptdec->low_pass, aptdec->sample_rate, (2080.0f + CARRIER_FREQ) / 2.0f, LOW_PASS_SIZE);
 
-    return apt;
+    return aptdec;
 }
 
-void aptdec_free(aptdec_t *apt) {
-    fir_free(apt->hilbert);
-    free(apt->pll);
-    free(apt);
+void aptdec_free(aptdec_t *aptdec) {
+    fir_free(aptdec->hilbert);
+    free(aptdec->pll);
+    free(aptdec);
 }
 
 static complexf_t pll_work(pll_t *pll, complexf_t in) {
@@ -159,52 +159,52 @@ static complexf_t pll_work(pll_t *pll, complexf_t in) {
     return in;
 }
 
-static int am_demod(aptdec_t *apt, float *out, size_t count, aptdec_callback_t callback, void *context) {
-    size_t read = callback(&apt->hilbert->ring_buffer[apt->hilbert->ntaps], count, context);
+static int am_demod(aptdec_t *aptdec, float *out, size_t count, aptdec_callback_t callback, void *context) {
+    size_t read = callback(&aptdec->hilbert->ring_buffer[aptdec->hilbert->ntaps], count, context);
 
     for (size_t i = 0; i < read; i++) {
-        complexf_t sample = hilbert_transform(&apt->hilbert->ring_buffer[i], apt->hilbert->taps, apt->hilbert->ntaps);
-        out[i] = crealf(pll_work(apt->pll, sample));
+        complexf_t sample = hilbert_transform(&aptdec->hilbert->ring_buffer[i], aptdec->hilbert->taps, aptdec->hilbert->ntaps);
+        out[i] = crealf(pll_work(aptdec->pll, sample));
     }
 
-    memcpy(apt->hilbert->ring_buffer, &apt->hilbert->ring_buffer[read], apt->hilbert->ntaps*sizeof(float));
+    memcpy(aptdec->hilbert->ring_buffer, &aptdec->hilbert->ring_buffer[read], aptdec->hilbert->ntaps*sizeof(float));
 
     return read;
 }
 
-static int get_pixels(aptdec_t *apt, float *out, size_t count, aptdec_callback_t callback, void *context) {
-    float ratio = apt->sample_rate / (4160.0f * apt->sync_frequency);
+static int get_pixels(aptdec_t *aptdec, float *out, size_t count, aptdec_callback_t callback, void *context) {
+    float ratio = aptdec->sample_rate / (4160.0f * aptdec->sync_frequency);
 
     for (size_t i = 0; i < count; i++) {
         // Get more samples if there are less than `LOW_PASS_SIZE` available
-        if (apt->interpolator_n + LOW_PASS_SIZE > APTDEC_BUFFER_SIZE) {
-            memcpy(apt->interpolator_buffer, &apt->interpolator_buffer[apt->interpolator_n], (APTDEC_BUFFER_SIZE-apt->interpolator_n) * sizeof(float));
+        if (aptdec->interpolator_n + LOW_PASS_SIZE > APTDEC_BUFFER_SIZE) {
+            memcpy(aptdec->interpolator_buffer, &aptdec->interpolator_buffer[aptdec->interpolator_n], (APTDEC_BUFFER_SIZE-aptdec->interpolator_n) * sizeof(float));
 
-            size_t read = am_demod(apt, &apt->interpolator_buffer[APTDEC_BUFFER_SIZE-apt->interpolator_n], apt->interpolator_n, callback, context);
-            if (read != apt->interpolator_n) {
+            size_t read = am_demod(aptdec, &aptdec->interpolator_buffer[APTDEC_BUFFER_SIZE-aptdec->interpolator_n], aptdec->interpolator_n, callback, context);
+            if (read != aptdec->interpolator_n) {
                 return i;
             }
-            apt->interpolator_n = 0;
+            aptdec->interpolator_n = 0;
         }
 
-        out[i] = interpolating_convolve(&apt->interpolator_buffer[apt->interpolator_n], apt->low_pass, LOW_PASS_SIZE, apt->interpolator_offset);
+        out[i] = interpolating_convolve(&aptdec->interpolator_buffer[aptdec->interpolator_n], aptdec->low_pass, LOW_PASS_SIZE, aptdec->interpolator_offset);
 
         // Do not question the sacred code
-        int shift = ceilf(ratio - apt->interpolator_offset);
-        apt->interpolator_offset = shift + apt->interpolator_offset - ratio;
-        apt->interpolator_n += shift;
+        int shift = ceilf(ratio - aptdec->interpolator_offset);
+        aptdec->interpolator_offset = shift + aptdec->interpolator_offset - ratio;
+        aptdec->interpolator_n += shift;
     }
 
     return count;
 }
 
 // Get an entire row of pixels, aligned with sync markers
-int aptdec_getrow(aptdec_t *apt, float *row, aptdec_callback_t callback, void *context) {
+int aptdec_getrow(aptdec_t *aptdec, float *row, aptdec_callback_t callback, void *context) {
     // Wrap the circular buffer
-    memcpy(apt->row_buffer, &apt->row_buffer[APT_IMG_WIDTH], (SYNC_SIZE + 2) * sizeof(float));
+    memcpy(aptdec->row_buffer, &aptdec->row_buffer[APTDEC_IMG_WIDTH], (SYNC_SIZE + 2) * sizeof(float));
 
-    // Get a lines worth (APT_IMG_WIDTH) of samples
-    if (get_pixels(apt, &apt->row_buffer[SYNC_SIZE + 2], APT_IMG_WIDTH, callback, context) != APT_IMG_WIDTH) {
+    // Get a lines worth (APTDEC_IMG_WIDTH) of samples
+    if (get_pixels(aptdec, &aptdec->row_buffer[SYNC_SIZE + 2], APTDEC_IMG_WIDTH, callback, context) != APTDEC_IMG_WIDTH) {
         return 0;
     }
 
@@ -214,10 +214,10 @@ int aptdec_getrow(aptdec_t *apt, float *row, aptdec_callback_t callback, void *c
     float right = FLT_MIN;
     size_t phase = 0;
 
-    for (size_t i = 0; i < APT_IMG_WIDTH; i++) {
-        float _left   = convolve(&apt->row_buffer[i + 0], sync_pattern, SYNC_SIZE);
-        float _middle = convolve(&apt->row_buffer[i + 1], sync_pattern, SYNC_SIZE);
-        float _right  = convolve(&apt->row_buffer[i + 2], sync_pattern, SYNC_SIZE);
+    for (size_t i = 0; i < APTDEC_IMG_WIDTH; i++) {
+        float _left   = convolve(&aptdec->row_buffer[i + 0], sync_pattern, SYNC_SIZE);
+        float _middle = convolve(&aptdec->row_buffer[i + 1], sync_pattern, SYNC_SIZE);
+        float _right  = convolve(&aptdec->row_buffer[i + 2], sync_pattern, SYNC_SIZE);
         if (_middle > middle) {
             left = _left;
             middle = _middle;
@@ -228,11 +228,11 @@ int aptdec_getrow(aptdec_t *apt, float *row, aptdec_callback_t callback, void *c
 
     // Frequency
     float bias = (left / middle) - (right / middle);
-    apt->sync_frequency = 1.0f + bias / APT_IMG_WIDTH / 4.0f;
+    aptdec->sync_frequency = 1.0f + bias / APTDEC_IMG_WIDTH / 4.0f;
 
     // Phase
-    memcpy(&row[APT_IMG_WIDTH], &apt->row_buffer[phase], (APT_IMG_WIDTH - phase) * sizeof(float));
-    memcpy(&row[APT_IMG_WIDTH - phase], apt->row_buffer, phase * sizeof(float));
+    memcpy(&row[APTDEC_IMG_WIDTH], &aptdec->row_buffer[phase], (APTDEC_IMG_WIDTH - phase) * sizeof(float));
+    memcpy(&row[APTDEC_IMG_WIDTH - phase], aptdec->row_buffer, phase * sizeof(float));
 
     return 1;
 }

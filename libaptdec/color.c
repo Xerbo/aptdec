@@ -23,16 +23,16 @@
 
 // clang-format off
 
-apt_rgb_t apt_gradient(const uint32_t *gradient, uint8_t val) {
-    return (apt_rgb_t) {
+aptdec_rgb_t aptdec_gradient(const uint32_t *gradient, uint8_t val) {
+    return (aptdec_rgb_t) {
         (gradient[val] & 0x00FF0000) >> 16,
         (gradient[val] & 0x0000FF00) >> 8,
         (gradient[val] & 0x000000FF)
     };
 }
 
-apt_rgb_t apt_composite_rgb(apt_rgb_t top, float top_alpha, apt_rgb_t bottom, float bottom_alpha) {
-    return (apt_rgb_t) {
+aptdec_rgb_t aptdec_composite_rgb(aptdec_rgb_t top, float top_alpha, aptdec_rgb_t bottom, float bottom_alpha) {
+    return (aptdec_rgb_t) {
         MCOMPOSITE(top.r, top_alpha, bottom.r, bottom_alpha),
         MCOMPOSITE(top.g, top_alpha, bottom.g, bottom_alpha),
         MCOMPOSITE(top.b, top_alpha, bottom.b, bottom_alpha)
@@ -40,7 +40,7 @@ apt_rgb_t apt_composite_rgb(apt_rgb_t top, float top_alpha, apt_rgb_t bottom, fl
 }
 
 // Taken from WXtoImg
-const uint32_t temperature_gradient[256] = {
+const uint32_t aptdec_temperature_gradient[256] = {
     0x45008F, 0x460091, 0x470092, 0x480094, 0x490096, 0x4A0098, 0x4B009B, 
     0x4D009D, 0x4E00A0, 0x5000A2, 0x5100A5, 0x5200A7, 0x5400AA, 0x5600AE, 
     0x5700B1, 0x5800B4, 0x5A00B7, 0x5C00BA, 0x5E00BD, 0x5F00C0, 0x6100C4, 
@@ -81,7 +81,7 @@ const uint32_t temperature_gradient[256] = {
 };
 
 // Taken from WXtoImg
-const uint32_t precipitation_gradient[58] = {
+const uint32_t aptdec_precipitation_gradient[58] = {
     0x088941, 0x00C544, 0x00D12C, 0x00E31C, 0x00F906, 0x14FF00, 0x3EFF00, 
     0x5DFF00, 0x80FF00, 0xABFF00, 0xCDFE00, 0xF8FF00, 0xFFE600, 0xFFB800, 
     0xFF9800, 0xFF7500, 0xFF4900, 0xFE2600, 0xFF0400, 0xDF0000, 0xA80000, 

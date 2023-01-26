@@ -112,7 +112,7 @@ const calibration_t calibration[3] = {
     }
 };
 
-calibration_t get_calibration(apt_satellite_t satid) {
+calibration_t get_calibration(aptdec_satellite_t satid) {
     switch (satid) {
         case NOAA15: return calibration[0];
         case NOAA18: return calibration[1];

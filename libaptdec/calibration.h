@@ -52,6 +52,6 @@ static const float C1 = 1.1910427e-5f;
 // Second radiation constant (cm-K)
 static const float C2 = 1.4387752f;
 
-calibration_t get_calibration(apt_satellite_t satid);
+calibration_t get_calibration(aptdec_satellite_t satid);
 
 #endif

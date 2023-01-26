@@ -26,12 +26,12 @@
 #include "util.h"
 #include "filter.h"
 
-void apt_equalize(apt_image_t *img, apt_region_t region) {
+void aptdec_equalize(aptdec_image_t *img, aptdec_region_t region) {
     // Plot histogram
     size_t histogram[256] = {0};
     for (size_t y = 0; y < img->rows; y++) {
         for (size_t x = 0; x < region.width; x++) {
-            histogram[img->data[y * APT_IMG_WIDTH + x + region.offset]]++;
+            histogram[img->data[y * APTDEC_IMG_WIDTH + x + region.offset]]++;
         }
     }
 
@@ -46,8 +46,8 @@ void apt_equalize(apt_image_t *img, apt_region_t region) {
     int area = img->rows * region.width;
     for (size_t y = 0; y < img->rows; y++) {
         for (size_t x = 0; x < region.width; x++) {
-            int k = (int)img->data[y * APT_IMG_WIDTH + x + region.offset];
-            img->data[y * APT_IMG_WIDTH + x + region.offset] = (255.0f / area) * cf[k];
+            int k = (int)img->data[y * APTDEC_IMG_WIDTH + x + region.offset];
+            img->data[y * APTDEC_IMG_WIDTH + x + region.offset] = (255.0f / area) * cf[k];
         }
     }
 }
@@ -56,18 +56,18 @@ void apt_equalize(apt_image_t *img, apt_region_t region) {
 static void image_apply_linear(uint8_t *data, int rows, int offset, int width, linear_t regr) {
     for (int y = 0; y < rows; y++) {
         for (int x = 0; x < width; x++) {
-            float pv = linear_calc(data[y * APT_IMG_WIDTH + x + offset], regr);
-            data[y * APT_IMG_WIDTH + x + offset] = clamp_int(roundf(pv), 0, 255);
+            float pv = linear_calc(data[y * APTDEC_IMG_WIDTH + x + offset], regr);
+            data[y * APTDEC_IMG_WIDTH + x + offset] = clamp_int(roundf(pv), 0, 255);
         }
     }
 }
 
-void apt_stretch(apt_image_t *img, apt_region_t region) {
+void aptdec_stretch(aptdec_image_t *img, aptdec_region_t region) {
     // Plot histogram
     size_t histogram[256] = { 0 };
     for (size_t y = 0; y < img->rows; y++) {
         for (size_t x = 0; x < region.width; x++) {
-            histogram[img->data[y*APT_IMG_WIDTH + x + region.offset]]++;
+            histogram[img->data[y*APTDEC_IMG_WIDTH + x + region.offset]]++;
         }
     }
 
@@ -99,32 +99,32 @@ void apt_stretch(apt_image_t *img, apt_region_t region) {
 
 
 // Median denoise (with deviation threshold)
-void apt_denoise(apt_image_t *img, apt_region_t region) {
+void aptdec_denoise(aptdec_image_t *img, aptdec_region_t region) {
     for (size_t y = 1; y < img->rows - 1; y++) {
         for (size_t x = 1; x < region.width - 1; x++) {
             float pixels[9] = { 0.0f };
             int pixeln = 0;
             for (int y2 = -1; y2 < 2; y2++) {
                 for (int x2 = -1; x2 < 2; x2++) {
-                    pixels[pixeln++] = img->data[(y + y2) * APT_IMG_WIDTH + (x + region.offset) + x2];
+                    pixels[pixeln++] = img->data[(y + y2) * APTDEC_IMG_WIDTH + (x + region.offset) + x2];
                 }
             }
 
             if (standard_deviation(pixels, 9) > 15) {
-                img->data[y * APT_IMG_WIDTH + x + region.offset] = medianf(pixels, 9);
+                img->data[y * APTDEC_IMG_WIDTH + x + region.offset] = medianf(pixels, 9);
             }
         }
     }
 }
 
 // Flips a channel, for northbound passes
-void apt_flip(apt_image_t *img, apt_region_t region) {
+void aptdec_flip(aptdec_image_t *img, aptdec_region_t region) {
     for (size_t y = 1; y < img->rows; y++) {
         for (int x = 1; x < ceil(region.width / 2.0f); x++) {
             // Flip top-left & bottom-right
             swap_uint8(
-                &img->data[(img->rows - y) * APT_IMG_WIDTH + region.offset + x],
-                &img->data[y * APT_IMG_WIDTH + region.offset + (region.width - x)]
+                &img->data[(img->rows - y) * APTDEC_IMG_WIDTH + region.offset + x],
+                &img->data[y * APTDEC_IMG_WIDTH + region.offset + (region.width - x)]
             );
         }
     }
@@ -135,7 +135,7 @@ void apt_flip(apt_image_t *img, apt_region_t region) {
 
 #include "filter.h"
 
-int apt_crop(apt_image_t *img) {
+int aptdec_crop(aptdec_image_t *img) {
     const float sync_pattern[] = {-1, -1, -1, -1, 1, 1, -1, -1, 1, 1, -1, -1, 1,  1,  -1, -1, 1,  1,  -1, -1,
                                   1,  1,  -1, -1, 1, 1, -1, -1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, 0};
 
@@ -146,7 +146,7 @@ int apt_crop(apt_image_t *img) {
     for (size_t y = 0; y < img->rows; y++) {
         float temp[39] = { 0.0f };
         for (size_t i = 0; i < 39; i++) {
-            temp[i] = img->data[y * APT_IMG_WIDTH + i];
+            temp[i] = img->data[y * APTDEC_IMG_WIDTH + i];
         }
 
         spc_rows[y] = convolve(temp, &sync_pattern[0], 39);
@@ -170,7 +170,7 @@ int apt_crop(apt_image_t *img) {
     img->rows = (endCrop - startCrop);
 
     // Remove the noisy rows at start
-    memmove(img->data, &img->data[startCrop * APT_IMG_WIDTH], img->rows * APT_IMG_WIDTH * sizeof(float));
+    memmove(img->data, &img->data[startCrop * APTDEC_IMG_WIDTH], img->rows * APTDEC_IMG_WIDTH * sizeof(float));
 
     free(spc_rows);
     return startCrop;

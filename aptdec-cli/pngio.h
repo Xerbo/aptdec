@@ -26,15 +26,15 @@ typedef struct {
     png_structp png;
     png_infop info;
     FILE *file;
-    apt_region_t region;
+    aptdec_region_t region;
 } writer_t;
 
-writer_t *writer_init(const char *filename, apt_region_t region, uint32_t height, int color, char *channel);
+writer_t *writer_init(const char *filename, aptdec_region_t region, uint32_t height, int color, char *channel);
 void writer_free(writer_t *png);
 
-void writer_write_image(writer_t *png, const apt_image_t *img);
-void writer_write_image_gradient(writer_t *png, const apt_image_t *img, const uint32_t *gradient);
-void writer_write_image_lut(writer_t *png, const apt_image_t *img, const png_colorp lut);
+void writer_write_image(writer_t *png, const aptdec_image_t *img);
+void writer_write_image_gradient(writer_t *png, const aptdec_image_t *img, const uint32_t *gradient);
+void writer_write_image_lut(writer_t *png, const aptdec_image_t *img, const png_colorp lut);
 
 int read_lut(const char *filename, png_colorp out);
 
