@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <complex.h>
 
 #include "apt.h"
 #include "filter.h"
@@ -90,7 +91,6 @@ static int getamp(float *ampbuff, int count, apt_getsamples_t getsamples, void *
     static int nin = 0;
 
     for (int n = 0; n < count; n++) {
-        float I2, Q;
 
         // Get some more samples when needed
         if (nin < HILBERT_FILTER_SIZE * 2 + 2) {
