@@ -123,6 +123,10 @@ To build natively on Windows using MSVC, you will also need: git, ninja and cmak
 
 If you just wish to build libaptdec on Windows, libpng and libsndfile aren't needed.
 
+## Building for Android
+
+Requires at least API 23
+
 ## Further Reading
 
 [User's Guide for Building and Operating
